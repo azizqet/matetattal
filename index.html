@@ -108,7 +108,8 @@ if(!r.ok){const m=(j&&(j.message||j.error_description||j.msg||j.hint))||t||'';co
 return j}
 
 const SEL0='id,service_id,name,phone,whatsapp,price_text,rating,sub_end,is_active,is_sample,company_areas(areas(name_ar))';let SEL=SEL0.replace('is_sample,','is_sample,logo_url,');
-const cosQ=async o=>{try{return await sb('/rest/v1/companies?select='+SEL+'&order=id.desc',o)}catch(x){if(SEL!==SEL0&&/logo_url/.test(x.message||'')){SEL=SEL0;return sb('/rest/v1/companies?select='+SEL+'&order=id.desc',o)}throw x}};
+// الصفحات العامة تقرأ من active_companies (الشركات الفعّالة فقط). لوحة الإدارة تقرأ من companies بتوكن المدير.
+const cosQ=async(o,tb='companies')=>{try{return await sb('/rest/v1/'+tb+'?select='+SEL+'&order=id.desc',o)}catch(x){if(SEL!==SEL0&&/logo_url/.test(x.message||'')){SEL=SEL0;return sb('/rest/v1/'+tb+'?select='+SEL+'&order=id.desc',o)}throw x}};
 function shrink(file,max=600){return new Promise((res,rej)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*k));c.height=Math.max(1,Math.round(im.height*k));const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?res(b):rej(new Error('تعذر تجهيز الصورة')),'image/jpeg',0.85)};im.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('هذا الملف مو صورة صالحة'))};im.src=u})}
 async function upLogo(blob,path,token){const h={apikey:SUPABASE_KEY,'Content-Type':'image/jpeg','cache-control':'max-age=31536000'};if(token)h.Authorization='Bearer '+token;
 let r;try{r=await fetch(SUPABASE_URL+'/storage/v1/object/logos/'+path,{method:'POST',headers:h,body:blob})}catch(_){throw new Error('تعذر الاتصال. تأكد من الإنترنت')}
@@ -120,7 +121,7 @@ const av=(c,st)=>c.lg?`<img class="logo-c" alt="" src="${e(c.lg)}" style="object
 const mapCo=r=>({id:r.id,s:r.service_id,n:r.name,p:r.price_text||'اتصل للسعر',ar:(r.company_areas||[]).map(x=>x.areas&&x.areas.name_ar).filter(Boolean),call:r.phone||r.whatsapp,ph:r.whatsapp||r.phone,r:Number(r.rating)||0,end:r.sub_end,on:r.is_active,smp:r.is_sample,lg:r.logo_url||''});
 async function loadPublic(){
 LOAD={s:'loading',m:''};if(['home','list','co'].includes(V.v))render();
-try{const [cs,ars]=await Promise.all([cosQ(),sb('/rest/v1/areas?select=id,name_ar')]);
+try{const [cs,ars]=await Promise.all([cosQ(undefined,'active_companies'),sb('/rest/v1/areas?select=id,name_ar')]);
 C=(cs||[]).map(mapCo);AREAS={};(ars||[]).forEach(a=>{AREAS[a.name_ar]=a.id});LOAD={s:'ok',m:''}}
 catch(err){console.error(err);LOAD={s:'err',m:err.message}}
 if(['home','list','co'].includes(V.v))render()}
