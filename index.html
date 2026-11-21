@@ -299,7 +299,7 @@ return `<button class="back" onclick="go('list',{svc:'${c.s}'})">› رجوع</b
 <h2>الصور</h2><div class="row"><div style="height:90px;border-radius:14px;background:var(--card)"></div><div style="height:90px;border-radius:14px;background:var(--card)"></div></div>
 <p class="s" style="margin-top:6px">الدفع يكون مباشرة بينك وبين الشركة.</p>
 <div class="row" style="margin-top:10px"><button class="btn" onclick="act(${c.id},'c')">اتصال</button><button class="btn w" onclick="act(${c.id},'w')">واتساب</button></div>`}
-function join(){return `<h1>انضم كشركة</h1><p class="s">قدّم طلبك وبنتواصل معك لتفعيل اشتراكك.</p>
+function join(){return `<h1>انضم الان</h1><p class="s">قدّم طلبك وبنتواصل معك لتفعيل اشتراكك.</p>
 <label>اسم الشركة</label><input id="jn"><label>نوع الخدمة</label><select id="js">${SV.map(s=>`<option value="${s.id}">${s.n}</option>`).join('')}</select>
 <label>رقم الهاتف</label><input id="jp" inputmode="tel" placeholder="965xxxxxxxx"><label>المنطقة الرئيسية</label><select id="ja">${AN.map(a=>`<option>${a}</option>`).join('')}</select>
 <label>شعار الشركة (اختياري)</label><input id="jl" type="file" accept="image/*" onchange="prevLogo(this,'jlp')"><div id="jlp"></div>
