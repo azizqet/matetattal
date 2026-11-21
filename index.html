@@ -106,11 +106,20 @@ const t=await r.text();let j=null;try{j=t?JSON.parse(t):null}catch(_){}
 if(!r.ok){const m=(j&&(j.message||j.error_description||j.msg||j.hint))||t||'';const x=new Error('HTTP '+r.status+(m?' - '+m:''));x.status=r.status;throw x}
 return j}
 
-const SEL='id,service_id,name,phone,whatsapp,price_text,rating,sub_end,is_active,is_sample,company_areas(areas(name_ar))';
-const mapCo=r=>({id:r.id,s:r.service_id,n:r.name,p:r.price_text||'اتصل للسعر',ar:(r.company_areas||[]).map(x=>x.areas&&x.areas.name_ar).filter(Boolean),call:r.phone||r.whatsapp,ph:r.whatsapp||r.phone,r:Number(r.rating)||0,end:r.sub_end,on:r.is_active,smp:r.is_sample});
+const SEL0='id,service_id,name,phone,whatsapp,price_text,rating,sub_end,is_active,is_sample,company_areas(areas(name_ar))';let SEL=SEL0.replace('is_sample,','is_sample,logo_url,');
+const cosQ=async o=>{try{return await sb('/rest/v1/companies?select='+SEL+'&order=id.desc',o)}catch(x){if(SEL!==SEL0&&/logo_url/.test(x.message||'')){SEL=SEL0;return sb('/rest/v1/companies?select='+SEL+'&order=id.desc',o)}throw x}};
+function shrink(file,max=600){return new Promise((res,rej)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*k));c.height=Math.max(1,Math.round(im.height*k));const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?res(b):rej(new Error('تعذر تجهيز الصورة')),'image/jpeg',0.85)};im.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('هذا الملف مو صورة صالحة'))};im.src=u})}
+async function upLogo(blob,path,token){const h={apikey:SUPABASE_KEY,'Content-Type':'image/jpeg','cache-control':'max-age=31536000'};if(token)h.Authorization='Bearer '+token;
+let r;try{r=await fetch(SUPABASE_URL+'/storage/v1/object/logos/'+path,{method:'POST',headers:h,body:blob})}catch(_){throw new Error('تعذر الاتصال. تأكد من الإنترنت')}
+if(!r.ok){let m='';try{const j=await r.json();m=j.message||j.error||''}catch(_){}throw new Error('HTTP '+r.status+(m?' - '+m:''))}
+return SUPABASE_URL+'/storage/v1/object/public/logos/'+path}
+const rnd=()=>Date.now()+'-'+Math.random().toString(36).slice(2,8);
+function prevLogo(i,id){const d=document.getElementById(id);if(!d)return;const f=i.files&&i.files[0];d.innerHTML='';if(!f)return;const im=document.createElement('img');im.src=URL.createObjectURL(f);im.style.cssText='width:64px;height:64px;border-radius:14px;object-fit:cover;margin-top:8px';d.appendChild(im)}
+const av=(c,st)=>c.lg?`<img class="logo-c" alt="" src="${e(c.lg)}" style="object-fit:cover;${st||'flex:none;max-width:48px'}">`:`<div class="logo-c" style="${st||'flex:none;max-width:48px'}">${e(c.n[0])}</div>`;
+const mapCo=r=>({id:r.id,s:r.service_id,n:r.name,p:r.price_text||'اتصل للسعر',ar:(r.company_areas||[]).map(x=>x.areas&&x.areas.name_ar).filter(Boolean),call:r.phone||r.whatsapp,ph:r.whatsapp||r.phone,r:Number(r.rating)||0,end:r.sub_end,on:r.is_active,smp:r.is_sample,lg:r.logo_url||''});
 async function loadPublic(){
 LOAD={s:'loading',m:''};if(['home','list','co'].includes(V.v))render();
-try{const [cs,ars]=await Promise.all([sb('/rest/v1/companies?select='+SEL+'&order=id.desc'),sb('/rest/v1/areas?select=id,name_ar')]);
+try{const [cs,ars]=await Promise.all([cosQ(),sb('/rest/v1/areas?select=id,name_ar')]);
 C=(cs||[]).map(mapCo);AREAS={};(ars||[]).forEach(a=>{AREAS[a.name_ar]=a.id});LOAD={s:'ok',m:''}}
 catch(err){console.error(err);LOAD={s:'err',m:err.message}}
 if(['home','list','co'].includes(V.v))render()}
@@ -132,7 +141,7 @@ function logout(){setSes(null);ADM={req:[],cos:[],loaded:false,loading:false,err
 async function loadAdmin(){
 ADM.loading=true;ADM.err='';if(V.v==='admin')render();
 try{const t=await token();
-const [rq,cs,ars]=await Promise.all([sb('/rest/v1/join_requests?select=*&order=created_at.desc',{token:t}),sb('/rest/v1/companies?select='+SEL+'&order=id.desc',{token:t}),sb('/rest/v1/areas?select=id,name_ar')]);
+const [rq,cs,ars]=await Promise.all([sb('/rest/v1/join_requests?select=*&order=created_at.desc',{token:t}),cosQ({token:t}),sb('/rest/v1/areas?select=id,name_ar')]);
 AREAS={};(ars||[]).forEach(a=>{AREAS[a.name_ar]=a.id});
 ADM.req=(rq||[]).filter(x=>x.status==='new');ADM.cos=(cs||[]).map(mapCo);ADM.loaded=true}
 catch(err){console.error(err);ADM.err=err.message}
@@ -146,14 +155,18 @@ busy=false}
 const needRows=r=>{if(!r||!r.length)throw new Error('ما تغيّر شي. تأكد إنك داخل بحساب المالك')};
 async function insertCo(t,f){
 const p=intl(f.phone);
-const r=await sb('/rest/v1/companies',{method:'POST',token:t,prefer:'return=representation',body:{service_id:f.service,name:f.name,phone:p,whatsapp:p,price_text:f.price||null,is_active:true,is_sample:false,sub_start:today(),sub_end:day(30)}});
+const r=await sb('/rest/v1/companies',{method:'POST',token:t,prefer:'return=representation',body:Object.assign({service_id:f.service,name:f.name,phone:p,whatsapp:p,price_text:f.price||null,is_active:true,is_sample:false,sub_start:today(),sub_end:day(30)},f.logo?{logo_url:f.logo}:{})});
 const id=r&&r[0]&&r[0].id;if(!id)throw new Error('ما رجع رقم الشركة من القاعدة');
 const aid=AREAS[f.area];
 if(aid)await sb('/rest/v1/company_areas',{method:'POST',token:t,prefer:'return=minimal',body:{company_id:id,area_id:aid}})}
 const patch=(t,table,id,body)=>sb('/rest/v1/'+table+'?id=eq.'+id,{method:'PATCH',token:t,prefer:'return=representation',body}).then(needRows);
 const accept=id=>run(async t=>{const q=ADM.req.find(x=>x.id===id);if(!q)throw new Error('الطلب غير موجود');
-await insertCo(t,{name:q.company_name,service:q.service_id,phone:q.phone,price:'',area:q.area_name});
+await insertCo(t,{name:q.company_name,service:q.service_id,phone:q.phone,price:'',area:q.area_name,logo:q.logo_url||''});
 await patch(t,'join_requests',id,{status:'accepted'})},'تمت إضافة الشركة باشتراك 30 يوم');
+const saveEdit=id=>run(async t=>{const n=edn.value.trim(),ph=intl(edph.value);if(n.length<2)throw new Error('اكتب اسم الشركة');if(ph.length<8)throw new Error('اكتب رقم هاتف صحيح');
+const b={name:n,price_text:edp.value.trim()||null,phone:ph,whatsapp:ph};const f=edl.files&&edl.files[0];
+if(f)b.logo_url=await upLogo(await shrink(f),'companies/'+id+'-'+rnd()+'.jpg',t);
+await patch(t,'companies',id,b);ADM.edit=null},'تم حفظ التعديل');
 const rejReq=id=>run(t=>patch(t,'join_requests',id,{status:'rejected'}),'تم رفض الطلب');
 const tog=id=>run(t=>{const c=ADM.cos.find(x=>x.id===id);return patch(t,'companies',id,{is_active:!c.on})},'تم التحديث');
 const ext=id=>run(t=>{const c=ADM.cos.find(x=>x.id===id);const b=c.end<today()?today():c.end;
@@ -187,7 +200,7 @@ function act(id,t){const c=C.find(x=>x.id===id);if(!c)return;
 if(c.smp)return toast('هذي بيانات تجريبية. الاتصال يشتغل مع الشركات الحقيقية');
 location.href=t==='c'?'tel:+'+intl(c.call):'https://wa.me/'+intl(c.ph)+(POS?'?text='+encodeURIComponent('السلام عليكم، أحتاج خدمة. موقعي: https://maps.google.com/?q='+POS.lat.toFixed(6)+','+POS.lng.toFixed(6)):'')}
 const rate=c=>c.r>0?'★ '+c.r.toFixed(1):'جديد';
-function companyCard(c){return `<div class="card co" onclick="go('co',{id:${c.id}})"><div class="row" style="align-items:center;gap:12px"><div class="logo-c" style="flex:none;max-width:48px">${e(c.n[0])}</div><div style="flex:1"><h3>${e(c.n)}</h3><div class="meta">${rate(c)} <span class="tag red">${e(c.p)}</span></div></div></div>${c.smp?'<span class="tag">بيانات تجريبية</span>':''}
+function companyCard(c){return `<div class="card co" onclick="go('co',{id:${c.id}})"><div class="row" style="align-items:center;gap:12px">${av(c)}<div style="flex:1"><h3>${e(c.n)}</h3><div class="meta">${rate(c)} <span class="tag red">${e(c.p)}</span></div></div></div>${c.smp?'<span class="tag">بيانات تجريبية</span>':''}
 <div class="row" style="margin-top:10px" onclick="event.stopPropagation()"><button class="btn sm" onclick="act(${c.id},'c')">اتصال</button><button class="btn sm w" onclick="act(${c.id},'w')">واتساب</button></div></div>`}
 function home(){return `<h1>وش تحتاج لسيارتك؟</h1><p class="s">اختر الخدمة وتواصل مع الشركة مباشرة. بدون تسجيل.</p>
 <button class="btn g full" style="margin-bottom:14px" onclick="locate()">حدد موقعي</button>
@@ -206,7 +219,7 @@ return `<button class="back" onclick="go('home')">› رجوع</button><h1>${svc
 function co(){const c=C.find(x=>x.id===V.id);
 if(!c)return `<button class="back" onclick="go('home')">› رجوع</button><div class="empty">ما لقينا هالشركة.</div>`;
 return `<button class="back" onclick="go('list',{svc:'${c.s}'})">› رجوع</button>
-<div class="card" style="padding:18px;text-align:center"><div class="logo-c" style="margin:0 auto 10px;width:64px;height:64px;font-size:28px">${e(c.n[0])}</div><h1 style="margin:0">${e(c.n)}</h1><div class="meta">${rate(c)} · ${svcName(c.s)}</div>${c.smp?'<span class="tag">بيانات تجريبية</span>':''}</div>
+<div class="card" style="padding:18px;text-align:center">${av(c,'margin:0 auto 10px;width:64px;height:64px;font-size:28px')}<h1 style="margin:0">${e(c.n)}</h1><div class="meta">${rate(c)} · ${svcName(c.s)}</div>${c.smp?'<span class="tag">بيانات تجريبية</span>':''}</div>
 <h2>الأسعار</h2><div class="card" style="padding:14px">${e(c.p)}</div>
 <h2>المناطق</h2><div>${c.ar.map(a=>`<span class="tag red" style="margin-bottom:6px">${e(a)}</span>`).join('')}</div>
 <h2>الصور</h2><div class="row"><div style="height:90px;border-radius:14px;background:var(--card)"></div><div style="height:90px;border-radius:14px;background:var(--card)"></div></div>
@@ -215,6 +228,7 @@ return `<button class="back" onclick="go('list',{svc:'${c.s}'})">› رجوع</b
 function join(){return `<h1>انضم كشركة</h1><p class="s">قدّم طلبك وبنتواصل معك لتفعيل اشتراكك.</p>
 <label>اسم الشركة</label><input id="jn"><label>نوع الخدمة</label><select id="js">${SV.map(s=>`<option value="${s.id}">${s.n}</option>`).join('')}</select>
 <label>رقم الهاتف</label><input id="jp" inputmode="tel" placeholder="965xxxxxxxx"><label>المنطقة الرئيسية</label><select id="ja">${AN.map(a=>`<option>${a}</option>`).join('')}</select>
+<label>شعار الشركة (اختياري)</label><input id="jl" type="file" accept="image/*" onchange="prevLogo(this,'jlp')"><div id="jlp"></div>
 <button class="btn full" style="margin-top:18px" onclick="sendJoin()">أرسل الطلب</button>`}
 async function sendJoin(){
 if(sending)return;
@@ -222,7 +236,10 @@ const n=jn.value.trim(),p=jp.value.replace(/\D/g,''),s=js.value,a=ja.value;
 if(n.length<2||n.length>100)return toast('اسم الشركة لازم يكون بين 2 و100 حرف');
 if(p.length<8||p.length>20)return toast('اكتب رقم هاتف صحيح (8 أرقام أو أكثر)');
 const btn=document.querySelector('button[onclick="sendJoin()"]');sending=true;if(btn){btn.disabled=true;btn.textContent='جاري الإرسال...'}
-try{await sb('/rest/v1/join_requests',{method:'POST',prefer:'return=minimal',body:{company_name:n,service_id:s,phone:p,area_name:a,status:'new'}});
+try{let logo=null;const lf=jl.files&&jl.files[0];
+if(lf){if(btn)btn.textContent='جاري رفع الشعار...';logo=await upLogo(await shrink(lf),'pending/'+rnd()+'.jpg')}
+if(btn)btn.textContent='جاري الإرسال...';
+await sb('/rest/v1/join_requests',{method:'POST',prefer:'return=minimal',body:Object.assign({company_name:n,service_id:s,phone:p,area_name:a,status:'new'},logo?{logo_url:logo}:{})});
 toast('وصل طلبك. شكراً لك');go('home')}
 catch(err){console.error('join_requests insert failed',err);toast('ما انحفظ الطلب: '+err.message)}
 finally{sending=false;const b=document.querySelector('button[onclick="sendJoin()"]');if(b){b.disabled=false;b.textContent='أرسل الطلب'}}}
@@ -232,11 +249,12 @@ if(ADM.loading&&!ADM.loaded)return '<div class="empty">جاري التحميل..
 if(ADM.err&&!ADM.loaded)return `<h1>لوحة المالك</h1><div class="note">${e(ADM.err)}</div><button class="btn full" onclick="loadAdmin()">إعادة المحاولة</button><button class="btn g full" style="margin-top:10px" onclick="logout()">خروج</button>`;
 const n=ADM.cos.filter(vis).length;
 return `<div style="display:flex;justify-content:space-between;align-items:center"><h1 style="margin:0">لوحة المالك</h1><button class="btn sm g" onclick="logout()">خروج</button></div><p class="s">${e(SES.email)}</p>
-<h2>طلبات الانضمام (${ADM.req.length})</h2>${ADM.req.length?ADM.req.map(r=>`<div class="card ad"><b>${e(r.company_name)}</b><div class="meta">${svcName(r.service_id)} · ${e(r.area_name||'')} · ${e(r.phone)}</div><div class="row"><button class="btn sm" onclick="accept(${r.id})">قبول وإضافة</button><button class="btn sm g" onclick="rejReq(${r.id})">رفض</button></div></div>`).join(''):'<p class="s">لا توجد طلبات جديدة.</p>'}
+<h2>طلبات الانضمام (${ADM.req.length})</h2>${ADM.req.length?ADM.req.map(r=>`<div class="card ad">${r.logo_url?`<img alt="" src="${e(r.logo_url)}" style="width:56px;height:56px;border-radius:12px;object-fit:cover;float:left">`:''}<b>${e(r.company_name)}</b><div class="meta">${svcName(r.service_id)} · ${e(r.area_name||'')} · ${e(r.phone)}</div><div class="row"><button class="btn sm" onclick="accept(${r.id})">قبول وإضافة</button><button class="btn sm g" onclick="rejReq(${r.id})">رفض</button></div></div>`).join(''):'<p class="s">لا توجد طلبات جديدة.</p>'}
 <h2>الشركات (${ADM.cos.length}) · الظاهرة ${n}</h2>
 ${ADM.cos.length?ADM.cos.map(c=>`<div class="card ad"><div class="top"><b>${e(c.n)}</b><span class="tag ${vis(c)?'red':''}">${!c.on?'موقوفة':c.end<today()?'منتهية':'فعّالة'}</span></div>
 <div class="meta">${svcName(c.s)} · ينتهي ${e(c.end)}${c.smp?' · تجريبية':''}</div>
-<div class="mini"><button class="btn sm g" onclick="tog(${c.id})">${c.on?'إيقاف':'تفعيل'}</button><button class="btn sm g" onclick="ext(${c.id})">تمديد 30 يوم</button><button class="btn sm g" onclick="del(${c.id})">حذف</button></div></div>`).join(''):'<p class="s">لا توجد شركات بعد.</p>'}
+<div class="mini"><button class="btn sm g" onclick="tog(${c.id})">${c.on?'إيقاف':'تفعيل'}</button><button class="btn sm g" onclick="ext(${c.id})">تمديد 30 يوم</button><button class="btn sm g" onclick="ADM.edit=ADM.edit===${c.id}?null:${c.id};render()">تعديل</button><button class="btn sm g" onclick="del(${c.id})">حذف</button></div>
+${ADM.edit===c.id?`<div style="margin-top:10px"><label>الاسم</label><input id="edn" value="${e(c.n)}"><label>الأسعار</label><input id="edp" value="${e(c.p==='اتصل للسعر'?'':c.p)}"><label>الهاتف</label><input id="edph" inputmode="tel" value="${e(c.call||'')}"><label>الشعار (اختر صورة لتغييره)</label><input id="edl" type="file" accept="image/*" onchange="prevLogo(this,'edlp')"><div id="edlp">${c.lg?`<img alt="" src="${e(c.lg)}" style="width:64px;height:64px;border-radius:14px;object-fit:cover;margin-top:8px">`:''}</div><div class="mini"><button class="btn sm" onclick="saveEdit(${c.id})">حفظ</button><button class="btn sm g" onclick="ADM.edit=null;render()">إلغاء</button></div></div>`:''}</div>`).join(''):'<p class="s">لا توجد شركات بعد.</p>'}
 <h2>إضافة شركة</h2><label>الاسم</label><input id="an"><label>الخدمة</label><select id="as">${SV.map(s=>`<option value="${s.id}">${s.n}</option>`).join('')}</select>
 <label>الهاتف</label><input id="ap" inputmode="tel"><label>الأسعار</label><input id="apr"><label>المنطقة</label><select id="aa">${AN.map(a=>`<option>${a}</option>`).join('')}</select>
 <button class="btn full" style="margin-top:14px" onclick="addCo()">إضافة (اشتراك 30 يوم)</button>`}
