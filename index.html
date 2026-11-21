@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ماتعطل</title>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
+#mapov{position:fixed;inset:0;background:#fff;z-index:20;display:flex;flex-direction:column}#mapov #mp{flex:1;min-height:0}#mapov .bar{padding:12px;display:flex;gap:8px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}
 :root{--red:#C8102E;--bg:#FFFFFF;--card:#F7F7F7;--tx:#202020;--mut:#6E6E6E;--line:#ECECEC;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px)}
 *,*::before,*::after{box-sizing:inherit}
 html,body{margin:0;background:var(--bg);color:var(--tx);font-family:'Tajawal',system-ui,-apple-system,'Segoe UI',Tahoma,sans-serif;-webkit-tap-highlight-color:transparent}
@@ -78,6 +81,9 @@ const day=n=>new Date(Date.now()+n*864e5).toISOString().slice(0,10);
 const today=()=>day(0);
 let area='all';try{area=localStorage.getItem(KEY+'a')||'all'}catch(_){}
 const saveArea=()=>{try{localStorage.setItem(KEY+'a',area)}catch(_){}};
+let POS=null;try{const q=localStorage.getItem(KEY+'p');if(q){const[a,b]=q.split(',').map(Number);if(isFinite(a)&&isFinite(b))POS={lat:a,lng:b}}}catch(_){}
+const savePos=()=>{try{localStorage.setItem(KEY+'p',POS.lat+','+POS.lng)}catch(_){}};
+const nearestArea=(la,ln)=>{let b=null,bd=1e9;AN.forEach(a=>{const d=(AR[a][0]-la)**2+(AR[a][1]-ln)**2;if(d<bd){bd=d;b=a}});return b};
 let V={v:'home'},C=[],LOAD={s:'loading',m:''},AREAS={},busy=false,sending=false;
 let SES=null;try{SES=JSON.parse(sessionStorage.getItem(KEY+'s'))}catch(_){}
 let ADM={req:[],cos:[],loaded:false,loading:false,err:''};
@@ -160,16 +166,32 @@ run(t=>insertCo(t,{name:n,service:as.value,phone:p,price:apr.value.trim(),area:a
 function go(v,x){V=Object.assign({v},x||{});render();scrollTo(0,0);if(v==='admin'&&SES&&!ADM.loaded&&!ADM.loading)loadAdmin()}
 function pickArea(){V.sel=!V.sel;render()}
 function setArea(a){area=a;V.sel=false;saveArea();render()}
+function openMap(){
+if(typeof L==='undefined')return toast('الخريطة ما تحمّلت. تأكد من الإنترنت وحاول مرة ثانية');
+V.sel=false;const o=document.createElement('div');o.id='mapov';o.dir='ltr';
+o.innerHTML='<div style="padding:12px 14px;font-weight:700;direction:rtl;text-align:right">اضغط على الخريطة أو اسحب الدبوس لمكانك</div><div id="mp"></div><div class="bar"><button class="btn g" style="flex:1" id="mcan">إلغاء</button><button class="btn g" style="flex:1" id="mgps">موقعي</button><button class="btn" style="flex:2" id="mok">تأكيد</button></div>';
+document.body.appendChild(o);
+const c0=POS?[POS.lat,POS.lng]:[29.3759,47.9774];
+const m=L.map('mp').setView(c0,POS?16:11);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(m);
+let mk=POS?L.marker(c0,{draggable:true}).addTo(m):null;
+const put=ll=>{if(mk)mk.setLatLng(ll);else mk=L.marker(ll,{draggable:true}).addTo(m)};
+m.on('click',ev=>put(ev.latlng));
+setTimeout(()=>m.invalidateSize(),60);
+document.getElementById('mcan').onclick=()=>{m.remove();o.remove()};
+document.getElementById('mgps').onclick=()=>{if(!navigator.geolocation)return toast('جهازك ما يدعم تحديد الموقع');navigator.geolocation.getCurrentPosition(p=>{const ll=L.latLng(p.coords.latitude,p.coords.longitude);put(ll);m.setView(ll,17)},()=>toast('ما قدرنا نحدد موقعك. اضغط على الخريطة يدوياً'),{timeout:8000})};
+document.getElementById('mok').onclick=()=>{if(!mk)return toast('اضغط على الخريطة أولاً لتحديد مكانك');const ll=mk.getLatLng();POS={lat:ll.lat,lng:ll.lng};savePos();m.remove();o.remove();const b=nearestArea(POS.lat,POS.lng);setArea(b);toast('تم حفظ موقعك. أقرب منطقة: '+b)}}
 function locate(q){if(!navigator.geolocation)return q||toast('جهازك ما يدعم تحديد الموقع');
-navigator.geolocation.getCurrentPosition(p=>{let b=null,bd=1e9;AN.forEach(a=>{const d=(AR[a][0]-p.coords.latitude)**2+(AR[a][1]-p.coords.longitude)**2;if(d<bd){bd=d;b=a}});setArea(b);toast('تم تحديد منطقتك: '+b)},()=>{if(!q)toast('ما قدرنا نحدد موقعك. فعّل الموقع للمتصفح أو اختر منطقتك يدوياً')},{timeout:8000})}
+navigator.geolocation.getCurrentPosition(p=>{POS={lat:p.coords.latitude,lng:p.coords.longitude};savePos();const b=nearestArea(POS.lat,POS.lng);setArea(b);toast('تم تحديد منطقتك: '+b)},()=>{if(!q)toast('ما قدرنا نحدد موقعك. فعّل الموقع للمتصفح أو اختر منطقتك يدوياً')},{timeout:8000})}
 function act(id,t){const c=C.find(x=>x.id===id);if(!c)return;
 if(c.smp)return toast('هذي بيانات تجريبية. الاتصال يشتغل مع الشركات الحقيقية');
-location.href=t==='c'?'tel:+'+intl(c.call):'https://wa.me/'+intl(c.ph)}
+location.href=t==='c'?'tel:+'+intl(c.call):'https://wa.me/'+intl(c.ph)+(POS?'?text='+encodeURIComponent('السلام عليكم، أحتاج خدمة. موقعي: https://maps.google.com/?q='+POS.lat.toFixed(6)+','+POS.lng.toFixed(6)):'')}
 const rate=c=>c.r>0?'★ '+c.r.toFixed(1):'جديد';
 function companyCard(c){return `<div class="card co" onclick="go('co',{id:${c.id}})"><div class="row" style="align-items:center;gap:12px"><div class="logo-c" style="flex:none;max-width:48px">${e(c.n[0])}</div><div style="flex:1"><h3>${e(c.n)}</h3><div class="meta">${rate(c)} <span class="tag red">${e(c.p)}</span></div></div></div>${c.smp?'<span class="tag">بيانات تجريبية</span>':''}
 <div class="row" style="margin-top:10px" onclick="event.stopPropagation()"><button class="btn sm" onclick="act(${c.id},'c')">اتصال</button><button class="btn sm w" onclick="act(${c.id},'w')">واتساب</button></div></div>`}
 function home(){return `<h1>وش تحتاج لسيارتك؟</h1><p class="s">اختر الخدمة وتواصل مع الشركة مباشرة. بدون تسجيل.</p>
 <button class="btn g full" style="margin-bottom:14px" onclick="locate()">حدد موقعي</button>
+<button class="btn g full" style="margin-bottom:14px" onclick="openMap()">حدد موقعك بالضبط على الخريطة</button>
 ${SV.map(s=>`<button class="card svc" onclick="go('list',{svc:'${s.id}'})"><span class="ic">${svg(s.i)}</span><span><b>${s.n}</b><span>${s.d}</span></span><span class="ch">‹</span></button>`).join('')}`}
 function list(){
 let body;
@@ -180,7 +202,7 @@ body=near.map(companyCard).join('');
 if(!near.length&&area!=='all')body='<div class="empty">ما فيه شركات بمنطقتك ('+area+') حالياً.</div>';
 if(far.length)body+='<h2 style="margin:16px 0 8px">شركات في مناطق ثانية</h2>'+far.map(companyCard).join('');
 if(!all.length)body='<div class="empty">ما فيه شركات في هالخدمة حالياً.</div>'}
-return `<button class="back" onclick="go('home')">› رجوع</button><h1>${svcName(V.svc)}</h1><p class="s">${area==='all'?'كل مناطق الكويت':'منطقة '+area}</p><button class="btn g full" style="margin-bottom:14px" onclick="locate()">حدد موقعي (الأقرب لك)</button>${body}`}
+return `<button class="back" onclick="go('home')">› رجوع</button><h1>${svcName(V.svc)}</h1><p class="s">${area==='all'?'كل مناطق الكويت':'منطقة '+area}</p><button class="btn g full" style="margin-bottom:14px" onclick="locate()">حدد موقعي (الأقرب لك)</button><button class="btn g full" style="margin-bottom:14px" onclick="openMap()">حدد موقعك بالضبط على الخريطة</button>${body}`}
 function co(){const c=C.find(x=>x.id===V.id);
 if(!c)return `<button class="back" onclick="go('home')">› رجوع</button><div class="empty">ما لقينا هالشركة.</div>`;
 return `<button class="back" onclick="go('list',{svc:'${c.s}'})">› رجوع</button>
@@ -221,7 +243,7 @@ ${ADM.cos.length?ADM.cos.map(c=>`<div class="card ad"><div class="top"><b>${e(c.
 function render(){const t=V.v;
 document.getElementById('areaBtn').innerHTML=svg('pin').replace('<svg','<svg style="width:16px;height:16px;stroke:var(--red);fill:none;stroke-width:2"')+(area==='all'?'كل الكويت':area);
 let h=t==='home'?home():t==='list'?list():t==='co'?co():t==='join'?join():admin();
-if(V.sel)h=`<div class="card" style="padding:12px;margin-bottom:12px"><b>اختر المنطقة</b><button class="btn full" style="margin-top:10px" onclick="locate()">حدد موقعي تلقائياً</button><div class="mini"><button class="btn sm ${area==='all'?'':'g'}" onclick="setArea('all')">كل الكويت</button>${AN.map(a=>`<button class="btn sm ${area===a?'':'g'}" onclick="setArea('${a}')">${a}</button>`).join('')}</div></div>`+h;
+if(V.sel)h=`<div class="card" style="padding:12px;margin-bottom:12px"><b>اختر المنطقة</b><button class="btn full" style="margin-top:10px" onclick="locate()">حدد موقعي تلقائياً</button><button class="btn g full" style="margin-top:8px" onclick="openMap()">حدد على الخريطة</button><div class="mini"><button class="btn sm ${area==='all'?'':'g'}" onclick="setArea('all')">كل الكويت</button>${AN.map(a=>`<button class="btn sm ${area===a?'':'g'}" onclick="setArea('${a}')">${a}</button>`).join('')}</div></div>`+h;
 document.getElementById('app').innerHTML=h;
 const tabs=[['home','الرئيسية','home'],['join','انضم كشركة','join'],['admin','الإدارة','admin']];const cur=(t==='list'||t==='co')?'home':t;
 document.getElementById('nav').innerHTML=tabs.map(x=>`<button class="${cur===x[0]?'on':''}" onclick="go('${x[0]}')">${svg(x[2])}${x[1]}</button>`).join('')}
