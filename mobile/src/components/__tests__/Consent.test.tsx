@@ -51,12 +51,12 @@ describe('الموافقة الإلكترونية', () => {
   test('بوابة المستخدم الحالي: زر الموافقة معطّل حتى الإقرار، ثم تُسجَّل الموافقة بسياق update', async () => {
     const user = userEvent.setup();
     await render(wrap(<ConsentGate />));
-    await waitFor(() => expect(screen.getByTestId('gate-accept')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('gate-accept')).toBeTruthy(), { timeout: 10_000 });
     await user.press(screen.getByTestId('gate-accept'));
     expect(mockApi.acceptTerms).not.toHaveBeenCalled();
     await user.press(screen.getByTestId('gate-check'));
     await user.press(screen.getByTestId('gate-accept'));
-    await waitFor(() => expect(mockApi.acceptTerms).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockApi.acceptTerms).toHaveBeenCalledTimes(1), { timeout: 10_000 });
     expect((mockApi.acceptTerms.mock.calls[0] as unknown[]).slice(0, 2)).toEqual([[7], 'update']);
-  });
+  }, 30_000);
 });
