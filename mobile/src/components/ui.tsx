@@ -84,6 +84,48 @@ export function Field({ label, error, style, ...p }: TextInputProps & { label: s
   );
 }
 
+/**
+ * خانة رقم هاتف كويتي: اتجاه LTR ثابت، لون أسود واضح، لوحة أرقام، 8 أرقام فقط.
+ * سبب العطل السابق: الخانة العامة Field تفرض writingDirection: 'rtl' داخل جذر direction: 'rtl'،
+ * والأرقام نص LTR؛ على iOS/Android الأصلي قد يُرسم النص خارج الجزء الظاهر من الخانة فلا تظهر الأرقام.
+ * هنا نثبت الاتجاه والمحاذاة يساراً، ونحوّل الأرقام العربية (٠-٩) إلى إنجليزية بدل حذفها.
+ */
+export function PhoneField({ label, value, onChangeText, error, testID, placeholder = '9xxxxxxx' }: {
+  label: string; value: string; onChangeText: (v: string) => void; error?: string; testID?: string; placeholder?: string;
+}) {
+  return (
+    <View style={{ marginTop: 12 }}>
+      <Text variant="label">{label}</Text>
+      <TextInput
+        testID={testID}
+        accessibilityLabel={label}
+        value={value}
+        onChangeText={(v) => onChangeText(phoneInput(v))}
+        keyboardType="number-pad"
+        inputMode="numeric"
+        textContentType="telephoneNumber"
+        autoComplete="tel"
+        autoCorrect={false}
+        maxLength={8}
+        placeholder={placeholder}
+        placeholderTextColor="#98A3B8"
+        selectionColor={colors.primary}
+        style={[s.input, s.phoneInput, error ? { borderColor: colors.danger } : null]}
+      />
+      {error ? <Text variant="small" style={{ color: colors.danger, marginTop: 4 }}>{error}</Text> : null}
+    </View>
+  );
+}
+
+/** ينظّف إدخال الهاتف: أرقام عربية/فارسية → إنجليزية، يحذف ما سواها، و8 أرقام كحد أقصى */
+export function phoneInput(v: string): string {
+  return v
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+    .replace(/\D/g, '')
+    .slice(0, 8);
+}
+
 export function Chip({ label, active, onPress, icon }: { label: string; active?: boolean; onPress?: () => void; icon?: string }) {
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: !!active }}
@@ -187,6 +229,7 @@ const s = StyleSheet.create({
     backgroundColor: colors.white, borderWidth: 1, borderColor: '#DCE5F5', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
     fontSize: 15, fontFamily: fonts.regular, color: colors.text, writingDirection: 'rtl',
   },
+  phoneInput: { color: '#000000', writingDirection: 'ltr', textAlign: 'left', fontSize: 17, letterSpacing: 1, minHeight: 50, includeFontPadding: false },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white },
   badge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start' },
   empty: { alignItems: 'center', paddingVertical: 36, paddingHorizontal: 16 },

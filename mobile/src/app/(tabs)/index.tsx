@@ -78,7 +78,7 @@ export default function Home() {
               <Text variant="muted">سجّل شركتك ووصل لآلاف العملاء في الكويت.</Text>
             </View>
           </View>
-          <Button title="سجّل شركتك الآن" icon="arrow-left" onPress={() => router.push('/join')} style={{ marginTop: 10 }} />
+          <Button title="انضم الآن" icon="arrow-left" onPress={() => router.push('/join')} style={{ marginTop: 10 }} />
         </View>
       </ScrollView>
     </SafeAreaView>

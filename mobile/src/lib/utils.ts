@@ -187,6 +187,7 @@ export function arabicError(e: unknown): string {
   if (/Email not confirmed/i.test(m)) return 'فعّل حسابك من الرابط المرسل إلى بريدك أولاً';
   if (/User already registered/i.test(m)) return 'هذا الإيميل مسجل مسبقاً، سجّل الدخول';
   if (/Password should be at least/i.test(m)) return 'كلمة السر لازم تكون 6 أحرف على الأقل';
+  if (/too many requests for this phone/i.test(m)) return 'وصلنا أكثر من طلب لهذا الرقم اليوم. بنتواصل معك قريباً';
   if (/rate limit/i.test(m)) return 'محاولات كثيرة، حاول بعد قليل';
   if (/duplicate key|unique/i.test(m)) return 'موجود مسبقاً';
   if (/protected fields|forbidden|permission denied|row-level security/i.test(m)) return 'ليس لديك صلاحية لهذا الإجراء';
