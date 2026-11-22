@@ -88,10 +88,11 @@ jobs:
             --non-interactive --wait --json | tee build.json
           node -e '
             const b=[].concat(require("./build.json"))[0];
-            const url=`https://expo.dev/accounts/${b.project.ownerAccount.name}/projects/${b.project.slug}/builds/${b.id}`;
+            const p=b.app||b.project||{};const url=`https://expo.dev/accounts/${(p.ownerAccount||{}).name}/projects/${p.slug}/builds/${b.id}`;
             const art=(b.artifacts&&(b.artifacts.applicationArchiveUrl||b.artifacts.buildUrl))||"";
-            const lines=["### ✅ بناء Android نجح", `- الحالة: ${b.status}`, `- الملف: ${b.buildProfile} / ${b.distribution}`, `- صفحة البناء: ${url}`];
+            const ok=b.status==="FINISHED";
+            const lines=[ok?"### ✅ بناء Android نجح":"### ❌ بناء Android لم ينجح", `- الحالة: ${b.status}`, `- الملف: ${b.buildProfile} / ${b.distribution}`, `- صفحة البناء: ${url}`];
             if(art) lines.push(`- تحميل الملف: ${art}`);
             require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n")+"\n");
             console.log(lines.join("\n"));
-            if(b.status!=="FINISHED") process.exit(1);'
+            if(!ok) process.exit(1);'
