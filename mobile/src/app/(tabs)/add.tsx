@@ -20,7 +20,7 @@ export default function AddAd() {
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40, width: '100%', maxWidth: 640, alignSelf: 'center' }} keyboardShouldPersistTaps="handled">
           <Text variant="h1">أضف إعلان</Text>
           {!session ? (
-            <Empty icon="bullhorn-outline" title="سجّل دخولك لإضافة إعلان" subtitle="التسجيل برقم هاتفك وخلال دقيقة."
+            <Empty icon="bullhorn-outline" title="سجّل دخولك لإضافة إعلان" subtitle="التسجيل بالبريد الإلكتروني وخلال دقيقة."
               action={<Button title="تسجيل الدخول" onPress={() => router.push('/auth')} testID="add-login" />} />
           ) : sent ? (
             <Card style={{ marginTop: 14, alignItems: 'center' }}>

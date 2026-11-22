@@ -359,17 +359,7 @@ export async function adminSetTicketStatus(id: number, status: TicketStatus) {
   check(await supabase.from('support_tickets').update({ status }).eq('id', id));
 }
 
-// ===== الحساب: التسجيل برقم الهاتف وحذف الحساب =====
-/** يرسل رمز تحقق SMS حقيقياً عبر مزود الرسائل المضبوط في Supabase Auth (لا رموز وهمية في التطبيق) */
-export async function sendPhoneOtp(local8: string) {
-  const { error } = await supabase.auth.signInWithOtp({ phone: '+965' + local8 });
-  if (error) throw error;
-}
-export async function verifyPhoneOtp(local8: string, token: string) {
-  const { data, error } = await supabase.auth.verifyOtp({ phone: '+965' + local8, token, type: 'sms' });
-  if (error) throw error;
-  return data.session;
-}
+// ===== الحساب: حذف الحساب =====
 export async function deleteMyAccount() {
   check(await supabase.rpc('delete_my_account'));
 }

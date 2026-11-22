@@ -194,9 +194,13 @@ export function arabicError(e: unknown): string {
   if (/cannot review own company/i.test(m)) return 'لا يمكنك تقييم شركتك';
   if (/plan not found/i.test(m)) return 'الخطة غير متوفرة';
   if (/Network request failed|Failed to fetch|fetch failed/i.test(m)) return 'تعذر الاتصال. تأكد من الإنترنت';
-  if (/phone_provider_disabled|Unsupported phone provider|sms.*(provider|disabled)/i.test(m)) return 'التسجيل برقم الهاتف غير مفعّل بعد';
-  if (/Token has expired or is invalid|otp_expired|invalid.*otp/i.test(m)) return 'رمز التحقق غير صحيح أو انتهت صلاحيته';
-  if (/over_sms_send_rate_limit|For security purposes, you can only request this/i.test(m)) return 'انتظر قليلاً قبل طلب رمز جديد';
+  if (/Token has expired or is invalid|otp_expired|invalid.*otp|Email link is invalid/i.test(m)) return 'الرابط غير صالح أو انتهت صلاحيته. اطلب رابطاً جديداً';
+  if (/For security purposes, you can only request this|over_email_send_rate_limit|email rate limit/i.test(m)) return 'طلبات كثيرة، انتظر قليلاً ثم حاول مرة أخرى';
+  if (/Password should|weak.?password|password.*(short|weak|pwned|leaked)/i.test(m)) return 'كلمة المرور ضعيفة. اختر كلمة أقوى (8 أحرف على الأقل مع أرقام)';
+  if (/New password should be different/i.test(m)) return 'اختر كلمة مرور مختلفة عن القديمة';
+  if (/Email address .* is invalid|email_address_invalid|Unable to validate email/i.test(m)) return 'البريد الإلكتروني غير صحيح';
+  if (/Signups not allowed|signup_disabled/i.test(m)) return 'التسجيل متوقف مؤقتاً';
+  if (/Error sending (confirmation|recovery) email|error sending/i.test(m)) return 'تعذّر إرسال البريد الآن، حاول لاحقاً';
   if (/relation .*(ads|support_tickets|support_messages).* does not exist|Could not find the table 'public\.(ads|support_tickets|support_messages)'|function public\.delete_my_account/i.test(m)) return 'هذه الخدمة بانتظار التفعيل من الإدارة';
   if (/reject reason required/i.test(m)) return 'اكتب سبب الرفض';
   if (/rate limit: too many ads/i.test(m)) return 'وصلت للحد اليومي من الإعلانات';

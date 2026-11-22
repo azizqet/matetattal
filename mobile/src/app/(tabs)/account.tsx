@@ -54,7 +54,7 @@ export default function Account() {
       ) : (
         <Card style={{ marginTop: 12 }}>
           <Text variant="title">أهلاً بك في ماتعطل</Text>
-          <Text variant="muted">سجّل برقم هاتفك لإضافة الإعلانات وطلب الخدمات ومتابعتها.</Text>
+          <Text variant="muted">سجّل ببريدك الإلكتروني لإضافة الإعلانات وطلب الخدمات ومتابعتها.</Text>
           <Button title="تسجيل الدخول أو إنشاء حساب" style={{ marginTop: 12 }} onPress={() => router.push('/auth')} testID="login-btn" />
         </Card>
       )}

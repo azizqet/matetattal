@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
 import { AppState, Platform } from 'react-native';
+import { secureStorage } from './secureStorage';
 
 // المفتاح العام (publishable) فقط. مفتاح service_role لا يوضع في التطبيق أبداً.
 const extra = (Constants.expoConfig?.extra ?? {}) as { supabaseUrl?: string; supabasePublishableKey?: string };
@@ -13,10 +14,12 @@ const isServer = Platform.OS === 'web' && typeof window === 'undefined';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
-    storage: isServer ? undefined : AsyncStorage,
+    // الجوال: تخزين مشفّر (Keychain/Keystore). الويب: التخزين الافتراضي للمتصفح.
+    storage: isServer ? undefined : Platform.OS === 'web' ? AsyncStorage : secureStorage,
     autoRefreshToken: true,
     persistSession: !isServer,
     detectSessionInUrl: Platform.OS === 'web',
+    flowType: 'implicit',
   },
 });
 

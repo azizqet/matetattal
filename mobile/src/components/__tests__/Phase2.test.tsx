@@ -7,7 +7,7 @@ jest.mock('expo-haptics', () => ({ selectionAsync: () => Promise.resolve() }));
 jest.mock('@expo/vector-icons', () => ({ MaterialCommunityIcons: Object.assign(() => null, { glyphMap: {} }) }));
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 jest.mock('@react-native-async-storage/async-storage', () => require('@react-native-async-storage/async-storage/jest/async-storage-mock'));
-jest.mock('expo-router', () => ({ router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: () => true }, Stack: { Screen: () => null } }));
+jest.mock('expo-router', () => ({ router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: () => true }, Stack: { Screen: () => null }, useLocalSearchParams: () => ({}) }));
 jest.mock('expo-image-picker', () => ({ launchImageLibraryAsync: jest.fn() }));
 jest.mock('@/lib/queries', () => ({
   useServices: () => ({ data: [{ id: 'tow', name_ar: 'سطحات' }] }),
@@ -25,11 +25,10 @@ jest.mock('@/lib/api', () => ({
   getNotifications: jest.fn(async () => []),
   getMyCompanies: jest.fn(async () => []),
   createAd: jest.fn(async (a: object) => ({ id: 1, status: 'pending', ...a })),
-  sendPhoneOtp: jest.fn(async () => {}),
-  verifyPhoneOtp: jest.fn(async () => ({})),
   deleteMyAccount: jest.fn(async () => {}),
 }));
-jest.mock('@/lib/supabase', () => ({ supabase: { auth: { signInWithPassword: jest.fn() } } }));
+jest.mock('@/lib/supabase', () => ({ supabase: { auth: { signInWithPassword: jest.fn(), signUp: jest.fn(), resetPasswordForEmail: jest.fn() } } }));
+jest.mock('expo-linking', () => ({ createURL: (p: string) => 'matetattal://' + p, useURL: () => null }));
 
 /* eslint-disable import/first */
 import Account from '../../app/(tabs)/account';
@@ -39,6 +38,8 @@ import { ToastProvider } from '../ui';
 /* eslint-enable import/first */
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const api = require('@/lib/api') as Record<string, jest.Mock>;
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const sb = require("@/lib/supabase").supabase as { auth: Record<string, jest.Mock<(...a: unknown[]) => Promise<unknown>>> };
 
 const wrap = (ui: ReactNode) => <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><ToastProvider>{ui}</ToastProvider></QueryClientProvider>;
 
@@ -89,24 +90,56 @@ describe('حسابي', () => {
   });
 });
 
-describe('الدخول برقم الهاتف', () => {
+describe('التسجيل والدخول بالبريد', () => {
   beforeEach(() => { jest.clearAllMocks(); mockSession.current = null; });
-  test('يرفض رقماً غير كويتي، ويرسل الرمز لرقم صحيح ثم يتحقق من 6 أرقام', async () => {
+
+  test('إنشاء حساب: يتحقق من التطابق ثم يرسل الاسم، ولا يعتبر الحساب مفعّلاً قبل تأكيد البريد', async () => {
+    sb.auth.signUp.mockResolvedValueOnce({ data: { user: { identities: [{}] }, session: null }, error: null });
     const user = userEvent.setup();
     await render(wrap(<Auth />));
-    await user.type(screen.getByTestId('auth-phone'), '1234567');
-    await user.press(screen.getByTestId('auth-send'));
-    expect(api.sendPhoneOtp).not.toHaveBeenCalled();
-    await user.clear(screen.getByTestId('auth-phone'));
-    await user.type(screen.getByTestId('auth-phone'), '٩٧٧٠٦٧٩٢');
-    await user.press(screen.getByTestId('auth-send'));
-    await waitFor(() => expect(api.sendPhoneOtp).toHaveBeenCalledWith('97706792'));
-    await waitFor(() => expect(screen.getByTestId('auth-code')).toBeTruthy());
-    await user.type(screen.getByTestId('auth-code'), '12345');
-    await user.press(screen.getByTestId('auth-verify'));
-    expect(api.verifyPhoneOtp).not.toHaveBeenCalled();
-    await user.type(screen.getByTestId('auth-code'), '6');
-    await user.press(screen.getByTestId('auth-verify'));
-    await waitFor(() => expect(api.verifyPhoneOtp).toHaveBeenCalledWith('97706792', '123456'));
+    await user.press(screen.getByText('إنشاء حساب جديد'));
+    await user.type(screen.getByTestId('auth-name'), 'عزيز');
+    await user.type(screen.getByTestId('email'), 'Test@Example.com');
+    await user.type(screen.getByTestId('password'), 'abc12345');
+    await user.type(screen.getByTestId('password-confirm'), 'abc12346');
+    await user.press(screen.getByTestId('auth-submit'));
+    expect(sb.auth.signUp).not.toHaveBeenCalled();
+    await user.clear(screen.getByTestId('password-confirm'));
+    await user.type(screen.getByTestId('password-confirm'), 'abc12345');
+    await user.press(screen.getByTestId('auth-submit'));
+    await waitFor(() => expect(sb.auth.signUp).toHaveBeenCalledTimes(1));
+    const arg = sb.auth.signUp.mock.calls[0][0] as { email: string; password: string; options: { data: { full_name: string } } };
+    expect(arg.email).toBe('test@example.com');
+    expect(arg.options.data.full_name).toBe('عزيز');
+    await waitFor(() => expect(screen.getByTestId('auth-notice')).toBeTruthy());
+    expect(screen.getByText(/لا يمكن الدخول قبل تفعيل البريد/)).toBeTruthy();
+  });
+
+  test('بريد مسجل مسبقاً لا ينشئ حساباً مكرراً', async () => {
+    sb.auth.signUp.mockResolvedValueOnce({ data: { user: { identities: [] }, session: null }, error: null });
+    const user = userEvent.setup();
+    await render(wrap(<Auth />));
+    await user.press(screen.getByText('إنشاء حساب جديد'));
+    await user.type(screen.getByTestId('auth-name'), 'عزيز');
+    await user.type(screen.getByTestId('email'), 'old@example.com');
+    await user.type(screen.getByTestId('password'), 'abc12345');
+    await user.type(screen.getByTestId('password-confirm'), 'abc12345');
+    await user.press(screen.getByTestId('auth-submit'));
+    await waitFor(() => expect(screen.getByText('هذا البريد مسجل مسبقاً، سجّل الدخول')).toBeTruthy());
+  });
+
+  test('تسجيل الدخول ونسيت كلمة المرور', async () => {
+    sb.auth.signInWithPassword.mockResolvedValueOnce({ data: {}, error: null });
+    sb.auth.resetPasswordForEmail.mockResolvedValueOnce({ data: {}, error: null });
+    const user = userEvent.setup();
+    await render(wrap(<Auth />));
+    await user.type(screen.getByTestId('email'), 'a@b.co');
+    await user.type(screen.getByTestId('password'), 'abc12345');
+    await user.press(screen.getByTestId('auth-submit'));
+    await waitFor(() => expect(sb.auth.signInWithPassword).toHaveBeenCalledWith({ email: 'a@b.co', password: 'abc12345' }));
+    await user.press(screen.getByTestId('auth-forgot'));
+    await user.press(screen.getByTestId('auth-submit'));
+    await waitFor(() => expect(sb.auth.resetPasswordForEmail).toHaveBeenCalledWith('a@b.co', { redirectTo: 'matetattal://auth-callback' }));
+    expect(screen.queryByTestId('password')).toBeNull();
   });
 });

@@ -1,40 +1,37 @@
-import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
+import * as Linking from 'expo-linking';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useRef, useState } from 'react';
+import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { ConsentCheckbox, rememberRegistrationConsent, useRequiredTerms } from '@/components/Consent';
-import { Button, Field, PhoneField, Screen, Text, useToast } from '@/components/ui';
-import * as api from '@/lib/api';
+import { Button, Card, Chip, Field, Row, Screen, Text, useToast } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
-import { colors, fonts, radius } from '@/lib/theme';
-import { arabicError, isKuwaitMobile } from '@/lib/utils';
+import { colors } from '@/lib/theme';
+import { arabicError } from '@/lib/utils';
 
-const RESEND_SECONDS = 60;
+type Mode = 'login' | 'register' | 'reset';
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const ltr = { writingDirection: 'ltr' as const, textAlign: 'left' as const, color: '#000' };
 
 /**
- * حساب موحد برقم الهاتف (عميل / مقدم خدمة / معلن): رمز تحقق SMS حقيقي من Supabase Auth.
- * أول تحقق ناجح = إنشاء الحساب مباشرة. الرقم فريد في نظام المصادقة فلا تتكرر الحسابات.
- * الدخول بالإيميل باقٍ للحسابات الحالية (ومنها حساب المالك).
+ * حساب موحد بالبريد الإلكتروني وكلمة المرور عبر Supabase Auth (عميل / مقدم خدمة / معلن).
+ * لا موافقة من المالك على التسجيل. الحساب يُعتبر مفعّلاً فقط بعد تأكيد البريد (إن كان التأكيد مفعّلاً في Supabase).
  */
 export default function Auth() {
+  const params = useLocalSearchParams<{ mode?: string }>();
   const toast = useToast();
   const terms = useRequiredTerms(['customers', 'privacy']);
-  const [mode, setMode] = useState<'phone' | 'code' | 'email'>('phone');
-  const [phone, setPhone] = useState('');
-  const [code, setCode] = useState('');
-  const [agreed, setAgreed] = useState(false);
+  const [mode, setMode] = useState<Mode>(params.mode === 'register' ? 'register' : 'login');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [agreed, setAgreed] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [wait, setWait] = useState(0);
+  const [notice, setNotice] = useState<string | null>(null);
   const lock = useRef(false);
 
-  useEffect(() => {
-    if (wait <= 0) return;
-    const t = setTimeout(() => setWait(wait - 1), 1000);
-    return () => clearTimeout(t);
-  }, [wait]);
-
   const done = () => { if (router.canGoBack()) router.back(); else router.replace('/'); };
+  const switchMode = (m: Mode) => { setMode(m); setNotice(null); setPassword(''); setConfirm(''); };
 
   async function run(fn: () => Promise<void>) {
     if (lock.current) return;
@@ -42,74 +39,83 @@ export default function Auth() {
     try { await fn(); } catch (e) { toast(arabicError(e)); } finally { lock.current = false; setBusy(false); }
   }
 
-  const sendCode = () => run(async () => {
-    if (!isKuwaitMobile(phone)) { toast('اكتب رقم جوال كويتي من 8 أرقام يبدأ بـ 5 أو 6 أو 9'); return; }
-    if (terms.docs.length && !agreed) { toast('وافق على الشروط وسياسة الخصوصية للمتابعة'); return; }
-    if (wait > 0) return;
-    await api.sendPhoneOtp(phone);
-    if (terms.docs.length) await rememberRegistrationConsent(terms.docs.map((d) => d.id));
-    setWait(RESEND_SECONDS); setCode(''); setMode('code');
-    toast('أرسلنا رمز التحقق برسالة نصية');
-  });
-
-  const verify = () => run(async () => {
-    if (!/^\d{6}$/.test(code)) { toast('اكتب الرمز المكوّن من 6 أرقام'); return; }
-    await api.verifyPhoneOtp(phone, code);
-    toast('أهلاً بك في ماتعطل');
-    done();
-  });
-
-  const emailLogin = () => run(async () => {
+  const submit = () => run(async () => {
     const em = email.trim().toLowerCase();
-    if (!/^\S+@\S+\.\S+$/.test(em) || password.length < 6) { toast('اكتب الإيميل وكلمة السر'); return; }
-    const { error } = await supabase.auth.signInWithPassword({ email: em, password });
+    if (!EMAIL.test(em)) { toast('اكتب بريداً إلكترونياً صحيحاً'); return; }
+    if (mode === 'reset') {
+      const { error } = await supabase.auth.resetPasswordForEmail(em, { redirectTo: Linking.createURL('auth-callback') });
+      if (error) throw error;
+      setNotice('إذا كان البريد مسجلاً لدينا، وصلتك رسالة فيها رابط لتعيين كلمة مرور جديدة. افتح الرابط من هذا الجوال.');
+      return;
+    }
+    if (password.length < 8) { toast('كلمة المرور 8 أحرف على الأقل'); return; }
+    if (mode === 'login') {
+      const { error } = await supabase.auth.signInWithPassword({ email: em, password });
+      if (error) throw error;
+      toast('أهلاً بك'); done(); return;
+    }
+    // إنشاء حساب
+    if (name.trim().length < 2) { toast('اكتب اسمك'); return; }
+    if (password !== confirm) { toast('كلمتا المرور غير متطابقتين'); return; }
+    if (!/[A-Za-z؀-ۿ]/.test(password) || !/\d/.test(password)) { toast('كلمة المرور لازم تحتوي حروفاً وأرقاماً'); return; }
+    if (terms.docs.length && !agreed) { toast('وافق على الشروط وسياسة الخصوصية للمتابعة'); return; }
+    const { data, error } = await supabase.auth.signUp({
+      email: em, password,
+      options: { data: { full_name: name.trim().slice(0, 80) }, emailRedirectTo: Linking.createURL('auth-callback') },
+    });
     if (error) throw error;
-    toast('أهلاً بك'); done();
+    // Supabase لا يكشف وجود البريد: يرجع مستخدماً بلا هويات إذا كان البريد مسجلاً مسبقاً
+    if (data.user && (data.user.identities?.length ?? 0) === 0) { toast('هذا البريد مسجل مسبقاً، سجّل الدخول'); switchMode('login'); return; }
+    if (terms.docs.length) await rememberRegistrationConsent(terms.docs.map((d) => d.id));
+    if (data.session) { toast('تم إنشاء حسابك'); done(); return; }
+    setNotice(`أرسلنا رابط التفعيل إلى ${em}. افتح الرسالة واضغط الرابط، ثم سجّل الدخول. لا يمكن الدخول قبل تفعيل البريد.`);
+    setMode('login'); setPassword(''); setConfirm('');
   });
 
+  const title = mode === 'login' ? 'تسجيل الدخول' : mode === 'register' ? 'إنشاء حساب جديد' : 'نسيت كلمة المرور';
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}>
       <Screen edges={['bottom']}>
-        {mode === 'phone' ? (
+        {mode !== 'reset' ? (
+          <Row style={{ marginBottom: 8 }}>
+            <Chip label="تسجيل الدخول" active={mode === 'login'} onPress={() => switchMode('login')} />
+            <Chip label="إنشاء حساب جديد" active={mode === 'register'} onPress={() => switchMode('register')} />
+          </Row>
+        ) : null}
+        <Text variant="h1">{title}</Text>
+        <Text variant="muted">
+          {mode === 'register' ? 'حساب واحد لطلب الخدمات وإضافة الإعلانات والتواصل مع الدعم الفني.' : mode === 'reset' ? 'اكتب بريدك ونرسل لك رابط تعيين كلمة مرور جديدة.' : 'ادخل بالبريد الإلكتروني وكلمة المرور.'}
+        </Text>
+
+        {notice ? (
+          <Card style={{ marginTop: 12, backgroundColor: colors.primarySoft, borderColor: colors.primarySoft }} testID="auth-notice">
+            <Text style={{ color: colors.heading }}>{notice}</Text>
+          </Card>
+        ) : null}
+
+        {mode === 'register' ? <Field label="الاسم" value={name} onChangeText={setName} autoComplete="name" maxLength={80} testID="auth-name" /> : null}
+        <Field label="البريد الإلكتروني" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false}
+          autoComplete="email" textContentType="emailAddress" style={ltr} testID="email" />
+        {mode !== 'reset' ? (
+          <Field label="كلمة المرور" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none"
+            autoComplete={mode === 'login' ? 'current-password' : 'new-password'} textContentType={mode === 'login' ? 'password' : 'newPassword'} style={ltr} testID="password" />
+        ) : null}
+        {mode === 'register' ? (
           <>
-            <Text variant="h1">الدخول برقم الهاتف</Text>
-            <Text variant="muted">سجّل أو ادخل برقم جوالك. نرسل لك رمز تحقق برسالة نصية، والحساب يتفعّل مباشرة.</Text>
-            <PhoneField label="رقم الجوال" value={phone} onChangeText={setPhone} testID="auth-phone" />
+            <Field label="تأكيد كلمة المرور" value={confirm} onChangeText={setConfirm} secureTextEntry autoCapitalize="none" autoComplete="new-password"
+              textContentType="newPassword" style={ltr} testID="password-confirm" />
+            <Text variant="small" style={{ marginTop: 4 }}>8 أحرف على الأقل، فيها حروف وأرقام.</Text>
             <ConsentCheckbox docs={terms.docs} checked={agreed} onChange={setAgreed} />
-            <Button title={wait > 0 ? `إرسال الرمز (${wait})` : 'إرسال رمز التحقق'} icon="message-text-lock-outline" loading={busy}
-              disabled={wait > 0} onPress={sendCode} style={{ marginTop: 18 }} testID="auth-send" />
-            <Button title="الدخول بالإيميل (للحسابات السابقة)" kind="ghost" small onPress={() => setMode('email')} style={{ marginTop: 10 }} />
           </>
-        ) : mode === 'code' ? (
-          <>
-            <Text variant="h1">رمز التحقق</Text>
-            <Text variant="muted">اكتب الرمز المرسل إلى <Text style={{ fontFamily: fonts.bold }}>{'⁦'}+965 {phone}{'⁩'}</Text></Text>
-            <View style={{ marginTop: 14 }}>
-              <TextInput
-                value={code} onChangeText={(v) => setCode(v.replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660)).replace(/\D/g, '').slice(0, 6))}
-                keyboardType="number-pad" inputMode="numeric" textContentType="oneTimeCode" autoComplete="sms-otp" maxLength={6} autoFocus
-                placeholder="000000" placeholderTextColor="#98A3B8" accessibilityLabel="رمز التحقق" testID="auth-code"
-                style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#DCE5F5', borderRadius: radius.sm, height: 56, fontSize: 24, letterSpacing: 8, textAlign: 'center', writingDirection: 'ltr', color: '#000', fontFamily: fonts.bold }}
-              />
-            </View>
-            <Button title="تأكيد" icon="check" loading={busy} onPress={verify} style={{ marginTop: 16 }} testID="auth-verify" />
-            <Button title={wait > 0 ? `إعادة إرسال الرمز بعد ${wait} ثانية` : 'إعادة إرسال الرمز'} kind="ghost" small disabled={wait > 0 || busy} onPress={sendCode} />
-            <Button title="تغيير الرقم" kind="ghost" small onPress={() => { setMode('phone'); setCode(''); }} />
-          </>
-        ) : (
-          <>
-            <Text variant="h1">الدخول بالإيميل</Text>
-            <Text variant="muted">للحسابات المسجلة سابقاً بالإيميل.</Text>
-            <Field label="الإيميل" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" testID="email"
-              style={{ writingDirection: 'ltr', textAlign: 'left', color: '#000' }} />
-            <Field label="كلمة السر" value={password} onChangeText={setPassword} secureTextEntry autoComplete="current-password" testID="password"
-              style={{ writingDirection: 'ltr', textAlign: 'left', color: '#000' }} />
-            <Button title="دخول" loading={busy} onPress={emailLogin} style={{ marginTop: 18 }} testID="auth-submit" />
-            <Button title="الرجوع للدخول برقم الهاتف" kind="ghost" small onPress={() => setMode('phone')} style={{ marginTop: 8 }} />
-          </>
-        )}
-        <Button title="الشروط والسياسات" kind="ghost" small icon="file-document-outline" style={{ marginTop: 16 }} onPress={() => router.push('/legal')} />
-        <Text variant="small" style={{ textAlign: 'center', color: colors.muted }}>لا نشارك رقمك مع أي جهة. يظهر رقم التواصل فقط في الإعلانات التي تنشرها.</Text>
+        ) : null}
+
+        <Button title={mode === 'login' ? 'دخول' : mode === 'register' ? 'إنشاء الحساب' : 'إرسال رابط إعادة التعيين'} loading={busy} onPress={submit}
+          style={{ marginTop: 20 }} testID="auth-submit" />
+        <View style={{ marginTop: 8 }}>
+          {mode === 'login' ? <Button title="نسيت كلمة المرور؟" kind="ghost" small onPress={() => switchMode('reset')} testID="auth-forgot" /> : null}
+          {mode === 'reset' ? <Button title="الرجوع لتسجيل الدخول" kind="ghost" small onPress={() => switchMode('login')} /> : null}
+        </View>
+        <Button title="الشروط والسياسات" kind="ghost" small icon="file-document-outline" style={{ marginTop: 12 }} onPress={() => router.push('/legal')} />
       </Screen>
     </KeyboardAvoidingView>
   );
