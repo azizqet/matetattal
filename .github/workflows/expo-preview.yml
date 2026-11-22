@@ -1,0 +1,58 @@
+# نشر نسخة تجربة للتطبيق تُفتح في Expo Go على الآيفون (بدون كمبيوتر)
+# المتطلب: سر باسم EXPO_TOKEN في إعدادات المستودع (Settings → Secrets → Actions)
+name: Expo Preview (Expo Go)
+
+on:
+  pull_request:
+    paths: ['mobile/**', '.github/workflows/expo-preview.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: expo-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  update:
+    name: Publish preview update
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      HAS_TOKEN: ${{ secrets.EXPO_TOKEN != '' }}
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: EXPO_TOKEN missing
+        if: env.HAS_TOKEN != 'true'
+        working-directory: .
+        run: echo "::warning::أضف سر EXPO_TOKEN في إعدادات المستودع لتفعيل نسخة التجربة. التفاصيل في docs/تجربة-التطبيق-من-الآيفون.md"
+      - uses: actions/checkout@v4
+        if: env.HAS_TOKEN == 'true'
+      - uses: actions/setup-node@v4
+        if: env.HAS_TOKEN == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: expo/expo-github-action@v8
+        if: env.HAS_TOKEN == 'true'
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Install dependencies
+        if: env.HAS_TOKEN == 'true'
+        run: npm ci
+      - name: Link Expo project (creates it on first run)
+        if: env.HAS_TOKEN == 'true'
+        run: eas init --non-interactive --force
+      - name: Publish update (PR → QR + link comment)
+        if: env.HAS_TOKEN == 'true' && github.event_name == 'pull_request'
+        uses: expo/expo-github-action/preview@v8
+        with:
+          working-directory: mobile
+          command: eas update --auto --non-interactive --platform all
+      - name: Publish update (manual run)
+        if: env.HAS_TOKEN == 'true' && github.event_name == 'workflow_dispatch'
+        run: eas update --branch preview --message "Manual preview ${{ github.sha }}" --non-interactive --platform all
