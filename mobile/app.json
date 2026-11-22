@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "ماتعطل",
+    "slug": "matetattal",
+    "scheme": "matetattal",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "primaryColor": "#0757DB",
+    "description": "ماتعطل — دليل خدمات السيارات في الكويت: ونشات، بنشر متنقل، غسيل، برمجة مفاتيح، حماية وتظليل.",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.matetattal.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "نستخدم موقعك لعرض أقرب مقدمي خدمات السيارات إليك ومشاركته مع الشركة عند طلبك.",
+        "NSPhotoLibraryUsageDescription": "لاختيار شعار وصور شركتك.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.matetattal.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0757DB",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      ["expo-localization", { "supportsRTL": true, "forcesRTL": true, "supportedLocales": { "ios": ["ar"], "android": ["ar"] } }],
+      "expo-secure-store",
+      "expo-image",
+      "expo-font",
+      ["expo-splash-screen", { "backgroundColor": "#0757DB", "image": "./assets/icon.png", "imageWidth": 160 }],
+      ["expo-location", { "locationWhenInUsePermission": "نستخدم موقعك لعرض أقرب مقدمي خدمات السيارات إليك." }],
+      ["expo-image-picker", { "photosPermission": "لاختيار شعار وصور شركتك." }]
+    ],
+    "experiments": { "typedRoutes": false },
+    "extra": {
+      "supabaseUrl": "https://xpnwhvbxordtsmnegvri.supabase.co",
+      "supabasePublishableKey": "sb_publishable_n7zs9ZZSp98MURnnpu3UAw_-OhKNHH9"
+    }
+  }
+}

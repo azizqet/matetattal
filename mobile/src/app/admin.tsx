@@ -1,0 +1,307 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { router } from 'expo-router';
+import { useState } from 'react';
+import { Linking, ScrollView, View } from 'react-native';
+import { Logo } from '@/components/CompanyCard';
+import { Badge, Button, Card, Chip, Empty, ErrorBox, Field, Loading, Row, Screen, SectionTitle, Text, useToast } from '@/components/ui';
+import * as api from '@/lib/api';
+import { useAreas, useServiceNames } from '@/lib/queries';
+import { isAdmin, useSession } from '@/lib/session';
+import { colors, fonts } from '@/lib/theme';
+import type { Company, Plan, Promotion, Service } from '@/lib/types';
+import { addDaysISO, arabicError, COMPANY_STATUS_AR, formatKwd, isVisible, SUB_STATUS_AR, todayISO, whatsappUrl } from '@/lib/utils';
+
+type Tab = 'stats' | 'join' | 'companies' | 'subs' | 'plans' | 'settings';
+const TABS: [Tab, string][] = [['stats', 'نظرة عامة'], ['join', 'طلبات الانضمام'], ['companies', 'الشركات'], ['subs', 'الاشتراكات'], ['plans', 'الخطط والعروض'], ['settings', 'الإعدادات']];
+
+export default function Admin() {
+  const { profile, ready } = useSession();
+  const [tab, setTab] = useState<Tab>('stats');
+  if (!ready) return <Loading />;
+  if (!isAdmin(profile)) return <Empty icon="shield-lock-outline" title="هذه الصفحة للإدارة فقط" action={<Button title="رجوع" onPress={() => router.back()} />} />;
+  return (
+    <View style={{ flex: 1 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: colors.line }}
+        contentContainerStyle={{ padding: 10, gap: 8 }}>
+        {TABS.map(([k, l]) => <Chip key={k} label={l} active={tab === k} onPress={() => setTab(k)} />)}
+      </ScrollView>
+      <Screen edges={['bottom']}>
+        {tab === 'stats' ? <Stats /> : tab === 'join' ? <JoinRequests /> : tab === 'companies' ? <Companies /> : tab === 'subs' ? <Subs /> : tab === 'plans' ? <Plans /> : <Settings />}
+      </Screen>
+    </View>
+  );
+}
+
+const useRefresh = () => {
+  const qc = useQueryClient();
+  return () => { ['admin'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })); qc.invalidateQueries({ queryKey: ['companies'] }); };
+};
+function useAct<T>(fn: (v: T) => Promise<unknown>, ok: string) {
+  const toast = useToast();
+  const refresh = useRefresh();
+  return useMutation({ mutationFn: fn, onSuccess: () => { toast(ok); refresh(); }, onError: (e) => toast(arabicError(e)) });
+}
+
+function Stats() {
+  const q = useQuery({ queryKey: ['admin', 'stats'], queryFn: api.adminStats });
+  if (q.isLoading) return <Loading />;
+  if (q.error) return <ErrorBox message={arabicError(q.error)} onRetry={q.refetch} />;
+  const s = q.data!;
+  const items: [string, number | string][] = [
+    ['الشركات الظاهرة', s.companies_visible], ['كل الشركات', s.companies_total], ['بانتظار المراجعة', s.companies_pending],
+    ['تنتهي خلال 7 أيام', s.expiring_7d], ['طلبات انضمام جديدة', s.join_requests_new], ['العملاء', s.customers],
+    ['طلبات الخدمة', s.requests_total], ['طلبات مفتوحة', s.requests_open], ['شكاوى مفتوحة', s.complaints_open],
+    ['زيارات الصفحات', s.visits], ['اتصالات', s.calls], ['واتساب', s.wa_taps], ['إيراد الاشتراكات الفعالة', formatKwd(s.revenue_active_kwd)],
+  ];
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+      {items.map(([l, n]) => (
+        <Card key={l} style={{ width: '47%', flexGrow: 1 }}>
+          <Text style={{ fontFamily: fonts.heavy, fontSize: 22, color: colors.primary }}>{n}</Text>
+          <Text variant="small">{l}</Text>
+        </Card>
+      ))}
+    </View>
+  );
+}
+
+function JoinRequests() {
+  const q = useQuery({ queryKey: ['admin', 'join'], queryFn: api.adminJoinRequests });
+  const areas = useAreas();
+  const names = useServiceNames();
+  const [filter, setFilter] = useState<'new' | 'all'>('new');
+  const accept = useAct((r: Parameters<typeof api.adminAcceptJoin>[0]) => api.adminAcceptJoin(r, areas.data ?? []), 'تمت إضافة الشركة باشتراك 30 يوم');
+  const reject = useAct((id: number) => api.adminSetJoinStatus(id, 'rejected'), 'تم رفض الطلب');
+  if (q.isLoading) return <Loading />;
+  const list = (q.data ?? []).filter((r) => filter === 'all' || r.status === 'new');
+  return (
+    <>
+      <Row><Chip label="الجديدة" active={filter === 'new'} onPress={() => setFilter('new')} /><Chip label="الكل" active={filter === 'all'} onPress={() => setFilter('all')} /></Row>
+      {list.length ? list.map((r) => (
+        <Card key={r.id} style={{ marginTop: 10 }}>
+          <Row gap={10}>
+            <Logo c={{ name: r.company_name, logo_url: r.logo_url }} size={48} />
+            <View style={{ flex: 1 }}>
+              <Text variant="title">{r.company_name}</Text>
+              <Text variant="small">{names[r.service_id ?? ''] ?? r.service_id} · {r.area_name} · {r.phone}</Text>
+              <Text variant="small">{r.created_at?.slice(0, 10)}</Text>
+            </View>
+            <Badge label={r.status === 'new' ? 'جديد' : r.status === 'accepted' ? 'مقبول' : 'مرفوض'} tone={r.status === 'new' ? 'yellow' : r.status === 'accepted' ? 'green' : 'red'} />
+          </Row>
+          <Row style={{ marginTop: 10, flexWrap: 'wrap' }}>
+            {r.status === 'new' ? <>
+              <Button small title="قبول وإضافة" loading={accept.isPending && accept.variables?.id === r.id} onPress={() => accept.mutate(r)} />
+              <Button small kind="danger" title="رفض" onPress={() => reject.mutate(r.id)} />
+            </> : null}
+            <Button small kind="whatsapp" icon="whatsapp" title="تواصل" onPress={() => Linking.openURL(whatsappUrl(r.phone, `مرحباً ${r.company_name}، بخصوص طلب انضمامكم لماتعطل`))} />
+          </Row>
+        </Card>
+      )) : <Empty title="لا توجد طلبات" />}
+    </>
+  );
+}
+
+function Companies() {
+  const q = useQuery({ queryKey: ['admin', 'companies'], queryFn: api.adminCompanies });
+  const names = useServiceNames();
+  const toast = useToast();
+  const [filter, setFilter] = useState<'all' | 'visible' | 'pending' | 'hidden'>('all');
+  const [search, setSearch] = useState('');
+  const [linkFor, setLinkFor] = useState<number | null>(null);
+  const [email, setEmail] = useState('');
+  const upd = useAct(({ id, c }: { id: number; c: Partial<Company> }) => api.adminUpdateCompany(id, c), 'تم التحديث');
+  if (q.isLoading) return <Loading />;
+  if (q.error) return <ErrorBox message={arabicError(q.error)} onRetry={q.refetch} />;
+  const today = todayISO();
+  const list = (q.data ?? []).filter((c) => {
+    if (search && !c.name.includes(search.trim())) return false;
+    if (filter === 'visible') return isVisible(c);
+    if (filter === 'pending') return c.status === 'pending';
+    if (filter === 'hidden') return !isVisible(c);
+    return true;
+  });
+  const extend = (c: Company, days: number) => {
+    const base = c.sub_end < today ? today : c.sub_end;
+    upd.mutate({ id: c.id, c: { sub_end: addDaysISO(base, days), sub_start: c.sub_start ?? today, is_active: true, status: 'approved' } });
+  };
+  async function linkOwner(c: Company) {
+    try {
+      const u = await api.adminFindUser(email);
+      if (!u) return toast('ما لقينا مستخدم بهذا الإيميل. خله يسجل في التطبيق أولاً');
+      upd.mutate({ id: c.id, c: { owner_id: u.id } });
+      setLinkFor(null); setEmail('');
+    } catch (e) { toast(arabicError(e)); }
+  }
+  return (
+    <>
+      <Field label="بحث بالاسم" value={search} onChangeText={setSearch} />
+      <Row style={{ marginTop: 10, flexWrap: 'wrap' }}>
+        {([['all', 'الكل'], ['visible', 'الظاهرة'], ['pending', 'بانتظار المراجعة'], ['hidden', 'غير ظاهرة']] as const).map(([k, l]) => <Chip key={k} label={l} active={filter === k} onPress={() => setFilter(k)} />)}
+      </Row>
+      <Text variant="small" style={{ marginTop: 8 }}>{list.length} شركة</Text>
+      {list.map((c) => (
+        <Card key={c.id} style={{ marginTop: 10 }}>
+          <Row gap={10}>
+            <Logo c={c} size={48} />
+            <View style={{ flex: 1 }}>
+              <Text variant="title" numberOfLines={1}>{c.name}</Text>
+              <Text variant="small">{names[c.service_id ?? '']} · ينتهي {c.sub_end} · {c.owner_id ? 'مرتبطة بحساب' : 'بدون حساب'}</Text>
+              <Text variant="small">زيارات {c.visits ?? 0} · اتصال {c.calls ?? 0} · واتساب {c.wa_taps ?? 0}</Text>
+            </View>
+            <Badge label={isVisible(c) ? 'ظاهرة' : COMPANY_STATUS_AR[c.status]} tone={isVisible(c) ? 'green' : c.status === 'pending' ? 'yellow' : 'gray'} />
+          </Row>
+          <Row style={{ marginTop: 10, flexWrap: 'wrap' }}>
+            {c.status === 'pending' ? <Button small title="اعتماد + 30 يوم" onPress={() => extend(c, 30)} /> : null}
+            <Button small kind="soft" title="تمديد 30 يوم" onPress={() => extend(c, 30)} />
+            <Button small kind={c.is_active ? 'danger' : 'soft'} title={c.is_active ? 'إيقاف' : 'تفعيل'} onPress={() => upd.mutate({ id: c.id, c: { is_active: !c.is_active } })} />
+            {c.status !== 'suspended' ? <Button small kind="ghost" title="تعليق" onPress={() => upd.mutate({ id: c.id, c: { status: 'suspended' } })} />
+              : <Button small kind="ghost" title="إلغاء التعليق" onPress={() => upd.mutate({ id: c.id, c: { status: 'approved' } })} />}
+            <Button small kind="ghost" title="ربط بحساب" onPress={() => setLinkFor(linkFor === c.id ? null : c.id)} />
+            <Button small kind="ghost" title="عرض" onPress={() => router.push(`/company/${c.id}`)} />
+          </Row>
+          {linkFor === c.id ? (
+            <View>
+              <Field label="إيميل صاحب الشركة (مسجل في التطبيق)" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+              <Button small title="ربط" style={{ marginTop: 8 }} onPress={() => linkOwner(c)} />
+            </View>
+          ) : null}
+        </Card>
+      ))}
+    </>
+  );
+}
+
+function Subs() {
+  const q = useQuery({ queryKey: ['admin', 'subs'], queryFn: api.adminSubscriptions });
+  const [note, setNote] = useState<Record<number, string>>({});
+  const activate = useAct(({ id, n }: { id: number; n: string }) => api.adminActivateSubscription(id, n), 'تم تفعيل الاشتراك وإظهار الشركة');
+  const cancel = useAct((id: number) => api.adminCancelSubscription(id), 'تم إلغاء الطلب');
+  if (q.isLoading) return <Loading />;
+  return (
+    <>
+      <Text variant="muted">عند استلام الدفع (تحويل/كاش/رابط دفع) اضغط «تأكيد الدفع والتفعيل». يُسجل الدفع ويُمدد الاشتراك تلقائياً.</Text>
+      {q.data?.length ? q.data.map((s) => (
+        <Card key={s.id} style={{ marginTop: 10 }}>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Text variant="title">{s.companies?.name ?? 'شركة #' + s.company_id}</Text>
+            <Badge label={SUB_STATUS_AR[s.status]} tone={s.status === 'active' ? 'green' : s.status === 'pending' ? 'yellow' : 'gray'} />
+          </Row>
+          <Text variant="small">#{s.id} · {s.starts_on} ← {s.ends_on} · {formatKwd(s.amount_kwd)}{s.promotion_id ? ' · بخصم' : ''}</Text>
+          {s.payment_note ? <Text variant="small">{s.payment_note}</Text> : null}
+          {s.status === 'pending' ? (
+            <>
+              <Field label="ملاحظة الدفع (مثال: تحويل بنكي رقم ...)" value={note[s.id] ?? ''} onChangeText={(v) => setNote({ ...note, [s.id]: v })} />
+              <Row style={{ marginTop: 8 }}>
+                <Button small title="تأكيد الدفع والتفعيل" style={{ flex: 1 }} loading={activate.isPending} onPress={() => activate.mutate({ id: s.id, n: note[s.id] ?? '' })} />
+                <Button small kind="danger" title="إلغاء" onPress={() => cancel.mutate(s.id)} />
+              </Row>
+            </>
+          ) : null}
+        </Card>
+      )) : <Empty title="لا توجد اشتراكات بعد" />}
+    </>
+  );
+}
+
+function Plans() {
+  const plans = useQuery({ queryKey: ['admin', 'plans'], queryFn: api.getPlans });
+  const promos = useQuery({ queryKey: ['admin', 'promos'], queryFn: api.adminPromotions });
+  const services = useQuery({ queryKey: ['admin', 'services'], queryFn: api.adminServices });
+  const savePlan = useAct((p: Plan) => api.adminSavePlan(p), 'تم حفظ الخطة');
+  const savePromo = useAct((p: Partial<Promotion>) => api.adminSavePromotion(p), 'تم حفظ العرض');
+  const saveSvc = useAct((s: Service) => api.adminSaveService(s), 'تم حفظ الخدمة');
+  const [np, setNp] = useState({ id: '', name_ar: '', months: '1', price: '' });
+  const [pr, setPr] = useState({ code: '', name_ar: '', pct: '', max: '' });
+  const [ns, setNs] = useState({ id: '', name_ar: '' });
+  return (
+    <>
+      <SectionTitle title="خطط الاشتراك" />
+      {plans.data?.map((p) => <PlanRow key={p.id} p={p} onSave={(x) => savePlan.mutate(x)} />)}
+      <Card style={{ marginTop: 10 }}>
+        <Text variant="title">خطة جديدة</Text>
+        <Field label="المعرّف (إنجليزي، مثال: yearly)" value={np.id} onChangeText={(v) => setNp({ ...np, id: v.replace(/[^a-z0-9_]/gi, '').toLowerCase() })} autoCapitalize="none" />
+        <Field label="الاسم" value={np.name_ar} onChangeText={(v) => setNp({ ...np, name_ar: v })} />
+        <Row><View style={{ flex: 1 }}><Field label="عدد الأشهر" value={np.months} onChangeText={(v) => setNp({ ...np, months: v.replace(/\D/g, '') })} keyboardType="number-pad" /></View>
+          <View style={{ flex: 1 }}><Field label="السعر (د.ك)" value={np.price} onChangeText={(v) => setNp({ ...np, price: v.replace(/[^\d.]/g, '') })} keyboardType="decimal-pad" /></View></Row>
+        <Button small title="إضافة الخطة" style={{ marginTop: 10 }} disabled={!np.id || !np.name_ar || !np.price}
+          onPress={() => savePlan.mutate({ id: np.id, name_ar: np.name_ar, months: Number(np.months) || 1, price_kwd: Number(np.price), is_active: true, sort: (plans.data?.length ?? 0) + 1 })} />
+      </Card>
+
+      <SectionTitle title="أكواد الخصم والعروض" />
+      {promos.data?.map((p) => (
+        <Card key={p.id} style={{ marginBottom: 8 }}>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Text variant="title">{p.code} · {p.discount_percent}%</Text>
+            <Badge label={p.is_active ? 'فعّال' : 'موقوف'} tone={p.is_active ? 'green' : 'gray'} />
+          </Row>
+          <Text variant="small">{p.name_ar} · استخدم {p.used_count}{p.max_uses ? ' من ' + p.max_uses : ''}</Text>
+          <Button small kind="soft" title={p.is_active ? 'إيقاف' : 'تفعيل'} style={{ marginTop: 8, alignSelf: 'flex-start' }} onPress={() => savePromo.mutate({ id: p.id, is_active: !p.is_active })} />
+        </Card>
+      ))}
+      <Card>
+        <Text variant="title">كود جديد</Text>
+        <Field label="الكود" value={pr.code} onChangeText={(v) => setPr({ ...pr, code: v.toUpperCase().replace(/\s/g, '') })} autoCapitalize="characters" />
+        <Field label="الوصف" value={pr.name_ar} onChangeText={(v) => setPr({ ...pr, name_ar: v })} />
+        <Row><View style={{ flex: 1 }}><Field label="نسبة الخصم %" value={pr.pct} onChangeText={(v) => setPr({ ...pr, pct: v.replace(/\D/g, '') })} keyboardType="number-pad" /></View>
+          <View style={{ flex: 1 }}><Field label="حد الاستخدام (اختياري)" value={pr.max} onChangeText={(v) => setPr({ ...pr, max: v.replace(/\D/g, '') })} keyboardType="number-pad" /></View></Row>
+        <Button small title="إضافة الكود" style={{ marginTop: 10 }} disabled={!pr.code || !pr.name_ar || !pr.pct}
+          onPress={() => savePromo.mutate({ code: pr.code, name_ar: pr.name_ar, discount_percent: Math.min(100, Math.max(1, Number(pr.pct))), max_uses: pr.max ? Number(pr.max) : null, is_active: true })} />
+      </Card>
+
+      <SectionTitle title="أقسام الخدمات" />
+      {services.data?.map((s) => (
+        <Row key={s.id} style={{ justifyContent: 'space-between', paddingVertical: 6 }}>
+          <Text style={{ flex: 1 }}>{s.name_ar} <Text variant="small">({s.id})</Text></Text>
+          <Button small kind={s.is_active ? 'soft' : 'danger'} title={s.is_active ? 'ظاهر' : 'مخفي'} onPress={() => saveSvc.mutate({ ...s, is_active: !s.is_active })} />
+        </Row>
+      ))}
+      <Card style={{ marginTop: 8 }}>
+        <Field label="معرّف القسم (إنجليزي)" value={ns.id} onChangeText={(v) => setNs({ ...ns, id: v.replace(/[^a-z0-9_]/gi, '').toLowerCase() })} autoCapitalize="none" />
+        <Field label="اسم القسم" value={ns.name_ar} onChangeText={(v) => setNs({ ...ns, name_ar: v })} />
+        <Button small title="إضافة قسم" style={{ marginTop: 10 }} disabled={!ns.id || !ns.name_ar}
+          onPress={() => saveSvc.mutate({ id: ns.id, name_ar: ns.name_ar, sort: (services.data?.length ?? 0) + 1, icon: null, is_active: true })} />
+      </Card>
+    </>
+  );
+}
+
+function PlanRow({ p, onSave }: { p: Plan; onSave: (p: Plan) => void }) {
+  const [price, setPrice] = useState(String(p.price_kwd));
+  const [name, setName] = useState(p.name_ar);
+  return (
+    <Card style={{ marginBottom: 8 }}>
+      <Row style={{ justifyContent: 'space-between' }}><Text variant="title">{p.id} · {p.months} شهر</Text><Badge label={p.is_active ? 'فعّالة' : 'موقوفة'} tone={p.is_active ? 'green' : 'gray'} /></Row>
+      <Row><View style={{ flex: 2 }}><Field label="الاسم" value={name} onChangeText={setName} /></View>
+        <View style={{ flex: 1 }}><Field label="السعر (د.ك)" value={price} onChangeText={(v) => setPrice(v.replace(/[^\d.]/g, ''))} keyboardType="decimal-pad" /></View></Row>
+      <Row style={{ marginTop: 8 }}>
+        <Button small title="حفظ" onPress={() => onSave({ ...p, name_ar: name, price_kwd: Number(price) })} />
+        <Button small kind="ghost" title={p.is_active ? 'إيقاف الخطة' : 'تفعيل الخطة'} onPress={() => onSave({ ...p, is_active: !p.is_active })} />
+      </Row>
+    </Card>
+  );
+}
+
+const SETTING_LABELS: Record<string, string> = {
+  support_whatsapp: 'رقم واتساب الدعم والتفعيل', payment_mode: 'طريقة الدفع (manual / gateway)', payment_provider: 'بوابة الدفع (none / myfatoorah / tap / upayments / knet)',
+  trial_days: 'أيام التجربة المجانية', maintenance_message: 'رسالة تنبيه عامة (اتركها فارغة للإخفاء)',
+};
+function Settings() {
+  const q = useQuery({ queryKey: ['admin', 'settings'], queryFn: api.adminSettings });
+  const save = useAct(({ k, v }: { k: string; v: unknown }) => api.adminSaveSetting(k, v), 'تم حفظ الإعداد');
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  if (q.isLoading) return <Loading />;
+  return (
+    <>
+      {q.data?.map((s) => {
+        const cur = draft[s.key] ?? (s.value == null ? '' : typeof s.value === 'string' ? s.value : JSON.stringify(s.value));
+        return (
+          <Card key={s.key} style={{ marginBottom: 10 }}>
+            <Field label={SETTING_LABELS[s.key] ?? s.key} value={cur} onChangeText={(v) => setDraft({ ...draft, [s.key]: v })} autoCapitalize="none" />
+            <Button small title="حفظ" style={{ marginTop: 8, alignSelf: 'flex-start' }}
+              onPress={() => save.mutate({ k: s.key, v: cur === '' ? null : /^\d+$/.test(cur) && s.key === 'trial_days' ? Number(cur) : cur })} />
+          </Card>
+        );
+      })}
+    </>
+  );
+}
