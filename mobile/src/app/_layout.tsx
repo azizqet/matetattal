@@ -57,14 +57,17 @@ export default function RootLayout() {
               <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'ماتعطل' }} />
               <Stack.Screen name="company/[id]" options={{ title: 'تفاصيل الشركة' }} />
               <Stack.Screen name="service/[id]" options={{ title: 'الخدمة' }} />
-              <Stack.Screen name="auth" options={{ title: 'تسجيل الدخول', presentation: 'modal' }} />
-              <Stack.Screen name="join" options={{ title: 'انضم كمقدم خدمة' }} />
+              <Stack.Screen name="auth" options={{ title: 'تسجيل الدخول' }} />
               <Stack.Screen name="business" options={{ title: 'لوحة شركتي' }} />
               <Stack.Screen name="admin" options={{ title: 'لوحة الإدارة' }} />
               <Stack.Screen name="notifications" options={{ title: 'الإشعارات' }} />
               <Stack.Screen name="favorites" options={{ title: 'المفضلة' }} />
               <Stack.Screen name="profile" options={{ title: 'بياناتي' }} />
-              <Stack.Screen name="complaint" options={{ title: 'شكوى أو اقتراح' }} />
+              <Stack.Screen name="my-ads" options={{ title: 'إعلاناتي' }} />
+              <Stack.Screen name="ad/[id]" options={{ title: 'الإعلان' }} />
+              <Stack.Screen name="support/index" options={{ title: 'الدعم الفني' }} />
+              <Stack.Screen name="support/new" options={{ title: 'طلب دعم جديد' }} />
+              <Stack.Screen name="support/[id]" options={{ title: 'طلب دعم' }} />
               <Stack.Screen name="contact" options={{ title: 'تواصل معنا' }} />
               <Stack.Screen name="legal/index" options={{ title: 'الشروط والسياسات' }} />
               <Stack.Screen name="legal/[id]" options={{ title: 'الشروط والسياسات' }} />

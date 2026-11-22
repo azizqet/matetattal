@@ -194,6 +194,14 @@ export function arabicError(e: unknown): string {
   if (/cannot review own company/i.test(m)) return 'لا يمكنك تقييم شركتك';
   if (/plan not found/i.test(m)) return 'الخطة غير متوفرة';
   if (/Network request failed|Failed to fetch|fetch failed/i.test(m)) return 'تعذر الاتصال. تأكد من الإنترنت';
+  if (/phone_provider_disabled|Unsupported phone provider|sms.*(provider|disabled)/i.test(m)) return 'التسجيل برقم الهاتف غير مفعّل بعد';
+  if (/Token has expired or is invalid|otp_expired|invalid.*otp/i.test(m)) return 'رمز التحقق غير صحيح أو انتهت صلاحيته';
+  if (/over_sms_send_rate_limit|For security purposes, you can only request this/i.test(m)) return 'انتظر قليلاً قبل طلب رمز جديد';
+  if (/relation .*(ads|support_tickets|support_messages).* does not exist|Could not find the table 'public\.(ads|support_tickets|support_messages)'|function public\.delete_my_account/i.test(m)) return 'هذه الخدمة بانتظار التفعيل من الإدارة';
+  if (/reject reason required/i.test(m)) return 'اكتب سبب الرفض';
+  if (/rate limit: too many ads/i.test(m)) return 'وصلت للحد اليومي من الإعلانات';
+  if (/rate limit: too many (tickets|messages)/i.test(m)) return 'رسائل كثيرة، حاول بعد قليل';
+  if (/owner account cannot be deleted/i.test(m)) return 'لا يمكن حذف حساب المالك من التطبيق';
   if (/terms not accepted/i.test(m)) return 'يلزم الموافقة على الشروط السارية أولاً';
   if (/vehicle does not belong|only the company can assign/i.test(m)) return 'السطحة غير تابعة لهذه الشركة';
   if (/terms .*immutable|cannot be modified/i.test(m)) return 'لا يمكن تعديل نسخة شروط بعد نشرها';
@@ -239,3 +247,6 @@ export function parseTermsBody(body: string): { heading: boolean; text: string }
   return body.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
     .map((l) => ({ heading: /^\d+\.\s/.test(l), text: l }));
 }
+
+export const AD_STATUS_AR: Record<string, string> = { pending: 'بانتظار الموافقة', approved: 'منشور', rejected: 'مرفوض', paused: 'موقوف' };
+export const TICKET_STATUS_AR: Record<string, string> = { new: 'جديد', in_progress: 'قيد المعالجة', resolved: 'تم الحل' };

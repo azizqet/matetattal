@@ -1,6 +1,7 @@
 // طبقة الوصول للبيانات. كل الصلاحيات مفروضة في قاعدة البيانات (RLS)، والتطبيق مجرد واجهة.
 import { supabase, SUPABASE_URL } from './supabase';
 import type {
+  Ad, AdInput, AdStatus, SupportMessage, SupportTicket, TicketStatus,
   AdminStats, Area, Complaint, Company, ConsentContext, PendingTerm, TermsDocument, TermsKind, Vehicle, VehicleKind, VehicleStatus, CompanyService, JoinRequest, Notification, Plan, Profile, Promotion, Review,
   Service, ServiceRequest, Setting, Subscription,
 } from './types';
@@ -279,4 +280,96 @@ export async function acceptRequestWithVehicle(requestId: number, vehicleId: num
 }
 export async function assignRequestVehicle(requestId: number, vehicleId: number | null) {
   check(await supabase.from('service_requests').update({ vehicle_id: vehicleId }).eq('id', requestId));
+}
+
+// ===== المرحلة 2: الإعلانات (كل قواعد الموافقة في الخادم: تريجر guard_ad + RLS) =====
+export async function getPublicAds(serviceId?: string): Promise<Ad[]> {
+  let q = supabase.from('ads').select('*').eq('status', 'approved');
+  if (serviceId) q = q.eq('service_id', serviceId);
+  return check(await q.order('published_at', { ascending: false }).limit(50));
+}
+export async function getAd(id: number): Promise<Ad | null> {
+  return check(await supabase.from('ads').select('*').eq('id', id).maybeSingle());
+}
+export async function getMyAds(uid: string): Promise<Ad[]> {
+  return check(await supabase.from('ads').select('*').eq('owner_id', uid).order('created_at', { ascending: false }));
+}
+/** الحالة لا تُرسل: الخادم يجعلها «بانتظار الموافقة» دائماً */
+export async function createAd(a: AdInput): Promise<Ad> {
+  return check(await supabase.from('ads').insert(a).select().single());
+}
+/** تعديل البيانات الأساسية يعيد الإعلان للمراجعة (يفرضه الخادم) */
+export async function updateAd(id: number, a: Partial<AdInput>) {
+  check(await supabase.from('ads').update(a).eq('id', id));
+}
+export async function deleteAd(id: number) {
+  check(await supabase.from('ads').delete().eq('id', id));
+}
+export async function uploadAdImage(uid: string, uri: string, mime = 'image/jpeg'): Promise<string> {
+  const ext = mime.includes('png') ? 'png' : mime.includes('webp') ? 'webp' : 'jpg';
+  const path = `${uid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const body = await (await fetch(uri)).arrayBuffer();
+  check(await supabase.storage.from('ads').upload(path, body, { contentType: mime, upsert: false }));
+  return `${SUPABASE_URL}/storage/v1/object/public/ads/${path}`;
+}
+export async function adminAds(status?: AdStatus): Promise<Ad[]> {
+  let q = supabase.from('ads').select('*');
+  if (status) q = q.eq('status', status);
+  return check(await q.order('created_at', { ascending: false }).limit(200));
+}
+export async function adminReviewAd(id: number, status: AdStatus, reason?: string) {
+  check(await supabase.from('ads').update({ status, reject_reason: status === 'rejected' ? (reason ?? '').trim() : null }).eq('id', id));
+}
+
+// ===== المرحلة 2: الدعم الفني (خاص بين صاحب الطلب والإدارة — RLS) =====
+export async function getMyTickets(uid: string): Promise<SupportTicket[]> {
+  return check(await supabase.from('support_tickets').select('*').eq('user_id', uid).order('last_message_at', { ascending: false }));
+}
+export async function getTicket(id: number): Promise<SupportTicket | null> {
+  return check(await supabase.from('support_tickets').select('*').eq('id', id).maybeSingle());
+}
+export async function getTicketMessages(id: number): Promise<SupportMessage[]> {
+  return check(await supabase.from('support_messages').select('*').eq('ticket_id', id).order('created_at'));
+}
+export async function openTicket(subject: string): Promise<SupportTicket> {
+  return check(await supabase.from('support_tickets').insert({ subject: subject.trim() }).select().single());
+}
+export async function sendSupportMessage(ticketId: number, body: string, imagePath?: string | null) {
+  check(await supabase.from('support_messages').insert({ ticket_id: ticketId, body: body.trim(), image_path: imagePath ?? null }));
+}
+/** صور الدعم في حاوية خاصة: المسار <user_id>/<ticket_id>/<ملف> */
+export async function uploadSupportImage(uid: string, ticketId: number, uri: string, mime = 'image/jpeg'): Promise<string> {
+  const ext = mime.includes('png') ? 'png' : mime.includes('webp') ? 'webp' : 'jpg';
+  const path = `${uid}/${ticketId}/${Date.now()}.${ext}`;
+  const body = await (await fetch(uri)).arrayBuffer();
+  check(await supabase.storage.from('support').upload(path, body, { contentType: mime, upsert: false }));
+  return path;
+}
+export async function supportImageUrl(path: string): Promise<string> {
+  const r = await supabase.storage.from('support').createSignedUrl(path, 600);
+  if (r.error) throw new Error(r.error.message);
+  return r.data.signedUrl;
+}
+export async function adminTickets(status?: TicketStatus): Promise<SupportTicket[]> {
+  let q = supabase.from('support_tickets').select('*');
+  if (status) q = q.eq('status', status);
+  return check(await q.order('last_message_at', { ascending: false }).limit(300));
+}
+export async function adminSetTicketStatus(id: number, status: TicketStatus) {
+  check(await supabase.from('support_tickets').update({ status }).eq('id', id));
+}
+
+// ===== الحساب: التسجيل برقم الهاتف وحذف الحساب =====
+/** يرسل رمز تحقق SMS حقيقياً عبر مزود الرسائل المضبوط في Supabase Auth (لا رموز وهمية في التطبيق) */
+export async function sendPhoneOtp(local8: string) {
+  const { error } = await supabase.auth.signInWithOtp({ phone: '+965' + local8 });
+  if (error) throw error;
+}
+export async function verifyPhoneOtp(local8: string, token: string) {
+  const { data, error } = await supabase.auth.verifyOtp({ phone: '+965' + local8, token, type: 'sms' });
+  if (error) throw error;
+  return data.session;
+}
+export async function deleteMyAccount() {
+  check(await supabase.rpc('delete_my_account'));
 }

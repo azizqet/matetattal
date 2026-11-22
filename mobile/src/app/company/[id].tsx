@@ -155,8 +155,8 @@ export default function CompanyScreen() {
         </Card>
       )) : <Text variant="muted">لا توجد تقييمات بعد.</Text>}
 
-      <Button title="الإبلاغ عن مشكلة مع هذه الشركة" kind="ghost" small icon="flag-outline" style={{ marginTop: 16 }}
-        onPress={() => (session ? router.push({ pathname: '/complaint', params: { company: String(c.id) } }) : needLogin())} />
+      <Button title="تواصل مع الدعم الفني" kind="ghost" small icon="headset" style={{ marginTop: 16 }}
+        onPress={() => router.push('/support')} />
     </ScrollView>
   );
 }

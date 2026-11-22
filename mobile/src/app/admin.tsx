@@ -9,11 +9,13 @@ import { useAreas, useServiceNames } from '@/lib/queries';
 import { isAdmin, useSession } from '@/lib/session';
 import { colors, fonts } from '@/lib/theme';
 import { getLegalDoc, LEGAL_DOCS, legalDocToText } from '@/content/legal';
-import type { Company, Complaint, Plan, Profile, Promotion, Service, TermsKind } from '@/lib/types';
-import { addDaysISO, arabicError, hasLegalPlaceholders, COMPANY_STATUS_AR, formatKwd, isVisible, SUB_STATUS_AR, todayISO, whatsappUrl } from '@/lib/utils';
+import { AdCard } from '@/components/Ads';
+import { TicketRow, TicketThread, ticketTone } from '@/components/Support';
+import type { Ad, AdStatus, Company, Plan, Profile, Promotion, Service, TermsKind, TicketStatus } from '@/lib/types';
+import { AD_STATUS_AR, TICKET_STATUS_AR, addDaysISO, arabicError, hasLegalPlaceholders, COMPANY_STATUS_AR, formatKwd, isVisible, SUB_STATUS_AR, todayISO, whatsappUrl } from '@/lib/utils';
 
-type Tab = 'stats' | 'join' | 'companies' | 'subs' | 'complaints' | 'plans' | 'terms' | 'team' | 'settings';
-const TABS: [Tab, string][] = [['stats', 'نظرة عامة'], ['join', 'طلبات الانضمام'], ['companies', 'الشركات'], ['subs', 'الاشتراكات'], ['complaints', 'الشكاوى'], ['plans', 'الخطط والعروض'], ['terms', 'الشروط'], ['team', 'فريق الإدارة'], ['settings', 'الإعدادات']];
+type Tab = 'stats' | 'ads' | 'support' | 'join' | 'companies' | 'subs' | 'plans' | 'terms' | 'team' | 'settings';
+const TABS: [Tab, string][] = [['stats', 'نظرة عامة'], ['ads', 'الإعلانات'], ['support', 'الدعم الفني'], ['companies', 'الشركات'], ['subs', 'الاشتراكات'], ['join', 'طلبات الانضمام (أرشيف)'], ['plans', 'الخطط والعروض'], ['terms', 'الشروط'], ['team', 'المستخدمون والإدارة'], ['settings', 'الإعدادات']];
 
 export default function Admin() {
   const { profile, ready } = useSession();
@@ -27,7 +29,7 @@ export default function Admin() {
         {TABS.map(([k, l]) => <Chip key={k} label={l} active={tab === k} onPress={() => setTab(k)} />)}
       </ScrollView>
       <Screen edges={['bottom']}>
-        {tab === 'stats' ? <Stats /> : tab === 'join' ? <JoinRequests /> : tab === 'companies' ? <Companies /> : tab === 'subs' ? <Subs /> : tab === 'complaints' ? <Complaints /> : tab === 'plans' ? <Plans /> : tab === 'terms' ? <Terms /> : tab === 'team' ? <Team /> : <Settings />}
+        {tab === 'stats' ? <Stats /> : tab === 'join' ? <JoinRequests /> : tab === 'companies' ? <Companies /> : tab === 'subs' ? <Subs /> : tab === 'ads' ? <AdsReview /> : tab === 'support' ? <SupportAdmin /> : tab === 'plans' ? <Plans /> : tab === 'terms' ? <Terms /> : tab === 'team' ? <Team /> : <Settings />}
       </Screen>
     </View>
   );
@@ -307,50 +309,92 @@ function Settings() {
   );
 }
 
-const COMPLAINT_STATUS_AR: Record<Complaint['status'], string> = { open: 'جديدة', in_review: 'قيد المراجعة', resolved: 'تم الحل', closed: 'مغلقة' };
-const complaintTone = (st: Complaint['status']) => (st === 'open' ? 'red' : st === 'in_review' ? 'yellow' : st === 'resolved' ? 'green' : 'gray') as 'red';
-
-function Complaints() {
-  const q = useQuery({ queryKey: ['admin', 'complaints'], queryFn: api.adminComplaints });
-  const [filter, setFilter] = useState<'active' | 'all'>('active');
-  const [notes, setNotes] = useState<Record<number, string>>({});
-  const upd = useAct(({ id, st, note }: { id: number; st: Complaint['status']; note: string | null }) => api.adminUpdateComplaint(id, st, note), 'تم تحديث الشكوى');
+// ===== الإعلانات بانتظار الموافقة (القواعد في الخادم: سبب الرفض إلزامي، وقت ومراجع من الخادم) =====
+function AdsReview() {
+  const names = useServiceNames();
+  const [filter, setFilter] = useState<AdStatus>('pending');
+  const q = useQuery({ queryKey: ['admin', 'ads', filter], queryFn: () => api.adminAds(filter), retry: false });
   if (q.isLoading) return <Loading />;
   if (q.error) return <ErrorBox message={arabicError(q.error)} onRetry={q.refetch} />;
-  const list = (q.data ?? []).filter((c) => filter === 'all' || c.status === 'open' || c.status === 'in_review');
   return (
     <>
-      <Row><Chip label="المفتوحة" active={filter === 'active'} onPress={() => setFilter('active')} /><Chip label="الكل" active={filter === 'all'} onPress={() => setFilter('all')} /></Row>
-      {list.length ? list.map((c) => {
-        const note = notes[c.id] ?? c.admin_note ?? '';
-        const save = (st: Complaint['status']) => upd.mutate({ id: c.id, st, note: note.trim() || null });
-        return (
-          <Card key={c.id} style={{ marginTop: 10 }} testID={`complaint-${c.id}`}>
-            <Row style={{ justifyContent: 'space-between' }}>
-              <Text variant="title" style={{ flex: 1 }}>{c.subject}</Text>
-              <Badge label={COMPLAINT_STATUS_AR[c.status]} tone={complaintTone(c.status)} />
-            </Row>
-            <Text variant="small">#{c.id} · {new Date(c.created_at).toLocaleString('ar-KW')}{c.companies ? ` · عن: ${c.companies.name}` : ' · عن التطبيق'}</Text>
-            <Text variant="small">المرسل: {c.reporter?.full_name || 'مستخدم'}{c.reporter?.phone ? ` · ${c.reporter.phone}` : ''}</Text>
-            <Text style={{ marginTop: 6 }}>{c.body}</Text>
-            <Field label="ملاحظة داخلية للإدارة" value={note} onChangeText={(v) => setNotes({ ...notes, [c.id]: v })} multiline maxLength={1000} />
-            <Row style={{ marginTop: 8, flexWrap: 'wrap' }}>
-              {c.status === 'open' ? <Button small kind="soft" title="قيد المراجعة" onPress={() => save('in_review')} /> : null}
-              {c.status !== 'resolved' ? <Button small title="تم الحل" onPress={() => save('resolved')} /> : null}
-              {c.status !== 'closed' ? <Button small kind="ghost" title="إغلاق" onPress={() => save('closed')} /> : null}
-              <Button small kind="ghost" title="حفظ الملاحظة" onPress={() => save(c.status)} />
-              {c.company_id ? <Button small kind="ghost" title="صفحة الشركة" onPress={() => router.push(`/company/${c.company_id}`)} /> : null}
-            </Row>
-          </Card>
-        );
-      }) : <Empty icon="message-check-outline" title="لا توجد شكاوى" />}
+      <Row style={{ flexWrap: 'wrap' }}>
+        {(['pending', 'approved', 'rejected', 'paused'] as AdStatus[]).map((st) => <Chip key={st} label={AD_STATUS_AR[st]} active={filter === st} onPress={() => setFilter(st)} />)}
+      </Row>
+      {q.data?.length ? q.data.map((a) => <AdReviewCard key={a.id} a={a} serviceName={names[a.service_id]} />) : <Empty icon="bullhorn-outline" title="لا توجد إعلانات هنا" />}
     </>
   );
 }
 
-// ===== الشروط: نشر نسخة نافذة =====
-// النشر = إدراج نسخة جديدة (غير قابلة للتعديل بعد ذلك) ثم جعلها السارية. الخادم يحسب البصمة ووقت النشر.
-// يُرفض النشر إذا بقيت في النص بيانات ناقصة «[يُستكمل: ...]».
+function AdReviewCard({ a, serviceName }: { a: Ad; serviceName?: string }) {
+  const [reason, setReason] = useState('');
+  const [rejecting, setRejecting] = useState(false);
+  const review = useAct(({ s, r }: { s: AdStatus; r?: string }) => api.adminReviewAd(a.id, s, r), 'تم تحديث الإعلان');
+  return (
+    <Card style={{ marginTop: 10 }}>
+      <AdCard ad={a} serviceName={serviceName} showStatus onPress={() => router.push(`/ad/${a.id}`)} />
+      <Text variant="small">{a.description}</Text>
+      <Text variant="small" style={{ marginTop: 4 }}>رقم التواصل: {'\u2066'}{a.phone}{'\u2069'} · أُرسل {new Date(a.created_at).toLocaleString('ar-KW')}</Text>
+      <Row style={{ marginTop: 10, flexWrap: 'wrap' }}>
+        {a.status !== 'approved' ? <Button small title="موافقة ونشر" icon="check" onPress={() => review.mutate({ s: 'approved' })} testID={`approve-${a.id}`} /> : null}
+        {a.status !== 'rejected' ? <Button small kind="danger" title="رفض" onPress={() => setRejecting(!rejecting)} /> : null}
+        {a.status === 'approved' ? <Button small kind="soft" title="إيقاف" icon="pause" onPress={() => review.mutate({ s: 'paused' })} /> : null}
+      </Row>
+      {rejecting ? (
+        <View style={{ marginTop: 6 }}>
+          <Field label="سبب الرفض (يصل لصاحب الإعلان)" value={reason} onChangeText={setReason} maxLength={300} multiline />
+          <Button small kind="danger" title="تأكيد الرفض" style={{ marginTop: 8 }} disabled={!reason.trim()}
+            onPress={() => { review.mutate({ s: 'rejected', r: reason }); setRejecting(false); }} />
+        </View>
+      ) : null}
+    </Card>
+  );
+}
+
+// ===== الدعم الفني =====
+function SupportAdmin() {
+  const { session } = useSession();
+  const [filter, setFilter] = useState<TicketStatus | 'all'>('new');
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState<number | null>(null);
+  const q = useQuery({ queryKey: ['admin', 'tickets', filter], queryFn: () => api.adminTickets(filter === 'all' ? undefined : filter), refetchInterval: 30_000, retry: false });
+  const setStatus = useAct(({ id, s }: { id: number; s: TicketStatus }) => api.adminSetTicketStatus(id, s), 'تم تحديث حالة الطلب');
+  if (q.isLoading) return <Loading />;
+  if (q.error) return <ErrorBox message={arabicError(q.error)} onRetry={q.refetch} />;
+  const term = search.trim();
+  const list = (q.data ?? []).filter((t) => !term || t.subject.includes(term) || String(t.id) === term.replace('#', ''));
+  const current = list.find((t) => t.id === open) ?? (q.data ?? []).find((t) => t.id === open);
+  if (current && session) {
+    return (
+      <>
+        <Button small kind="ghost" icon="arrow-right" title="رجوع للقائمة" onPress={() => setOpen(null)} />
+        <Row style={{ justifyContent: 'space-between' }}>
+          <Text variant="title" style={{ flex: 1 }}>#{current.id} · {current.subject}</Text>
+          <Badge label={TICKET_STATUS_AR[current.status]} tone={ticketTone(current.status)} />
+        </Row>
+        <Row style={{ marginVertical: 8, flexWrap: 'wrap' }}>
+          {(['new', 'in_progress', 'resolved'] as TicketStatus[]).map((st) => (
+            <Chip key={st} label={st === 'resolved' ? 'تم الحل (إغلاق)' : TICKET_STATUS_AR[st]} active={current.status === st}
+              onPress={() => current.status !== st && setStatus.mutate({ id: current.id, s: st })} />
+          ))}
+        </Row>
+        <TicketThread ticket={current} uid={session.user.id} asStaff />
+      </>
+    );
+  }
+  return (
+    <>
+      <Row style={{ flexWrap: 'wrap' }}>
+        {(['new', 'in_progress', 'resolved', 'all'] as const).map((st) => <Chip key={st} label={st === 'all' ? 'الكل' : TICKET_STATUS_AR[st]} active={filter === st} onPress={() => setFilter(st)} />)}
+      </Row>
+      <Field label="بحث بالعنوان أو رقم الطلب" value={search} onChangeText={setSearch} />
+      <View style={{ marginTop: 10 }}>
+        {list.length ? list.map((t) => <TicketRow key={t.id} t={t} onPress={() => setOpen(t.id)} />) : <Empty icon="headset" title="لا توجد طلبات" />}
+      </View>
+    </>
+  );
+}
+
 function Terms() {
   const q = useQuery({ queryKey: ['admin', 'terms'], queryFn: api.adminTermsDocuments });
   const qc = useQueryClient();

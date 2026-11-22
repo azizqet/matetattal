@@ -13,6 +13,15 @@ jest.mock('@/lib/api', () => ({ updateMyProfile: jest.fn(async () => undefined) 
 
 // eslint-disable-next-line import/first
 import Profile from '../../app/profile';
+// eslint-disable-next-line import/first
+import { phoneInput } from '../ui';
+
+describe('تنظيف إدخال الهاتف', () => {
+  test.each([
+    ['97706792', '97706792'], ['٩٧٧٠٦٧٩٢', '97706792'], ['۹۷۷۰۶۷۹۲', '97706792'],
+    ['9770 6792', '97706792'], ['977067921234', '97706792'], ['abc', ''],
+  ])('%s → %s', (inp, out) => expect(phoneInput(inp)).toBe(out));
+});
 
 describe('خانة الجوال في «بياناتي»', () => {
   test('تستخدم خانة الهاتف الجديدة وتعرض الرقم المحفوظ 8 أرقام', async () => {

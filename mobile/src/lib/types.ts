@@ -95,3 +95,17 @@ export interface Vehicle {
   id: number; company_id: number; label: string; kind: VehicleKind; status: VehicleStatus;
   status_updated_at: string; is_active: boolean; created_at: string;
 }
+
+// ===== المرحلة 2: الإعلانات بموافقة المالك =====
+export type AdStatus = 'pending' | 'approved' | 'rejected' | 'paused';
+export interface Ad {
+  id: number; owner_id: string; service_id: string; title: string; description: string; images: string[];
+  area_name: string; phone: string; price: number | null; status: AdStatus; reject_reason: string | null;
+  reviewed_at: string | null; published_at: string | null; created_at: string; updated_at: string;
+}
+export type AdInput = Pick<Ad, 'service_id' | 'title' | 'description' | 'images' | 'area_name' | 'phone' | 'price'>;
+
+// ===== المرحلة 2: الدعم الفني =====
+export type TicketStatus = 'new' | 'in_progress' | 'resolved';
+export interface SupportTicket { id: number; user_id: string; subject: string; status: TicketStatus; created_at: string; updated_at: string; last_message_at: string }
+export interface SupportMessage { id: number; ticket_id: number; sender_id: string | null; is_staff: boolean; body: string; image_path: string | null; created_at: string }
