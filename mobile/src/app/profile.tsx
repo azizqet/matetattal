@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Button, Field, Screen, Text, useToast } from '@/components/ui';
+import { Button, Field, PhoneField, Screen, Text, useToast } from '@/components/ui';
 import * as api from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { arabicError, isKuwaitMobile, localPhone } from '@/lib/utils';
@@ -12,7 +12,7 @@ export default function ProfileScreen() {
   const [phoneInput, setPhone] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const name = nameInput ?? profile?.full_name ?? '';
-  const phone = phoneInput ?? profile?.phone ?? '';
+  const phone = phoneInput ?? localPhone(profile?.phone);
   if (!session) return null;
 
   async function save() {
@@ -30,7 +30,7 @@ export default function ProfileScreen() {
     <Screen edges={['bottom']}>
       <Text variant="muted">{session.user.email}</Text>
       <Field label="الاسم" value={name} onChangeText={setName} maxLength={80} />
-      <Field label="رقم الجوال" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="9xxxxxxx" />
+      <PhoneField label="رقم الجوال" value={phone} onChangeText={setPhone} testID="profile-phone" />
       <Button title="حفظ" loading={busy} onPress={save} style={{ marginTop: 18 }} />
     </Screen>
   );

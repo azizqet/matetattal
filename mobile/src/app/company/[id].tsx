@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { Linking, Pressable, ScrollView } from 'react-native';
 import { contact, Logo } from '@/components/CompanyCard';
 import { VehicleStatusList } from '@/components/Vehicles';
-import { Badge, Button, Card, Empty, Field, Icon, Loading, Row, SectionTitle, Stars, Text, useToast } from '@/components/ui';
+import { Badge, Button, Card, Empty, Field, Icon, Loading, PhoneField, Row, SectionTitle, Stars, Text, useToast } from '@/components/ui';
 import * as api from '@/lib/api';
 import { useServiceNames } from '@/lib/queries';
 import { useSession } from '@/lib/session';
@@ -30,7 +30,7 @@ export default function CompanyScreen() {
 
   useEffect(() => { if (Number.isFinite(id)) api.trackCompany(id, 'view').catch(() => {}); }, [id]);
   const mine = reviews.data?.find((r) => r.user_id === session?.user.id);
-  const phone = phoneInput ?? profile?.phone ?? '';
+  const phone = phoneInput ?? localPhone(profile?.phone);
   const rating = ratingInput ?? mine?.rating ?? 0;
   const comment = commentInput ?? mine?.comment ?? '';
 
@@ -94,7 +94,7 @@ export default function CompanyScreen() {
         <Card style={{ marginTop: 12 }}>
           <Text variant="title">طلب خدمة</Text>
           <Text variant="small">{coords ? 'سيتم إرسال موقعك الحالي مع الطلب.' : 'حدد موقعك من الرئيسية لإرساله مع الطلب.'}</Text>
-          <Field label="رقم جوالك" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="9xxxxxxx" />
+          <PhoneField label="رقم جوالك" value={phone} onChangeText={setPhone} testID="request-phone" />
           <Field label="وصف المشكلة (اختياري)" value={note} onChangeText={setNote} multiline maxLength={500} placeholder="مثال: بنشر بالتاير الأمامي، السيارة بالدائري الخامس" />
           <Button title="أرسل الطلب" icon="send" style={{ marginTop: 12 }} loading={req.isPending}
             onPress={() => (isKuwaitMobile(phone) ? req.mutate() : toast('اكتب رقم جوال كويتي صحيح (8 أرقام)'))} />

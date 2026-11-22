@@ -6,7 +6,7 @@ import { Linking, View } from 'react-native';
 import { Logo } from '@/components/CompanyCard';
 import { ConsentCheckbox, recordConsent, useRequiredTerms } from '@/components/Consent';
 import { RequestVehicleActions, VehicleManager } from '@/components/Vehicles';
-import { Badge, Button, Card, Chip, Empty, Field, Loading, Row, Screen, SectionTitle, Text, useToast } from '@/components/ui';
+import { Badge, Button, Card, Chip, Empty, Field, Loading, PhoneField, Row, Screen, SectionTitle, Text, useToast } from '@/components/ui';
 import * as api from '@/lib/api';
 import { useAreas, useServices } from '@/lib/queries';
 import { SupportContacts } from '@/components/SupportContacts';
@@ -14,7 +14,7 @@ import { useSession } from '@/lib/session';
 import { colors, fonts } from '@/lib/theme';
 import type { Company, ServiceRequest } from '@/lib/types';
 import {
-  arabicError, COMPANY_STATUS_AR, daysLeft, formatKwd, intlPhone, isKuwaitPhone, isVisible, REQUEST_STATUS_AR, SUB_STATUS_AR, telUrl, whatsappUrl, mapsUrl,
+  arabicError, COMPANY_STATUS_AR, daysLeft, formatKwd, intlPhone, isKuwaitPhone, isVisible, localPhone, REQUEST_STATUS_AR, SUB_STATUS_AR, telUrl, whatsappUrl, mapsUrl,
 } from '@/lib/utils';
 
 export default function Business() {
@@ -232,8 +232,9 @@ function CompanyForm({ uid, company, coords, onSaved }: { uid: string; company?:
   const toast = useToast();
   const [name, setName] = useState(company?.name ?? '');
   const [svc, setSvc] = useState(company?.service_id ?? 'tow');
-  const [phone, setPhone] = useState(company?.phone ?? '');
-  const [wa, setWa] = useState(company?.whatsapp ?? '');
+  // الأرقام محفوظة بصيغة 965xxxxxxxx → تُعرض 8 أرقام محلية، والحفظ يعيد إضافة 965 كما كان
+  const [phone, setPhone] = useState(localPhone(company?.phone));
+  const [wa, setWa] = useState(localPhone(company?.whatsapp));
   const [priceText, setPriceText] = useState(company?.price_text ?? '');
   const [desc, setDesc] = useState(company?.description ?? '');
   const [address, setAddress] = useState(company?.address ?? '');
@@ -286,8 +287,8 @@ function CompanyForm({ uid, company, coords, onSaved }: { uid: string; company?:
       <Field label="اسم الشركة" value={name} onChangeText={setName} maxLength={100} />
       <Text variant="label" style={{ marginTop: 12 }}>الخدمة الرئيسية</Text>
       <Row style={{ flexWrap: 'wrap' }}>{(services.data ?? []).map((s) => <Chip key={s.id} label={s.name_ar} active={svc === s.id} onPress={() => setSvc(s.id)} />)}</Row>
-      <Field label="رقم الهاتف" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="9xxxxxxx" />
-      <Field label="رقم الواتساب (إذا مختلف)" value={wa} onChangeText={setWa} keyboardType="phone-pad" />
+      <PhoneField label="رقم الهاتف" value={phone} onChangeText={setPhone} testID="company-phone" />
+      <PhoneField label="رقم الواتساب (إذا مختلف)" value={wa} onChangeText={setWa} testID="company-wa" />
       <Field label="الأسعار باختصار" value={priceText} onChangeText={setPriceText} maxLength={120} placeholder="مثال: السحب يبدأ من 10 د.ك" />
       <Field label="وصف الشركة" value={desc} onChangeText={setDesc} multiline maxLength={1500} />
       <Text variant="label" style={{ marginTop: 12 }}>مناطق الخدمة</Text>
