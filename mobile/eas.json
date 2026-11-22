@@ -9,10 +9,12 @@
       "channel": "preview",
       "android": {
         "buildType": "apk",
-        "credentialsSource": "remote"
+        "credentialsSource": "remote",
+        "image": "latest"
       },
       "ios": {
-        "simulator": false
+        "simulator": false,
+        "image": "latest"
       }
     },
     "production": {
@@ -20,7 +22,11 @@
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle",
-        "credentialsSource": "remote"
+        "credentialsSource": "remote",
+        "image": "latest"
+      },
+      "ios": {
+        "image": "latest"
       }
     }
   },

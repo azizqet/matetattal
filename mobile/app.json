@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "ماتعطل",
-    "slug": "matetattal",
+    "slug": "matatttal",
     "scheme": "matetattal",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -85,6 +85,7 @@
     "extra": {
       "supabaseUrl": "https://xpnwhvbxordtsmnegvri.supabase.co",
       "supabasePublishableKey": "sb_publishable_n7zs9ZZSp98MURnnpu3UAw_-OhKNHH9"
-    }
+    },
+    "owner": "matatttal"
   }
 }
