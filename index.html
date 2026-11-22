@@ -288,11 +288,14 @@ return `<button class="back" onclick="go('list',{svc:'${c.s}'})">› رجوع</b
 <h2>الصور</h2><div class="row"><div style="height:90px;border-radius:14px;background:var(--card)"></div><div style="height:90px;border-radius:14px;background:var(--card)"></div></div>
 <p class="s" style="margin-top:6px">الدفع يكون مباشرة بينك وبين الشركة.</p>
 <div class="row" style="margin-top:10px"><button class="btn" onclick="act(${c.id},'c')">اتصال</button><button class="btn w" onclick="act(${c.id},'w')">واتساب</button></div>`}
+// أرقام التواصل الرسمية (مفعّل عليها واتساب): زر اتصال وزر واتساب مستقل لكل رقم بمفتاح الكويت +965
+const SUPPORT=['97706792','99225025'];
+const supportBlock=msg=>`<div style="margin-top:14px"><div class="meta" style="text-align:center;margin-bottom:8px">تواصل مع الإدارة لتفعيل الاشتراك</div>${SUPPORT.map(p=>`<div class="row" style="margin-bottom:8px"><a class="btn sm" href="tel:+965${p}">اتصال ${p}</a><a class="btn sm w" href="https://wa.me/965${p}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">واتساب ${p}</a></div>`).join('')}</div>`;
 function join(){return `<h1>انضم الآن</h1><p class="s">قدّم طلبك وبنتواصل معك لتفعيل اشتراكك.</p>
 <label>اسم الشركة</label><input id="jn"><label>نوع الخدمة</label><select id="js">${SV.map(s=>`<option value="${s.id}">${s.n}</option>`).join('')}</select>
 <label>رقم الهاتف</label><input id="jp" inputmode="tel" placeholder="965xxxxxxxx"><label>المنطقة الرئيسية</label><select id="ja">${AN.map(a=>`<option>${a}</option>`).join('')}</select>
 <label>شعار الشركة (اختياري)</label><input id="jl" type="file" accept="image/*" onchange="prevLogo(this,'jlp')"><div id="jlp"></div>
-<button class="btn full" style="margin-top:18px" onclick="sendJoin()">أرسل الطلب ثم تواصل لتفعيل الاشتراك</button><a href="https://wa.me/96565755222" target="_blank" rel="noopener" style="display:block;text-align:center;padding:14px;color:#128c48;font-weight:800">واتساب تفعيل الاشتراك: 65755222</a>`}
+<button class="btn full" style="margin-top:18px" onclick="sendJoin()">أرسل الطلب ثم تواصل لتفعيل الاشتراك</button>${supportBlock('السلام عليكم، أبي تفعيل اشتراك شركتي في ماتعطل')}`}
 async function sendJoin(){
 if(sending)return;
 const n=jn.value.trim(),p=jp.value.replace(/\D/g,''),s=js.value,a=ja.value;
@@ -303,7 +306,7 @@ try{let logo=null;const lf=jl.files&&jl.files[0];
 if(lf){if(btn)btn.textContent='جاري رفع الشعار...';logo=await upLogo(await shrink(lf),'pending/'+rnd()+'.jpg')}
 if(btn)btn.textContent='جاري الإرسال...';
 await sb('/rest/v1/join_requests',{method:'POST',prefer:'return=minimal',body:Object.assign({company_name:n,service_id:s,phone:p,area_name:a,status:'new'},logo?{logo_url:logo}:{})});
-toast('وصل طلبك. تواصل مع الإدارة لتفعيل الاشتراك');window.open('https://wa.me/96565755222?text='+encodeURIComponent('السلام عليكم، سجلت شركة '+n+' في ماتعطل وأبي تفعيل الاشتراك'),'_blank');go('home')}
+toast('وصل طلبك. تواصل مع الإدارة لتفعيل الاشتراك');window.open('https://wa.me/965'+SUPPORT[0]+'?text='+encodeURIComponent('السلام عليكم، سجلت شركة '+n+' في ماتعطل وأبي تفعيل الاشتراك'),'_blank');go('home')}
 catch(err){console.error('join_requests insert failed',err);toast('ما انحفظ الطلب: '+err.message)}
 finally{sending=false;const b=document.querySelector('button[onclick="sendJoin()"]');if(b){b.disabled=false;b.textContent='أرسل الطلب'}}}
 function admin(){
