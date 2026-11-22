@@ -30,7 +30,11 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
       ],
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -62,8 +66,8 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#0757DB",
-          "image": "./assets/icon.png",
-          "imageWidth": 160
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220
         }
       ],
       [
@@ -75,7 +79,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "لاختيار شعار وصور شركتك."
+          "photosPermission": "لاختيار شعار وصور شركتك.",
+          "cameraPermission": false,
+          "microphonePermission": false
         }
       ]
     ],
@@ -84,8 +90,17 @@
     },
     "extra": {
       "supabaseUrl": "https://xpnwhvbxordtsmnegvri.supabase.co",
-      "supabasePublishableKey": "sb_publishable_n7zs9ZZSp98MURnnpu3UAw_-OhKNHH9"
+      "supabasePublishableKey": "sb_publishable_n7zs9ZZSp98MURnnpu3UAw_-OhKNHH9",
+      "eas": {
+        "projectId": "ede4f648-4b77-4c0e-8a15-0b41cd529859"
+      }
     },
-    "owner": "matatttal"
+    "owner": "matatttal",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ede4f648-4b77-4c0e-8a15-0b41cd529859"
+    }
   }
 }
