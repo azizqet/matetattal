@@ -27,7 +27,7 @@ export default function Requests() {
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={{ padding: 16, width: '100%', maxWidth: 640, alignSelf: 'center' }}
-        refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={q.refetch} />}>
+        refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => { q.refetch(); }} />}>
         <Text variant="h1">طلباتي</Text>
         {!session ? (
           <Empty icon="clipboard-account-outline" title="سجّل دخولك لمتابعة طلباتك" subtitle="تقدر تتواصل مع أي شركة مباشرة بدون تسجيل."

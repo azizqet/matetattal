@@ -13,10 +13,10 @@ export default function TabsLayout() {
         tabBarStyle: { borderTopColor: colors.line, backgroundColor: '#fff', height: 64, paddingTop: 6 },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'الرئيسية', tabBarIcon: ({ color }) => <Icon name="home-variant" color={color} /> }} />
-      <Tabs.Screen name="search" options={{ title: 'البحث', tabBarIcon: ({ color }) => <Icon name="magnify" color={color} /> }} />
-      <Tabs.Screen name="requests" options={{ title: 'طلباتي', tabBarIcon: ({ color }) => <Icon name="clipboard-text-clock-outline" color={color} /> }} />
-      <Tabs.Screen name="account" options={{ title: 'حسابي', tabBarIcon: ({ color }) => <Icon name="account-circle-outline" color={color} /> }} />
+      <Tabs.Screen name="index" options={{ title: 'الرئيسية', tabBarIcon: ({ color }) => <Icon name="home-variant" color={String(color)} /> }} />
+      <Tabs.Screen name="search" options={{ title: 'البحث', tabBarIcon: ({ color }) => <Icon name="magnify" color={String(color)} /> }} />
+      <Tabs.Screen name="requests" options={{ title: 'طلباتي', tabBarIcon: ({ color }) => <Icon name="clipboard-text-clock-outline" color={String(color)} /> }} />
+      <Tabs.Screen name="account" options={{ title: 'حسابي', tabBarIcon: ({ color }) => <Icon name="account-circle-outline" color={String(color)} /> }} />
     </Tabs>
   );
 }

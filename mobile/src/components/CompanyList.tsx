@@ -61,7 +61,7 @@ export function CompanyList({ fixedService, autoFocus }: { fixedService?: string
       contentContainerStyle={st.wrap}
       ListHeaderComponent={header}
       keyboardShouldPersistTaps="handled"
-      refreshControl={<RefreshControl refreshing={companies.isRefetching} onRefresh={companies.refetch} />}
+      refreshControl={<RefreshControl refreshing={companies.isRefetching} onRefresh={() => { companies.refetch(); }} />}
       initialNumToRender={8}
       windowSize={7}
       renderItem={({ item, index }) => (
