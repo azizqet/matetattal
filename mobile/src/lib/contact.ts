@@ -1,8 +1,9 @@
 // أرقام التواصل الرسمية لـ «ماتعطل» داخل تطبيق الجوال.
 // مصدرها الوحيد هذا الملف (لا تُقرأ من قاعدة البيانات) حتى لا تتأثر بإعدادات الموقع.
 //
-// whatsapp: true فقط بعد تأكيد المالك أن الرقم مفعّل على واتساب.
-// حتى يتم التأكيد يبقى false فيظهر زر الاتصال فقط.
+// whatsapp: true فقط بعد تأكيد المالك أن الرقم مفعّل على واتساب
+// (تم التأكيد للرقمين بتاريخ 2026-11-22).
+// الروابط تُبنى بمفتاح الكويت الدولي 965: اتصال tel:+965XXXXXXXX، واتساب https://wa.me/965XXXXXXXX
 
 export interface SupportContact {
   /** الرقم المحلي (8 أرقام) */
@@ -12,8 +13,8 @@ export interface SupportContact {
 }
 
 export const SUPPORT_CONTACTS: readonly SupportContact[] = [
-  { phone: '97706792', whatsapp: false },
-  { phone: '99225025', whatsapp: false },
+  { phone: '97706792', whatsapp: true },
+  { phone: '99225025', whatsapp: true },
 ] as const;
 
 /** عرض الرقم بشكل مقروء: 9770 6792 */

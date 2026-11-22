@@ -4,7 +4,7 @@ import { colors, fonts } from '@/lib/theme';
 import { telUrl, whatsappUrl } from '@/lib/utils';
 import { Button, Card, Row, Text } from './ui';
 
-/** بطاقة أرقام التواصل: زر اتصال لكل رقم، وزر واتساب فقط للأرقام المؤكدة على واتساب */
+/** بطاقة أرقام التواصل: زر اتصال وزر واتساب مستقلان لكل رقم (واتساب فقط للأرقام المؤكدة) */
 export function SupportContacts({ message, title = 'تواصل مع إدارة ماتعطل' }: { message?: string; title?: string }) {
   return (
     <Card style={{ marginTop: 12 }} testID="support-contacts">
@@ -18,7 +18,7 @@ export function SupportContacts({ message, title = 'تواصل مع إدارة �
             <Button small icon="phone" title={`اتصال ${phoneInText(c.phone)}`} style={{ flex: 1 }}
               testID={`call-${c.phone}`} onPress={() => Linking.openURL(telUrl(c.phone)).catch(() => {})} />
             {c.whatsapp ? (
-              <Button small icon="whatsapp" kind="whatsapp" title="واتساب" style={{ flex: 1 }}
+              <Button small icon="whatsapp" kind="whatsapp" title={`واتساب ${phoneInText(c.phone)}`} style={{ flex: 1 }}
                 testID={`wa-${c.phone}`} onPress={() => Linking.openURL(whatsappUrl(c.phone, message)).catch(() => {})} />
             ) : null}
           </Row>
