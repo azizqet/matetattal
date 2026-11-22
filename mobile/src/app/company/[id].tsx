@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Linking, Pressable, ScrollView, View } from 'react-native';
+import { Linking, Pressable, ScrollView } from 'react-native';
 import { contact, Logo } from '@/components/CompanyCard';
 import { Badge, Button, Card, Empty, Field, Icon, Loading, Row, SectionTitle, Stars, Text, useToast } from '@/components/ui';
 import * as api from '@/lib/api';
@@ -22,14 +22,16 @@ export default function CompanyScreen() {
   const favs = useQuery({ queryKey: ['favorites'], queryFn: api.getFavorites, enabled: !!session });
   const [showReq, setShowReq] = useState(false);
   const [note, setNote] = useState('');
-  const [phone, setPhone] = useState('');
-  const [rating, setRating] = useState(0);
-  const [comment, setComment] = useState('');
+  // null = لم يعدّل المستخدم الحقل بعد، فنعرض القيمة المحفوظة (رقمه أو تقييمه السابق)
+  const [phoneInput, setPhone] = useState<string | null>(null);
+  const [ratingInput, setRating] = useState<number | null>(null);
+  const [commentInput, setComment] = useState<string | null>(null);
 
   useEffect(() => { if (Number.isFinite(id)) api.trackCompany(id, 'view').catch(() => {}); }, [id]);
-  useEffect(() => { if (profile?.phone) setPhone(profile.phone); }, [profile?.phone]);
   const mine = reviews.data?.find((r) => r.user_id === session?.user.id);
-  useEffect(() => { if (mine) { setRating(mine.rating); setComment(mine.comment ?? ''); } }, [mine]);
+  const phone = phoneInput ?? profile?.phone ?? '';
+  const rating = ratingInput ?? mine?.rating ?? 0;
+  const comment = commentInput ?? mine?.comment ?? '';
 
   const isFav = !!favs.data?.includes(id);
   const fav = useMutation({

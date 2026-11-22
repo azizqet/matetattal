@@ -144,7 +144,7 @@ export function Stars({ value, size = 14 }: { value: number; size?: number }) {
 const ToastCtx = createContext<(msg: string) => void>(() => {});
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [msg, setMsg] = useState<string | null>(null);
-  const op = useRef(new Animated.Value(0)).current;
+  const [op] = useState(() => new Animated.Value(0));
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const show = useCallback((m: string) => {
     setMsg(m);

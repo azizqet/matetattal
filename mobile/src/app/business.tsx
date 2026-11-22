@@ -120,13 +120,13 @@ function SubscriptionBox({ c }: { c: Company }) {
   const settings = useSettings();
   const qc = useQueryClient();
   const toast = useToast();
-  const [plan, setPlan] = useState<string | null>(null);
+  const [planInput, setPlan] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const [price, setPrice] = useState<{ base: number; total: number; discount_percent: number } | null>(null);
   const active = (plans.data ?? []).filter((p) => p.is_active);
   const pending = subs.data?.find((s) => s.status === 'pending');
   const support = String(settings.data?.support_whatsapp ?? '96565755222');
-  useEffect(() => { if (!plan && active[0]) setPlan(active[0].id); }, [active, plan]);
+  const plan = planInput ?? active[0]?.id ?? null;
   useEffect(() => {
     if (!plan) return;
     const t = setTimeout(() => api.quote(plan, code.trim()).then(setPrice).catch(() => setPrice(null)), 350);

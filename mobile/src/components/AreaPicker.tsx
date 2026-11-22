@@ -51,6 +51,6 @@ export function AreaSheet({ visible, onClose }: { visible: boolean; onClose: () 
 const st = StyleSheet.create({
   pill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, borderWidth: 1, borderColor: colors.line, backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 7 },
   backdrop: { flex: 1, backgroundColor: 'rgba(10,20,40,0.45)' },
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 34, width: '100%', maxWidth: 640, alignSelf: 'center' },
+  sheet: { direction: 'rtl', backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 34, width: '100%', maxWidth: 640, alignSelf: 'center' },
   handle: { width: 44, height: 5, borderRadius: 3, backgroundColor: colors.line, alignSelf: 'center', marginBottom: 12 },
 });

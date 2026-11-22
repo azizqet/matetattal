@@ -4,7 +4,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { I18nManager, Platform } from 'react-native';
+import { I18nManager, Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ToastProvider } from '@/components/ui';
 import { SessionProvider } from '@/lib/session';
@@ -12,7 +12,9 @@ import { colors, fonts } from '@/lib/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-// التطبيق عربي بالكامل: نضمن اتجاه RTL (الإعداد الأساسي في app.json عبر forcesRTL)
+// التطبيق عربي بالكامل. في النسخة المبنية يفرض app.json (forcesRTL) الاتجاه،
+// لكن Expo Go يتجاهل ذلك ويتبع لغة الجهاز، لذلك نضبط direction: 'rtl' على الجذر أيضاً
+// فيظهر التطبيق صحيحاً حتى لو كانت لغة الآيفون إنجليزية.
 if (Platform.OS !== 'web' && !I18nManager.isRTL) {
   I18nManager.allowRTL(true);
   I18nManager.forceRTL(true);
@@ -41,6 +43,7 @@ export default function RootLayout() {
         <SessionProvider>
           <ToastProvider>
             <StatusBar style="light" />
+            <View style={{ flex: 1, direction: 'rtl' }}>
             <Stack
               screenOptions={{
                 headerStyle: { backgroundColor: colors.primary },
@@ -62,6 +65,7 @@ export default function RootLayout() {
               <Stack.Screen name="profile" options={{ title: 'بياناتي' }} />
               <Stack.Screen name="complaint" options={{ title: 'شكوى أو اقتراح' }} />
             </Stack>
+            </View>
           </ToastProvider>
         </SessionProvider>
       </QueryClientProvider>

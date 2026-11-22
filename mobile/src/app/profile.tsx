@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Button, Field, Screen, Text, useToast } from '@/components/ui';
 import * as api from '@/lib/api';
 import { useSession } from '@/lib/session';
@@ -8,10 +8,11 @@ import { arabicError, isKuwaitMobile, localPhone } from '@/lib/utils';
 export default function ProfileScreen() {
   const { session, profile, refreshProfile } = useSession();
   const toast = useToast();
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [nameInput, setName] = useState<string | null>(null);
+  const [phoneInput, setPhone] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  useEffect(() => { setName(profile?.full_name ?? ''); setPhone(profile?.phone ?? ''); }, [profile]);
+  const name = nameInput ?? profile?.full_name ?? '';
+  const phone = phoneInput ?? profile?.phone ?? '';
   if (!session) return null;
 
   async function save() {

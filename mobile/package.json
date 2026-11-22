@@ -31,11 +31,13 @@
     "react-native-web": "^0.21.4"
   },
   "devDependencies": {
-    "@types/react": "~19.3.0",
-    "typescript": "~6.0.3",
     "@types/jest": "30.0.0",
+    "@types/react": "~19.3.0",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~58.0.4",
     "jest": "~30.5.2",
-    "jest-expo": "~58.0.15"
+    "jest-expo": "~58.0.15",
+    "typescript": "~6.0.3"
   },
   "scripts": {
     "start": "expo start",
@@ -47,7 +49,8 @@
     "export:web": "expo export --platform web",
     "build:android:preview": "eas build -p android --profile preview",
     "build:ios:preview": "eas build -p ios --profile preview",
-    "build:production": "eas build -p all --profile production"
+    "build:production": "eas build -p all --profile production",
+    "lint": "expo lint"
   },
   "private": true,
   "jest": {

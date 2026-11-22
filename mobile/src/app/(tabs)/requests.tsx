@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { RefreshControl, ScrollView, View } from 'react-native';
+import { Linking, RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Logo } from '@/components/CompanyCard';
 import { Badge, Button, Card, Empty, Loading, Row, Text, useToast } from '@/components/ui';
@@ -9,7 +9,6 @@ import { useSession } from '@/lib/session';
 import { colors } from '@/lib/theme';
 import type { ServiceRequest } from '@/lib/types';
 import { arabicError, REQUEST_STATUS_AR, whatsappUrl } from '@/lib/utils';
-import { Linking } from 'react-native';
 
 const tone = (s: string) => (s === 'done' ? 'green' : s === 'rejected' || s === 'cancelled' ? 'red' : s === 'new' ? 'yellow' : 'blue') as 'green';
 
