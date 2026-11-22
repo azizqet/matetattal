@@ -71,10 +71,11 @@ describe('أضف إعلان', () => {
 
 describe('حسابي', () => {
   beforeEach(() => { jest.clearAllMocks(); });
-  test('لا يظهر «الشكاوى» أو «سجّل شركتك»، ويظهر الدعم الفني وإعلاناتي وحذف الحساب', async () => {
+  test('لا يظهر «الشكاوى» أو «سجّل شركتك» أو «لوحة شركتي»، ويظهر الدعم الفني وإعلاناتي وحذف الحساب', async () => {
     mockSession.current = { user: { id: 'u1', phone: '96597706792' } };
     await render(wrap(<Account />));
-    expect(screen.queryByText(/شكو|بلاغ|اقتراح|سجّل شركتك/)).toBeNull();
+    expect(screen.queryByText(/شكو|بلاغ|اقتراح|سجّل شركتك|لوحة شركتي/)).toBeNull();
+    expect(screen.queryByText('لوحة الإدارة')).toBeNull(); // ليست للمستخدم العادي
     for (const id of ['acc-my-ads', 'acc-support', 'acc-logout', 'acc-delete']) expect(screen.getByTestId(id)).toBeTruthy();
   });
   test('حذف الحساب يحتاج تأكيداً', async () => {

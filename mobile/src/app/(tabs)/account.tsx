@@ -23,7 +23,6 @@ export default function Account() {
   const { session, profile, signOut } = useSession();
   const toast = useToast();
   const notes = useQuery({ queryKey: ['notifications'], queryFn: api.getNotifications, enabled: !!session });
-  const mineCo = useQuery({ queryKey: ['my-companies'], queryFn: () => api.getMyCompanies(session!.user.id), enabled: !!session });
   const unread = notes.data?.filter((n) => !n.read_at).length ?? 0;
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -67,7 +66,6 @@ export default function Account() {
             <Item icon="clipboard-text-outline" label="طلباتي" onPress={() => router.push('/requests')} />
             <Item icon="heart-outline" label="المفضلة" onPress={() => router.push('/favorites')} />
             <Item icon="bell-outline" label="الإشعارات" badge={unread} onPress={() => router.push('/notifications')} />
-            {mineCo.data?.length ? <Item icon="store-outline" label="لوحة شركتي" onPress={() => router.push('/business')} /> : null}
           </>
         ) : null}
         <Item icon="headset" label="الدعم الفني" onPress={() => router.push('/support')} testID="acc-support" />
