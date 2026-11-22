@@ -33,9 +33,9 @@ function MessageImage({ path }: { path: string }) {
 export function Bubble({ m, mineSide }: { m: SupportMessage; mineSide: boolean }) {
   return (
     <View style={{ alignSelf: mineSide ? 'flex-start' : 'flex-end', maxWidth: '85%', marginBottom: 8 }}>
-      <View style={{ backgroundColor: mineSide ? colors.primary : '#fff', borderRadius: 14, padding: 10, borderWidth: mineSide ? 0 : 1, borderColor: colors.line }}>
+      <View style={{ backgroundColor: mineSide ? colors.primary : colors.card, borderRadius: 14, padding: 10, borderWidth: mineSide ? 0 : 1, borderColor: colors.line }}>
         <Text variant="small" style={{ color: mineSide ? '#DCE7FF' : colors.muted }}>{m.is_staff ? 'الدعم الفني' : 'المستخدم'}</Text>
-        <Text style={{ color: mineSide ? '#fff' : colors.text }}>{m.body}</Text>
+        <Text style={{ color: mineSide ? colors.white : colors.text }}>{m.body}</Text>
         {m.image_path ? <MessageImage path={m.image_path} /> : null}
       </View>
       <Text variant="small" style={{ marginTop: 2 }}>{new Date(m.created_at).toLocaleString('ar-KW')}</Text>

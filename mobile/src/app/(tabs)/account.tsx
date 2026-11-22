@@ -5,7 +5,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Badge, Button, Card, Icon, Row, Screen, Text, useToast } from '@/components/ui';
 import * as api from '@/lib/api';
 import { isAdmin, useSession } from '@/lib/session';
-import { colors } from '@/lib/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors, fonts, gradients } from '@/lib/theme';
 import { arabicError, localPhone } from '@/lib/utils';
 
 function Item({ icon, label, onPress, badge, danger, testID }: { icon: string; label: string; onPress: () => void; badge?: number; danger?: boolean; testID?: string }) {
@@ -43,7 +44,9 @@ export default function Account() {
       {session ? (
         <Card style={{ marginTop: 12 }}>
           <Row gap={12}>
-            <View style={st.avatar}><Icon name="account" size={28} color="#fff" /></View>
+            <LinearGradient colors={gradients.brand} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={st.avatar}>
+              <Text style={{ color: colors.white, fontFamily: fonts.heavy, fontSize: 22, lineHeight: 30 }}>{(profile?.full_name || session.user.email || 'م').trim()[0]?.toUpperCase()}</Text>
+            </LinearGradient>
             <View style={{ flex: 1 }}>
               <Text variant="title">{profile?.full_name || 'مستخدم ماتعطل'}</Text>
               <Text variant="small" style={{ writingDirection: 'ltr', textAlign: 'right' }}>{phone || session.user.email}</Text>

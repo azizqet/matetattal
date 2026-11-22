@@ -7,9 +7,10 @@ jest.mock('expo-haptics', () => ({ selectionAsync: () => Promise.resolve() }));
 jest.mock('@expo/vector-icons', () => ({ MaterialCommunityIcons: Object.assign(() => null, { glyphMap: {} }) }));
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 jest.mock('@react-native-async-storage/async-storage', () => require('@react-native-async-storage/async-storage/jest/async-storage-mock'));
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 47, bottom: 34, left: 0, right: 0 }), SafeAreaView: ({ children }: { children: unknown }) => children }));
 jest.mock('@/lib/api', () => ({ getPublicAds: jest.fn(async () => []) }));
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
-jest.mock('@/lib/session', () => ({ useSession: () => ({ area: null, coords: null, setArea: jest.fn(), locate: jest.fn(), locating: false }) }));
+jest.mock('@/lib/session', () => ({ useSession: () => ({ session: null, profile: null, area: null, coords: null, setArea: jest.fn(), locate: jest.fn(), locating: false }) }));
 jest.mock('@/lib/queries', () => ({
   useServices: () => ({ data: [], isLoading: false, refetch: jest.fn() }),
   useCompanies: () => ({ data: [], isLoading: false, refetch: jest.fn() }),
@@ -26,7 +27,7 @@ describe('شعار الصفحة الرئيسية', () => {
     const logo = screen.getByTestId('home-logo');
     const st = StyleSheet.flatten(logo.props.style);
     expect(st.fontSize).toBe(28);
-    expect(st.color).toBe('#0757DB'); // الأزرق الأساسي على خلفية بيضاء
+    expect(st.color).toBe('#fff'); // أبيض فوق رأس الهوية المتدرّج
     expect(st.lineHeight).toBeGreaterThanOrEqual(st.fontSize * 1.4);
   });
 });

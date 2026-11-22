@@ -9,7 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ConsentGate } from '@/components/Consent';
 import { ToastProvider } from '@/components/ui';
 import { SessionProvider } from '@/lib/session';
-import { colors, fonts } from '@/lib/theme';
+import { colors, fonts, isDark } from '@/lib/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -47,8 +47,9 @@ export default function RootLayout() {
             <View style={{ flex: 1, direction: 'rtl' }}>
             <Stack
               screenOptions={{
-                headerStyle: { backgroundColor: colors.primary },
-                headerTintColor: '#fff',
+                headerStyle: { backgroundColor: isDark ? colors.card : colors.primary },
+                headerShadowVisible: false,
+                headerTintColor: colors.white,
                 headerTitleStyle: { fontFamily: fonts.bold },
                 headerBackButtonDisplayMode: 'minimal',
                 contentStyle: { backgroundColor: colors.bg },

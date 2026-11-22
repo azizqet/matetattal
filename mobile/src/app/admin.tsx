@@ -24,7 +24,7 @@ export default function Admin() {
   if (!isAdmin(profile)) return <Empty icon="shield-lock-outline" title="هذه الصفحة للإدارة فقط" action={<Button title="رجوع" onPress={() => router.back()} />} />;
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: colors.line }}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.line }}
         contentContainerStyle={{ padding: 10, gap: 8 }}>
         {TABS.map(([k, l]) => <Chip key={k} label={l} active={tab === k} onPress={() => setTab(k)} />)}
       </ScrollView>
@@ -456,7 +456,7 @@ function Terms() {
           <Field label="النص الكامل (سطر يبدأ برقم ثم نقطة = عنوان قسم)" value={form.body} onChangeText={(v) => setForm({ ...form, body: v })} multiline
             style={{ minHeight: 260 }} testID="terms-body" />
           {placeholders ? (
-            <View style={{ backgroundColor: '#FDECEA', borderRadius: 12, padding: 10, marginTop: 10 }} testID="terms-placeholders">
+            <View style={{ backgroundColor: colors.dangerSoft, borderRadius: 12, padding: 10, marginTop: 10 }} testID="terms-placeholders">
               <Text style={{ color: colors.danger, fontFamily: fonts.bold }}>لا يمكن النشر بعد</Text>
               <Text variant="small" style={{ color: colors.danger }}>النص يحتوي «[يُستكمل: ...]» (مثل بيانات الجهة المشغّلة أو سياسة الاسترداد). أكملها بعد المراجعة القانونية.</Text>
             </View>

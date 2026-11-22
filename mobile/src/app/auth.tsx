@@ -10,7 +10,7 @@ import { arabicError } from '@/lib/utils';
 
 type Mode = 'login' | 'register' | 'reset';
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const ltr = { writingDirection: 'ltr' as const, textAlign: 'left' as const, color: '#000' };
+const ltr = { writingDirection: 'ltr' as const, textAlign: 'left' as const, color: colors.inputText };
 
 /**
  * حساب موحد بالبريد الإلكتروني وكلمة المرور عبر Supabase Auth (عميل / مقدم خدمة / معلن).
@@ -67,7 +67,8 @@ export default function Auth() {
     // Supabase لا يكشف وجود البريد: يرجع مستخدماً بلا هويات إذا كان البريد مسجلاً مسبقاً
     if (data.user && (data.user.identities?.length ?? 0) === 0) { toast('هذا البريد مسجل مسبقاً، سجّل الدخول'); switchMode('login'); return; }
     if (terms.docs.length) await rememberRegistrationConsent(terms.docs.map((d) => d.id));
-    if (data.session) { toast('تم إنشاء حسابك'); done(); return; }
+    // الدخول الفوري: عند إيقاف «تأكيد البريد» في Supabase تعود الجلسة مباشرة فينتقل المستخدم للرئيسية
+    if (data.session) { toast('أهلاً بك في ماتعطل'); router.replace('/'); return; }
     setNotice(`أرسلنا رابط التفعيل إلى ${em}. افتح الرسالة واضغط الرابط، ثم سجّل الدخول. لا يمكن الدخول قبل تفعيل البريد.`);
     setMode('login'); setPassword(''); setConfirm('');
   });

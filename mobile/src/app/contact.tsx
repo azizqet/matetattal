@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SupportContacts } from '@/components/SupportContacts';
 import { Button, Card, Screen, Text } from '@/components/ui';
+import { colors } from '@/lib/theme';
 
 /** شاشة التواصل مع إدارة ماتعطل (تُفتح من «حسابي» وبعد إرسال طلب الانضمام) */
 export default function Contact() {
@@ -9,7 +10,7 @@ export default function Contact() {
   return (
     <Screen edges={['bottom']}>
       {afterJoin ? (
-        <Card style={{ backgroundColor: '#E7F7EE', borderColor: '#BFE8CF' }}>
+        <Card style={{ backgroundColor: colors.successSoft, borderColor: colors.successSoft }}>
           <Text variant="title">وصل طلب انضمامك ✓</Text>
           <Text variant="muted">ستتواصل معك الإدارة لمراجعة بيانات شركتك وتفعيل الاشتراك. ويمكنك التواصل مباشرة على أحد الأرقام التالية.</Text>
         </Card>

@@ -29,7 +29,7 @@ export function CompanyList({ fixedService, autoFocus }: { fixedService?: string
     <View>
       <View style={st.searchBox}>
         <Icon name="magnify" color={colors.muted} />
-        <TextInput value={q} onChangeText={setQ} placeholder="اسم الشركة أو الخدمة..." placeholderTextColor="#98A3B8" autoFocus={autoFocus}
+        <TextInput value={q} onChangeText={setQ} placeholder="اسم الشركة أو الخدمة..." placeholderTextColor={colors.placeholder} autoFocus={autoFocus}
           style={st.input} returnKeyType="search" accessibilityLabel="بحث" testID="search-input" />
         {q ? <Pressable onPress={() => setQ('')} hitSlop={8} accessibilityLabel="مسح البحث"><Icon name="close-circle" color={colors.muted} size={20} /></Pressable> : null}
       </View>
@@ -77,6 +77,6 @@ export function CompanyList({ fixedService, autoFocus }: { fixedService?: string
 
 const st = StyleSheet.create({
   wrap: { padding: 16, paddingBottom: 40, width: '100%', maxWidth: 640, alignSelf: 'center' },
-  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, paddingHorizontal: 12, height: 50 },
+  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, paddingHorizontal: 12, height: 50 },
   input: { flex: 1, fontFamily: fonts.regular, fontSize: 15, color: colors.text, writingDirection: 'rtl', height: '100%' },
 });

@@ -117,7 +117,7 @@ export function AdForm({ uid, ad, defaultPhone, onSaved }: { uid: string; ad?: A
       <Row style={{ flexWrap: 'wrap' }}>{(areas.data ?? []).map((a) => <Chip key={a.id} label={a.name_ar} active={area === a.name_ar} onPress={() => setArea(a.name_ar)} />)}</Row>
       <PhoneField label="رقم التواصل" value={phone} onChangeText={setPhone} testID="ad-phone" />
       <Field label="السعر بالدينار (اختياري)" value={price} onChangeText={(v) => setPrice(v.replace(/[^\d.]/g, ''))} keyboardType="decimal-pad" testID="ad-price"
-        style={{ writingDirection: 'ltr', textAlign: 'left', color: '#000' }} />
+        style={{ writingDirection: 'ltr', textAlign: 'left', color: colors.inputText }} />
 
       <Card style={{ marginTop: 14, backgroundColor: colors.primarySoft, borderColor: colors.primarySoft }}>
         <Text variant="small" style={{ color: colors.heading }}>
