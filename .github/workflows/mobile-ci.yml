@@ -2,12 +2,29 @@ name: Mobile CI
 
 on:
   pull_request:
-    paths: ['mobile/**', '.github/workflows/mobile-ci.yml']
   push:
     branches: [main]
     paths: ['mobile/**']
 
 jobs:
+  website-guard:
+    # يمنع أي تعديل على ملفات الموقع الإلكتروني من فرع التطبيق
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Website files must stay untouched
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          CHANGED=$(git diff --name-only "$BASE"...HEAD -- index.html index-backup.html '*.html' ':!mobile/**')
+          if [ -n "$CHANGED" ]; then
+            echo "::error::هذا الفرع خاص بالتطبيق ولا يجوز أن يعدّل ملفات الموقع:"; echo "$CHANGED"; exit 1
+          fi
+          echo "ملفات الموقع لم تتغير ✓"
+
   checks:
     runs-on: ubuntu-latest
     defaults:

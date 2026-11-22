@@ -12,6 +12,7 @@ name: Android Build (EAS)
 on:
   pull_request:
     types: [labeled, synchronize, reopened]
+    paths: ['mobile/**']
   workflow_dispatch:
     inputs:
       profile:

@@ -1,9 +1,12 @@
 # نشر نسخة تجربة للتطبيق تُفتح في Expo Go على الآيفون (بدون كمبيوتر)
+# لا يُنشر أي تحديث تلقائياً: النشر يتم فقط عند وجود الوسم "expo-preview" على الـ PR
+# (إضافة الوسم = موافقة المالك)، أو تشغيل يدوي.
 # المتطلب: سر باسم EXPO_TOKEN في إعدادات المستودع (Settings → Secrets → Actions)
 name: Expo Preview (Expo Go)
 
 on:
   pull_request:
+    types: [labeled, synchronize, reopened]
     paths: ['mobile/**', '.github/workflows/expo-preview.yml']
   workflow_dispatch:
 
@@ -14,6 +17,7 @@ concurrency:
 jobs:
   update:
     name: Publish preview update
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'expo-preview')
     runs-on: ubuntu-latest
     permissions:
       contents: read
