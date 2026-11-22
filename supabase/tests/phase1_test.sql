@@ -145,6 +145,7 @@ begin
   update public.service_requests set vehicle_id = v1, status = 'accepted' where id = v_req;
   if (select vehicle_id from public.service_requests where id = v_req) <> v1 then raise exception 'FAIL T41 owner cannot assign own vehicle'; end if;
   if (select status from public.company_vehicles where id = v1) <> 'available' then raise exception 'FAIL T42 status changed automatically (decision C default = manual)'; end if;
+  perform pg_temp.must_fail(format('select public.has_accepted_current(%L, array[''providers''])', u_comp), 'T43 ask about another user');
 
   execute 'reset role';
   raise exception 'ALL_PHASE1_TESTS_PASSED (rolled back)';
