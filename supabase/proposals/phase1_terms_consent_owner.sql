@@ -156,13 +156,33 @@ create trigger require_provider_consent before insert on public.companies
 
 -- ملاحظة: الشركات الحالية لا تتأثر بالتريجر (يعمل عند الإنشاء فقط). المستخدمون الحاليون
 -- يُطلب منهم الموافقة عند دخولهم التالي عبر my_pending_terms() في التطبيق.
--- request_subscription: نفس الدالة الحالية + شرط الموافقة على شروط مقدمي الخدمات وسياسة الاشتراكات
---   (يُضاف في بدايتها، بعد التحقق من الملكية):
---   if not public.is_admin() and not public.has_accepted_current(auth.uid(), array['providers','subscriptions']) then
---     raise exception 'terms not accepted: providers, subscriptions'; end if;
+-- request_subscription: نفس الدالة الحالية (migration app_v3_hardening_billing) + شرط الموافقة
+-- على شروط مقدمي الخدمات وسياسة الاشتراكات (لا يُشترط نوع بلا نسخة منشورة سارية).
+create or replace function public.request_subscription(p_company bigint, p_plan text, p_code text default null)
+returns json language plpgsql security definer set search_path = '' as $$
+declare q json; c public.companies; v_start date; v_id bigint; v_months int;
+begin
+  select * into c from public.companies where id = p_company;
+  if not found or (c.owner_id is distinct from auth.uid() and not public.is_admin()) then raise exception 'forbidden'; end if;
+  if not public.is_admin() and not public.has_accepted_current(auth.uid(), array['providers','subscriptions']) then
+    raise exception 'terms not accepted: providers, subscriptions'; end if;
+  q := public.quote_subscription(p_plan, p_code);
+  v_months := (q->>'months')::int;
+  v_start := greatest(current_date, coalesce(c.sub_end + 1, current_date));
+  update public.subscriptions set status = 'cancelled', payment_note = coalesce(payment_note,'') || ' [استبدل بطلب أحدث]'
+    where company_id = p_company and status = 'pending';
+  insert into public.subscriptions(company_id, plan_id, promotion_id, amount_kwd, starts_on, ends_on, status, payment_note)
+  values (p_company, p_plan, nullif(q->>'promotion_id','')::bigint, (q->>'total')::numeric, v_start,
+          (v_start + make_interval(months => v_months))::date, 'pending', 'بانتظار الدفع')
+  returning id into v_id;
+  return json_build_object('subscription_id', v_id, 'amount_kwd', q->'total', 'starts_on', v_start,
+    'ends_on', (v_start + make_interval(months => v_months))::date, 'discount_percent', q->'discount_percent');
+end $$;
+revoke execute on function public.request_subscription(bigint, text, text) from public, anon;
+grant execute on function public.request_subscription(bigint, text, text) to authenticated;
 
 -- ========== 4) حماية ملكية المشروع ==========
--- [قرار المالك ب — معلّق] تأكيد أن حساب المالك هو الحساب المدير الوحيد الحالي.
+-- [قرار المالك ب — مؤكد 2026-11-22] حساب المالك هو الحساب المدير الوحيد الحالي.
 insert into public.app_settings(key, value, is_public)
 values ('owner_user_id', to_jsonb('b6e2d36c-af6f-4d88-ae24-49961bb3722e'::text), false)
 on conflict (key) do nothing;
