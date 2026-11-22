@@ -108,18 +108,35 @@ create policy "read own or staff" on public.terms_acceptances for select to auth
 grant select, insert on public.terms_acceptances to authenticated;
 revoke update, delete, truncate on public.terms_acceptances from anon, authenticated;
 
--- هل وافق المستخدم على النسخة السارية من الأنواع المطلوبة؟
--- [قرار المالك أ] إذا لم تُنشر أي نسخة سارية لنوع ما بعد: هل يُمنع التسجيل (أحوط قانونياً)
--- أم يُسمح مؤقتاً (يستمر التطبيق بالعمل حتى اعتماد الشروط)؟ الافتراضي أدناه: المنع.
+-- هل وافق المستخدم على كل نسخة سارية من الأنواع المطلوبة؟
+-- [قرار المالك 2026-11-22] لا يُوقف التسجيل قبل اعتماد الشروط ونشرها:
+-- النوع الذي لا توجد له نسخة منشورة سارية لا يُشترط. بعد النشر تصبح الموافقة إلزامية.
 create or replace function public.has_accepted_current(p_user uuid, p_kinds text[])
 returns boolean language sql stable security definer set search_path = '' as $$
-  select coalesce(bool_and(exists (
-           select 1 from public.terms_acceptances a
-           where a.user_id = p_user and a.document_id = d.id)), false)
-     and count(*) = cardinality(p_kinds)
-  from public.terms_documents d
-  where d.is_current and d.kind = any(p_kinds)
+  select not exists (
+    select 1 from public.terms_documents d
+    where d.is_current and d.published_at is not null and d.kind = any(p_kinds)
+      and not exists (select 1 from public.terms_acceptances a
+                      where a.user_id = p_user and a.document_id = d.id))
 $$;
+
+-- الوثائق السارية التي لم يوافق عليها المستخدم الحالي بعد (يستخدمها التطبيق عند الدخول
+-- ليطلب الموافقة من المستخدمين الحاليين). العميل: العملاء + الخصوصية؛
+-- صاحب الشركة: + مقدمي الخدمات + الاشتراكات (+ الإعلانات إن كان له إعلانات لاحقاً).
+create or replace function public.my_pending_terms()
+returns table(document_id bigint, kind text, version text, title text)
+language sql stable security definer set search_path = '' as $$
+  select d.id, d.kind, d.version, d.title
+  from public.terms_documents d
+  where d.is_current and d.published_at is not null
+    and d.kind = any(case when exists (select 1 from public.companies c where c.owner_id = auth.uid())
+                          then array['customers','privacy','providers','subscriptions']
+                          else array['customers','privacy'] end)
+    and not exists (select 1 from public.terms_acceptances a where a.user_id = auth.uid() and a.document_id = d.id)
+  order by d.kind
+$$;
+revoke execute on function public.my_pending_terms() from public, anon;
+grant execute on function public.my_pending_terms() to authenticated;
 revoke execute on function public.has_accepted_current(uuid, text[]) from public, anon;
 grant execute on function public.has_accepted_current(uuid, text[]) to authenticated;
 
@@ -137,13 +154,15 @@ revoke execute on function public.require_provider_consent() from public, anon, 
 create trigger require_provider_consent before insert on public.companies
   for each row execute function public.require_provider_consent();
 
+-- ملاحظة: الشركات الحالية لا تتأثر بالتريجر (يعمل عند الإنشاء فقط). المستخدمون الحاليون
+-- يُطلب منهم الموافقة عند دخولهم التالي عبر my_pending_terms() في التطبيق.
 -- request_subscription: نفس الدالة الحالية + شرط الموافقة على شروط مقدمي الخدمات وسياسة الاشتراكات
 --   (يُضاف في بدايتها، بعد التحقق من الملكية):
 --   if not public.is_admin() and not public.has_accepted_current(auth.uid(), array['providers','subscriptions']) then
 --     raise exception 'terms not accepted: providers, subscriptions'; end if;
 
 -- ========== 4) حماية ملكية المشروع ==========
--- [قرار المالك ب] تأكيد أن حساب المالك هو الحساب المدير الحالي الوحيد (b6e2d36c-...).
+-- [قرار المالك ب — معلّق] تأكيد أن حساب المالك هو الحساب المدير الوحيد الحالي.
 insert into public.app_settings(key, value, is_public)
 values ('owner_user_id', to_jsonb('b6e2d36c-af6f-4d88-ae24-49961bb3722e'::text), false)
 on conflict (key) do nothing;
