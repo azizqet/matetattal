@@ -1,12 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Badge, Button, Card, Icon, Row, Screen, Text } from '@/components/ui';
 import * as api from '@/lib/api';
-import { useSettings } from '@/lib/queries';
 import { isAdmin, useSession } from '@/lib/session';
 import { colors } from '@/lib/theme';
-import { whatsappUrl } from '@/lib/utils';
 
 const ROLE_AR: Record<string, string> = { customer: 'عميل', company: 'مقدم خدمة', staff: 'مشرف', admin: 'مدير' };
 
@@ -23,10 +21,8 @@ function Item({ icon, label, onPress, badge }: { icon: string; label: string; on
 
 export default function Account() {
   const { session, profile, signOut } = useSession();
-  const settings = useSettings();
   const notes = useQuery({ queryKey: ['notifications'], queryFn: api.getNotifications, enabled: !!session });
   const unread = notes.data?.filter((n) => !n.read_at).length ?? 0;
-  const support = String(settings.data?.support_whatsapp ?? '96565755222');
 
   return (
     <Screen>
@@ -64,7 +60,8 @@ export default function Account() {
         <Item icon="store-outline" label={profile?.role === 'company' ? 'لوحة شركتي' : 'سجّل شركتك في ماتعطل'} onPress={() => router.push(session ? '/business' : '/join')} />
         {isAdmin(profile) ? <Item icon="shield-crown-outline" label="لوحة الإدارة" onPress={() => router.push('/admin')} /> : null}
         <Item icon="message-alert-outline" label="شكوى أو اقتراح" onPress={() => router.push(session ? '/complaint' : '/auth')} />
-        <Item icon="whatsapp" label="تواصل مع الدعم" onPress={() => Linking.openURL(whatsappUrl(support, 'السلام عليكم، عندي استفسار عن تطبيق ماتعطل'))} />
+        <Item icon="phone-outline" label="تواصل مع الدعم" onPress={() => router.push('/contact')} />
+        <Item icon="file-document-outline" label="الشروط والسياسات" onPress={() => router.push('/legal')} />
       </Card>
 
       {session ? <Button title="تسجيل الخروج" kind="danger" icon="logout" style={{ marginTop: 18 }} onPress={signOut} /> : null}

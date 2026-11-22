@@ -82,8 +82,9 @@ export default function Auth() {
           <Button title="عندك حساب؟ سجّل الدخول" kind="ghost" onPress={() => setMode('login')} style={{ marginTop: 8 }} />
         )}
         <Text variant="small" style={{ textAlign: 'center', marginTop: 16 }}>
-          بالتسجيل أنت توافق على شروط الاستخدام وسياسة الخصوصية لتطبيق ماتعطل.
+          اطّلع على شروط الاستخدام وسياسة الخصوصية قبل التسجيل.
         </Text>
+        <Button title="الشروط والسياسات" kind="ghost" small icon="file-document-outline" onPress={() => router.push('/legal')} />
       </Screen>
     </KeyboardAvoidingView>
   );

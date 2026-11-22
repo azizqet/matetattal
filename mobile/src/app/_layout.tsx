@@ -64,6 +64,9 @@ export default function RootLayout() {
               <Stack.Screen name="favorites" options={{ title: 'المفضلة' }} />
               <Stack.Screen name="profile" options={{ title: 'بياناتي' }} />
               <Stack.Screen name="complaint" options={{ title: 'شكوى أو اقتراح' }} />
+              <Stack.Screen name="contact" options={{ title: 'تواصل معنا' }} />
+              <Stack.Screen name="legal/index" options={{ title: 'الشروط والسياسات' }} />
+              <Stack.Screen name="legal/[id]" options={{ title: 'الشروط والسياسات' }} />
             </Stack>
             </View>
           </ToastProvider>

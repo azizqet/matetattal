@@ -6,7 +6,8 @@ import { Linking, View } from 'react-native';
 import { Logo } from '@/components/CompanyCard';
 import { Badge, Button, Card, Chip, Empty, Field, Loading, Row, Screen, SectionTitle, Text, useToast } from '@/components/ui';
 import * as api from '@/lib/api';
-import { useAreas, useServices, useSettings } from '@/lib/queries';
+import { useAreas, useServices } from '@/lib/queries';
+import { SupportContacts } from '@/components/SupportContacts';
 import { useSession } from '@/lib/session';
 import { colors, fonts } from '@/lib/theme';
 import type { Company, ServiceRequest } from '@/lib/types';
@@ -117,7 +118,6 @@ const Stat = ({ n, l }: { n: number; l: string }) => (
 function SubscriptionBox({ c }: { c: Company }) {
   const plans = useQuery({ queryKey: ['plans'], queryFn: api.getPlans });
   const subs = useQuery({ queryKey: ['subs', c.id], queryFn: () => api.getCompanySubscriptions(c.id) });
-  const settings = useSettings();
   const qc = useQueryClient();
   const toast = useToast();
   const [planInput, setPlan] = useState<string | null>(null);
@@ -125,7 +125,6 @@ function SubscriptionBox({ c }: { c: Company }) {
   const [price, setPrice] = useState<{ base: number; total: number; discount_percent: number } | null>(null);
   const active = (plans.data ?? []).filter((p) => p.is_active);
   const pending = subs.data?.find((s) => s.status === 'pending');
-  const support = String(settings.data?.support_whatsapp ?? '96565755222');
   const plan = planInput ?? active[0]?.id ?? null;
   useEffect(() => {
     if (!plan) return;
@@ -137,8 +136,7 @@ function SubscriptionBox({ c }: { c: Company }) {
     mutationFn: () => api.requestSubscription(c.id, plan!, code.trim()),
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ['subs', c.id] });
-      toast('تم إنشاء طلب الاشتراك. أكمل الدفع مع الإدارة لتفعيله');
-      Linking.openURL(whatsappUrl(support, `السلام عليكم، أبي أفعّل اشتراك شركة ${c.name} (طلب رقم ${r.subscription_id}) بمبلغ ${formatKwd(r.amount_kwd)}`)).catch(() => {});
+      toast(`تم إنشاء طلب الاشتراك رقم ${r.subscription_id} بمبلغ ${formatKwd(r.amount_kwd)}. تواصل مع الإدارة لإتمام الدفع`);
     },
     onError: (e) => toast(arabicError(e)),
   });
@@ -151,10 +149,10 @@ function SubscriptionBox({ c }: { c: Company }) {
           <View style={{ backgroundColor: colors.warningBg, borderRadius: 12, padding: 10, marginBottom: 10 }}>
             <Text style={{ color: colors.warningText, fontFamily: fonts.bold }}>طلب اشتراك بانتظار الدفع: {formatKwd(pending.amount_kwd)}</Text>
             <Text variant="small" style={{ color: colors.warningText }}>من {pending.starts_on} إلى {pending.ends_on}. تواصل مع الإدارة لإتمام الدفع، ويتفعّل اشتراكك فوراً بعد التأكيد.</Text>
-            <Button small kind="whatsapp" icon="whatsapp" title="تواصل للدفع" style={{ marginTop: 8 }}
-              onPress={() => Linking.openURL(whatsappUrl(support, `السلام عليكم، أبي أدفع اشتراك شركة ${c.name} (طلب رقم ${pending.id})`))} />
+            <Text variant="small" style={{ color: colors.warningText, marginTop: 4 }}>اذكر رقم الطلب عند التواصل: {pending.id}</Text>
           </View>
         ) : null}
+        {pending ? <SupportContacts title="تواصل مع الإدارة لإتمام الدفع" message={`السلام عليكم، أبي أدفع اشتراك شركة ${c.name} (طلب رقم ${pending.id})`} /> : null}
         <Text variant="label">اختر الخطة</Text>
         <Row style={{ flexWrap: 'wrap' }}>
           {active.map((p) => <Chip key={p.id} label={`${p.name_ar} · ${formatKwd(p.price_kwd)}`} active={plan === p.id} onPress={() => setPlan(p.id)} />)}

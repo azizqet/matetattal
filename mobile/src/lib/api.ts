@@ -1,7 +1,7 @@
 // طبقة الوصول للبيانات. كل الصلاحيات مفروضة في قاعدة البيانات (RLS)، والتطبيق مجرد واجهة.
 import { supabase, SUPABASE_URL } from './supabase';
 import type {
-  AdminStats, Area, Company, CompanyService, JoinRequest, Notification, Plan, Profile, Promotion, Review,
+  AdminStats, Area, Complaint, Company, CompanyService, JoinRequest, Notification, Plan, Profile, Promotion, Review,
   Service, ServiceRequest, Setting, Subscription,
 } from './types';
 
@@ -197,4 +197,27 @@ export async function adminServices(): Promise<Service[]> {
 }
 export async function adminSaveService(s: Service) {
   check(await supabase.from('services').upsert(s));
+}
+
+// ===== الإدارة: الشكاوى (جدول complaints الحالي — الصلاحيات للمشرفين والمديرين فقط عبر RLS) =====
+export async function adminComplaints(): Promise<Complaint[]> {
+  const rows: Complaint[] = check(await supabase.from('complaints').select('*, companies(name)').order('created_at', { ascending: false }).limit(200));
+  const ids = [...new Set(rows.map((r) => r.user_id))];
+  if (ids.length) {
+    const profs: { id: string; full_name: string | null; phone: string | null }[] = check(await supabase.from('profiles').select('id, full_name, phone').in('id', ids));
+    const m = new Map(profs.map((p) => [p.id, p]));
+    for (const r of rows) r.reporter = m.get(r.user_id) ?? null;
+  }
+  return rows;
+}
+export async function adminUpdateComplaint(id: number, status: Complaint['status'], admin_note: string | null) {
+  check(await supabase.from('complaints').update({ status, admin_note }).eq('id', id));
+}
+
+// ===== الإدارة: الأدوار (دوال admin_find_user و admin_set_role الموجودة — للمدير فقط) =====
+export async function adminTeam(): Promise<Profile[]> {
+  return check(await supabase.from('profiles').select('*').in('role', ['admin', 'staff']).order('created_at'));
+}
+export async function adminSetRole(userId: string, role: Profile['role']) {
+  check(await supabase.rpc('admin_set_role', { p_user: userId, p_role: role }));
 }

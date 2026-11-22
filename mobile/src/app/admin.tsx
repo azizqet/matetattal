@@ -8,11 +8,11 @@ import * as api from '@/lib/api';
 import { useAreas, useServiceNames } from '@/lib/queries';
 import { isAdmin, useSession } from '@/lib/session';
 import { colors, fonts } from '@/lib/theme';
-import type { Company, Plan, Promotion, Service } from '@/lib/types';
+import type { Company, Complaint, Plan, Profile, Promotion, Service } from '@/lib/types';
 import { addDaysISO, arabicError, COMPANY_STATUS_AR, formatKwd, isVisible, SUB_STATUS_AR, todayISO, whatsappUrl } from '@/lib/utils';
 
-type Tab = 'stats' | 'join' | 'companies' | 'subs' | 'plans' | 'settings';
-const TABS: [Tab, string][] = [['stats', 'نظرة عامة'], ['join', 'طلبات الانضمام'], ['companies', 'الشركات'], ['subs', 'الاشتراكات'], ['plans', 'الخطط والعروض'], ['settings', 'الإعدادات']];
+type Tab = 'stats' | 'join' | 'companies' | 'subs' | 'complaints' | 'plans' | 'team' | 'settings';
+const TABS: [Tab, string][] = [['stats', 'نظرة عامة'], ['join', 'طلبات الانضمام'], ['companies', 'الشركات'], ['subs', 'الاشتراكات'], ['complaints', 'الشكاوى'], ['plans', 'الخطط والعروض'], ['team', 'فريق الإدارة'], ['settings', 'الإعدادات']];
 
 export default function Admin() {
   const { profile, ready } = useSession();
@@ -26,7 +26,7 @@ export default function Admin() {
         {TABS.map(([k, l]) => <Chip key={k} label={l} active={tab === k} onPress={() => setTab(k)} />)}
       </ScrollView>
       <Screen edges={['bottom']}>
-        {tab === 'stats' ? <Stats /> : tab === 'join' ? <JoinRequests /> : tab === 'companies' ? <Companies /> : tab === 'subs' ? <Subs /> : tab === 'plans' ? <Plans /> : <Settings />}
+        {tab === 'stats' ? <Stats /> : tab === 'join' ? <JoinRequests /> : tab === 'companies' ? <Companies /> : tab === 'subs' ? <Subs /> : tab === 'complaints' ? <Complaints /> : tab === 'plans' ? <Plans /> : tab === 'team' ? <Team /> : <Settings />}
       </Screen>
     </View>
   );
@@ -282,7 +282,7 @@ function PlanRow({ p, onSave }: { p: Plan; onSave: (p: Plan) => void }) {
 }
 
 const SETTING_LABELS: Record<string, string> = {
-  support_whatsapp: 'رقم واتساب الدعم والتفعيل', payment_mode: 'طريقة الدفع (manual / gateway)', payment_provider: 'بوابة الدفع (none / myfatoorah / tap / upayments / knet)',
+  support_whatsapp: 'رقم واتساب قديم (غير مستخدم: أرقام التطبيق ثابتة في الكود)', payment_mode: 'طريقة الدفع (manual / gateway)', payment_provider: 'بوابة الدفع (none / myfatoorah / tap / upayments / knet)',
   trial_days: 'أيام التجربة المجانية', maintenance_message: 'رسالة تنبيه عامة (اتركها فارغة للإخفاء)',
 };
 function Settings() {
@@ -302,6 +302,118 @@ function Settings() {
           </Card>
         );
       })}
+    </>
+  );
+}
+
+const COMPLAINT_STATUS_AR: Record<Complaint['status'], string> = { open: 'جديدة', in_review: 'قيد المراجعة', resolved: 'تم الحل', closed: 'مغلقة' };
+const complaintTone = (st: Complaint['status']) => (st === 'open' ? 'red' : st === 'in_review' ? 'yellow' : st === 'resolved' ? 'green' : 'gray') as 'red';
+
+function Complaints() {
+  const q = useQuery({ queryKey: ['admin', 'complaints'], queryFn: api.adminComplaints });
+  const [filter, setFilter] = useState<'active' | 'all'>('active');
+  const [notes, setNotes] = useState<Record<number, string>>({});
+  const upd = useAct(({ id, st, note }: { id: number; st: Complaint['status']; note: string | null }) => api.adminUpdateComplaint(id, st, note), 'تم تحديث الشكوى');
+  if (q.isLoading) return <Loading />;
+  if (q.error) return <ErrorBox message={arabicError(q.error)} onRetry={q.refetch} />;
+  const list = (q.data ?? []).filter((c) => filter === 'all' || c.status === 'open' || c.status === 'in_review');
+  return (
+    <>
+      <Row><Chip label="المفتوحة" active={filter === 'active'} onPress={() => setFilter('active')} /><Chip label="الكل" active={filter === 'all'} onPress={() => setFilter('all')} /></Row>
+      {list.length ? list.map((c) => {
+        const note = notes[c.id] ?? c.admin_note ?? '';
+        const save = (st: Complaint['status']) => upd.mutate({ id: c.id, st, note: note.trim() || null });
+        return (
+          <Card key={c.id} style={{ marginTop: 10 }} testID={`complaint-${c.id}`}>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Text variant="title" style={{ flex: 1 }}>{c.subject}</Text>
+              <Badge label={COMPLAINT_STATUS_AR[c.status]} tone={complaintTone(c.status)} />
+            </Row>
+            <Text variant="small">#{c.id} · {new Date(c.created_at).toLocaleString('ar-KW')}{c.companies ? ` · عن: ${c.companies.name}` : ' · عن التطبيق'}</Text>
+            <Text variant="small">المرسل: {c.reporter?.full_name || 'مستخدم'}{c.reporter?.phone ? ` · ${c.reporter.phone}` : ''}</Text>
+            <Text style={{ marginTop: 6 }}>{c.body}</Text>
+            <Field label="ملاحظة داخلية للإدارة" value={note} onChangeText={(v) => setNotes({ ...notes, [c.id]: v })} multiline maxLength={1000} />
+            <Row style={{ marginTop: 8, flexWrap: 'wrap' }}>
+              {c.status === 'open' ? <Button small kind="soft" title="قيد المراجعة" onPress={() => save('in_review')} /> : null}
+              {c.status !== 'resolved' ? <Button small title="تم الحل" onPress={() => save('resolved')} /> : null}
+              {c.status !== 'closed' ? <Button small kind="ghost" title="إغلاق" onPress={() => save('closed')} /> : null}
+              <Button small kind="ghost" title="حفظ الملاحظة" onPress={() => save(c.status)} />
+              {c.company_id ? <Button small kind="ghost" title="صفحة الشركة" onPress={() => router.push(`/company/${c.company_id}`)} /> : null}
+            </Row>
+          </Card>
+        );
+      }) : <Empty icon="message-check-outline" title="لا توجد شكاوى" />}
+    </>
+  );
+}
+
+const ROLE_AR: Record<Profile['role'], string> = { customer: 'عميل', company: 'مقدم خدمة', staff: 'مشرف', admin: 'مدير' };
+
+function Team() {
+  const { session } = useSession();
+  const team = useQuery({ queryKey: ['admin', 'team'], queryFn: api.adminTeam });
+  const toast = useToast();
+  const [email, setEmail] = useState('');
+  const [found, setFound] = useState<{ id: string; email: string; role: string; full_name: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const setRole = useAct(({ id, role }: { id: string; role: Profile['role'] }) => api.adminSetRole(id, role), 'تم تغيير الصلاحية');
+  const me = session?.user.id;
+
+  async function find() {
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return toast('اكتب إيميل صحيح');
+    setBusy(true);
+    try {
+      const u = await api.adminFindUser(email);
+      setFound(u);
+      if (!u) toast('لا يوجد حساب بهذا الإيميل. يجب أن يسجّل الشخص في التطبيق أولاً');
+    } catch (e) { toast(arabicError(e)); } finally { setBusy(false); }
+  }
+  function change(id: string, role: Profile['role']) {
+    if (id === me) return toast('لا يمكنك تغيير صلاحية حسابك بنفسك');
+    setRole.mutate({ id, role });
+    setFound(null);
+  }
+
+  return (
+    <>
+      <Card style={{ backgroundColor: colors.warningBg, borderColor: '#F3E2A9' }}>
+        <Text style={{ color: colors.warningText, fontFamily: fonts.bold }}>تنبيه أمني</Text>
+        <Text variant="small" style={{ color: colors.warningText }}>صلاحية «مدير» تمنح كامل الصلاحيات التشغيلية. حماية ملكية المشروع والإجراءات الحساسة على مستوى قاعدة البيانات مقترحة في المرحلة الأولى وتنتظر موافقة المالك.</Text>
+      </Card>
+      <SectionTitle title="فريق الإدارة الحالي" />
+      {team.isLoading ? <Loading /> : (team.data ?? []).map((p) => (
+        <Card key={p.id} style={{ marginBottom: 8 }}>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Text variant="title">{p.full_name || 'بدون اسم'}{p.id === me ? ' (أنت)' : ''}</Text>
+            <Badge label={ROLE_AR[p.role]} tone={p.role === 'admin' ? 'blue' : 'gray'} />
+          </Row>
+          {p.id !== me ? (
+            <Row style={{ marginTop: 8, flexWrap: 'wrap' }}>
+              {p.role !== 'admin' ? <Button small title="ترقية إلى مدير" onPress={() => change(p.id, 'admin')} /> : null}
+              {p.role !== 'staff' ? <Button small kind="soft" title="مشرف" onPress={() => change(p.id, 'staff')} /> : null}
+              <Button small kind="danger" title="إزالة من الإدارة" onPress={() => change(p.id, 'customer')} />
+            </Row>
+          ) : null}
+        </Card>
+      ))}
+      <SectionTitle title="إضافة عضو" />
+      <Card>
+        <Text variant="small">يسجّل الشخص حساباً في التطبيق أولاً، ثم ابحث عنه بالإيميل.</Text>
+        <Field label="إيميل الحساب" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+        <Button small title="بحث" icon="magnify" style={{ marginTop: 8 }} loading={busy} onPress={find} />
+        {found ? (
+          <View style={{ marginTop: 10 }}>
+            <Text variant="title">{found.full_name || found.email}</Text>
+            <Text variant="small">{found.email} · الصلاحية الحالية: {ROLE_AR[found.role as Profile['role']] ?? found.role}</Text>
+            {found.id === me ? <Text variant="small">هذا حسابك.</Text> : (
+              <Row style={{ marginTop: 8, flexWrap: 'wrap' }}>
+                <Button small title="منح صلاحية مدير" onPress={() => change(found.id, 'admin')} />
+                <Button small kind="soft" title="منح صلاحية مشرف" onPress={() => change(found.id, 'staff')} />
+              </Row>
+            )}
+          </View>
+        ) : null}
+      </Card>
     </>
   );
 }

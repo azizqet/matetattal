@@ -30,10 +30,10 @@ describe('الهواتف', () => {
     expect(isKuwaitPhone('39887766')).toBe(false);
   });
   test('صيغة دولية وروابط', () => {
-    expect(intlPhone('65755222')).toBe('96565755222');
-    expect(intlPhone('96565755222')).toBe('96565755222');
-    expect(telUrl('65755222')).toBe('tel:+96565755222');
-    expect(whatsappUrl('65755222', 'مرحبا')).toBe('https://wa.me/96565755222?text=' + encodeURIComponent('مرحبا'));
+    expect(intlPhone('51234567')).toBe('96551234567');
+    expect(intlPhone('96551234567')).toBe('96551234567');
+    expect(telUrl('51234567')).toBe('tel:+96551234567');
+    expect(whatsappUrl('51234567', 'مرحبا')).toBe('https://wa.me/96551234567?text=' + encodeURIComponent('مرحبا'));
   });
 });
 

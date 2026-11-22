@@ -67,3 +67,11 @@ export interface AdminStats {
   requests_total: number; requests_open: number; complaints_open: number; join_requests_new: number;
   visits: number; calls: number; wa_taps: number; revenue_active_kwd: number;
 }
+
+export type ComplaintStatus = 'open' | 'in_review' | 'resolved' | 'closed';
+export interface Complaint {
+  id: number; user_id: string; company_id: number | null; subject: string; body: string;
+  status: ComplaintStatus; admin_note: string | null; created_at: string;
+  companies?: { name: string } | null;
+  reporter?: { full_name: string | null; phone: string | null } | null;
+}

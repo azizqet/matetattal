@@ -1,25 +1,22 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Linking } from 'react-native';
 import { Button, Card, Chip, Field, Row, Screen, Text, useToast } from '@/components/ui';
 import * as api from '@/lib/api';
-import { useAreas, useServices, useSettings } from '@/lib/queries';
+import { useAreas, useServices } from '@/lib/queries';
 import { useSession } from '@/lib/session';
-import { arabicError, isKuwaitPhone, localPhone, whatsappUrl } from '@/lib/utils';
+import { arabicError, isKuwaitPhone, localPhone } from '@/lib/utils';
 
 /** انضمام سريع بدون حساب (نفس جدول join_requests المستخدم في الموقع الحالي) أو بحساب شركة كامل */
 export default function Join() {
   const { session } = useSession();
   const services = useServices();
   const areas = useAreas();
-  const settings = useSettings();
   const toast = useToast();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [svc, setSvc] = useState<string>('tow');
   const [area, setArea] = useState<string>('العاصمة');
   const [busy, setBusy] = useState(false);
-  const support = String(settings.data?.support_whatsapp ?? '96565755222');
 
   async function send() {
     if (name.trim().length < 2 || name.trim().length > 100) return toast('اسم الشركة لازم يكون بين 2 و100 حرف');
@@ -28,8 +25,7 @@ export default function Join() {
     try {
       await api.sendJoinRequest({ company_name: name.trim(), service_id: svc, phone: localPhone(phone), area_name: area });
       toast('وصل طلبك. بنتواصل معك لتفعيل الاشتراك');
-      Linking.openURL(whatsappUrl(support, `السلام عليكم، سجلت شركة ${name.trim()} في ماتعطل وأبي تفعيل الاشتراك`)).catch(() => {});
-      router.back();
+      router.replace({ pathname: '/contact', params: { reason: 'join' } });
     } catch (e) { toast(arabicError(e)); } finally { setBusy(false); }
   }
 
