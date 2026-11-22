@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
+import { ConsentCheckbox, rememberRegistrationConsent, useRequiredTerms } from '@/components/Consent';
 import { Button, Chip, Field, Row, Screen, Text, useToast } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import { arabicError } from '@/lib/utils';
@@ -14,6 +15,9 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const toast = useToast();
+  // النسخ النافذة (إن نُشرت) — قبل النشر لا يُطلب إقرار ولا يتوقف التسجيل
+  const terms = useRequiredTerms(['customers', 'privacy']);
+  const [agreed, setAgreed] = useState(false);
 
   const done = () => {
     if (router.canGoBack()) router.back(); else router.replace('/');
@@ -25,6 +29,7 @@ export default function Auth() {
     if (!/^\S+@\S+\.\S+$/.test(em)) return toast('اكتب إيميل صحيح');
     if (mode !== 'reset' && password.length < 6) return toast('كلمة السر 6 أحرف على الأقل');
     if (mode === 'register' && name.trim().length < 2) return toast('اكتب اسمك');
+    if (mode === 'register' && terms.docs.length && !agreed) return toast('وافق على الشروط وسياسة الخصوصية للمتابعة');
     setBusy(true);
     try {
       if (mode === 'login') {
@@ -35,6 +40,7 @@ export default function Auth() {
       } else if (mode === 'register') {
         const { data, error } = await supabase.auth.signUp({ email: em, password, options: { data: { full_name: name.trim(), account_type: type } } });
         if (error) throw error;
+        if (terms.docs.length) await rememberRegistrationConsent(terms.docs.map((d) => d.id));
         if (data.session) { toast('تم إنشاء حسابك'); done(); }
         else { toast('أرسلنا رابط التفعيل إلى بريدك. فعّل الحساب ثم سجّل الدخول'); setMode('login'); }
       } else {
@@ -70,6 +76,8 @@ export default function Auth() {
         {mode !== 'reset' ? (
           <Field label="كلمة السر" value={password} onChangeText={setPassword} secureTextEntry autoComplete={mode === 'login' ? 'current-password' : 'new-password'} testID="password" />
         ) : null}
+
+        {mode === 'register' ? <ConsentCheckbox docs={terms.docs} checked={agreed} onChange={setAgreed} /> : null}
 
         <Button title={mode === 'login' ? 'دخول' : mode === 'register' ? 'إنشاء الحساب' : 'إرسال الرابط'} loading={busy} onPress={submit} style={{ marginTop: 20 }} testID="auth-submit" />
 

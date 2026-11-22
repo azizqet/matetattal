@@ -193,6 +193,48 @@ export function arabicError(e: unknown): string {
   if (/cannot review own company/i.test(m)) return 'لا يمكنك تقييم شركتك';
   if (/plan not found/i.test(m)) return 'الخطة غير متوفرة';
   if (/Network request failed|Failed to fetch|fetch failed/i.test(m)) return 'تعذر الاتصال. تأكد من الإنترنت';
+  if (/terms not accepted/i.test(m)) return 'يلزم الموافقة على الشروط السارية أولاً';
+  if (/vehicle does not belong|only the company can assign/i.test(m)) return 'السطحة غير تابعة لهذه الشركة';
+  if (/terms .*immutable|cannot be modified/i.test(m)) return 'لا يمكن تعديل نسخة شروط بعد نشرها';
   if (/phone_check|phone ~/i.test(m)) return 'رقم الهاتف غير صحيح (8 أرقام يبدأ بـ 5 أو 6 أو 9)';
   return m || 'حدث خطأ غير متوقع';
+}
+
+// ===== السطحات: الحالات والوقت =====
+export const VEHICLE_STATUS_AR: Record<string, string> = { available: 'متاح', busy: 'مشغول', offline: 'غير متصل' };
+export const VEHICLE_KIND_AR: Record<string, string> = { flatbed: 'سطحة', wrecker: 'ونش', other: 'أخرى' };
+
+/** وقت نسبي بالعربي: «الآن»، «منذ 5 دقائق»، «منذ ساعتين»، «منذ 3 أيام» */
+export function timeAgoAr(iso: string, now: Date = new Date()): string {
+  const sec = Math.max(0, Math.round((now.getTime() - new Date(iso).getTime()) / 1000));
+  if (sec < 60) return 'الآن';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return min === 1 ? 'منذ دقيقة' : min === 2 ? 'منذ دقيقتين' : min <= 10 ? `منذ ${min} دقائق` : `منذ ${min} دقيقة`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return h === 1 ? 'منذ ساعة' : h === 2 ? 'منذ ساعتين' : h <= 10 ? `منذ ${h} ساعات` : `منذ ${h} ساعة`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? 'منذ يوم' : d === 2 ? 'منذ يومين' : d <= 10 ? `منذ ${d} أيام` : `منذ ${d} يوماً`;
+}
+
+/** ملخص حالات السطحات النشطة لشركة */
+export function vehicleCounts(vs: { status: string; is_active?: boolean }[] | undefined) {
+  const out = { available: 0, busy: 0, offline: 0, total: 0 };
+  for (const v of vs ?? []) {
+    if (v.is_active === false) continue;
+    out.total++;
+    if (v.status === 'available' || v.status === 'busy' || v.status === 'offline') out[v.status]++;
+  }
+  return out;
+}
+
+// ===== الشروط =====
+/** هل النص ما زال يحتوي بيانات ناقصة؟ (يمنع نشر مسودة غير مكتملة) */
+export function hasLegalPlaceholders(text: string): boolean {
+  return /\[يُستكمل/.test(text);
+}
+
+/** يحوّل نص الشروط المنشور إلى فقرات وعناوين للعرض (العنوان: سطر يبدأ برقم ثم نقطة) */
+export function parseTermsBody(body: string): { heading: boolean; text: string }[] {
+  return body.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+    .map((l) => ({ heading: /^\d+\.\s/.test(l), text: l }));
 }

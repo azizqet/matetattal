@@ -7,6 +7,7 @@ import { colors, fonts } from '@/lib/theme';
 import type { Company } from '@/lib/types';
 import { companyAreas, formatKm, telUrl, whatsappUrl } from '@/lib/utils';
 import { Badge, Button, Card, Icon, Row, Text } from './ui';
+import { AvailableVehiclesBadge } from './Vehicles';
 
 export function Logo({ c, size = 64 }: { c: Pick<Company, 'name' | 'logo_url'>; size?: number }) {
   if (c.logo_url) return <Image source={{ uri: c.logo_url }} style={{ width: size, height: size, borderRadius: size / 4.5, backgroundColor: colors.primarySoft }} contentFit="cover" transition={150} accessibilityLabel={'شعار ' + c.name} />;
@@ -36,6 +37,7 @@ function CompanyCardBase({ c, distance, serviceName }: { c: Company; distance?: 
               <Row gap={2}><Icon name="star" size={15} color={colors.accent} /><Text variant="small" style={{ color: colors.text, fontFamily: fonts.bold }}>{Number(c.rating).toFixed(1)}</Text><Text variant="small">({c.rating_count})</Text></Row>
             ) : <Badge label="جديد" />}
             {c.is_24h ? <Badge label="24 ساعة" tone="green" /> : null}
+            <AvailableVehiclesBadge vehicles={c.company_vehicles} />
             {distance != null ? <Row gap={2}><Icon name="map-marker-distance" size={15} color={colors.muted} /><Text variant="small">{formatKm(distance)}</Text></Row> : null}
           </Row>
           <Text variant="small" numberOfLines={1} style={{ marginTop: 4 }}>

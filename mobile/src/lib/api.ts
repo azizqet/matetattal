@@ -1,11 +1,11 @@
 // طبقة الوصول للبيانات. كل الصلاحيات مفروضة في قاعدة البيانات (RLS)، والتطبيق مجرد واجهة.
 import { supabase, SUPABASE_URL } from './supabase';
 import type {
-  AdminStats, Area, Complaint, Company, CompanyService, JoinRequest, Notification, Plan, Profile, Promotion, Review,
+  AdminStats, Area, Complaint, Company, ConsentContext, PendingTerm, TermsDocument, TermsKind, Vehicle, VehicleKind, VehicleStatus, CompanyService, JoinRequest, Notification, Plan, Profile, Promotion, Review,
   Service, ServiceRequest, Setting, Subscription,
 } from './types';
 
-const COMPANY_SELECT = '*, company_areas(area_id, areas(name_ar)), company_services(*)';
+const COMPANY_SELECT = '*, company_areas(area_id, areas(name_ar)), company_services(*), company_vehicles(id, label, kind, status, status_updated_at, is_active)';
 
 function check<T>(r: { data: T | null; error: { message: string } | null }): T {
   if (r.error) throw new Error(r.error.message);
@@ -63,7 +63,7 @@ export async function createServiceRequest(r: { company_id: number; service_id: 
   return check(await supabase.from('service_requests').insert(r).select().single()) as ServiceRequest;
 }
 export async function getMyRequests(uid: string): Promise<ServiceRequest[]> {
-  return check(await supabase.from('service_requests').select('*, companies(name, phone, whatsapp, logo_url)')
+  return check(await supabase.from('service_requests').select('*, companies(name, phone, whatsapp, logo_url), company_vehicles(id, label, status, status_updated_at)')
     .eq('customer_id', uid).order('created_at', { ascending: false }).limit(100));
 }
 export async function setRequestStatus(id: number, status: string) {
@@ -106,7 +106,7 @@ export async function deleteCompanyService(id: number) {
 }
 export async function getCompanyRequests(companyIds: number[]): Promise<ServiceRequest[]> {
   if (!companyIds.length) return [];
-  return check(await supabase.from('service_requests').select('*').in('company_id', companyIds).order('created_at', { ascending: false }).limit(100));
+  return check(await supabase.from('service_requests').select('*, company_vehicles(id, label, status, status_updated_at)').in('company_id', companyIds).order('created_at', { ascending: false }).limit(100));
 }
 export async function getPlans(): Promise<Plan[]> {
   return check(await supabase.from('subscription_plans').select('*').order('sort'));
@@ -220,4 +220,63 @@ export async function adminTeam(): Promise<Profile[]> {
 }
 export async function adminSetRole(userId: string, role: Profile['role']) {
   check(await supabase.rpc('admin_set_role', { p_user: userId, p_role: role }));
+}
+
+// ===== الشروط والموافقات (المرحلة 1) — كل التحقق مفروض في قاعدة البيانات =====
+/** النسخ المنشورة السارية (اختياري: أنواع محددة) */
+export async function getCurrentTerms(kinds?: TermsKind[]): Promise<TermsDocument[]> {
+  let q = supabase.from('terms_documents').select('*').eq('is_current', true).not('published_at', 'is', null);
+  if (kinds?.length) q = q.in('kind', kinds);
+  return check(await q.order('kind'));
+}
+export async function getMyAcceptedDocIds(): Promise<number[]> {
+  const rows: { document_id: number }[] = check(await supabase.from('terms_acceptances').select('document_id'));
+  return rows.map((r) => r.document_id);
+}
+export async function getMyPendingTerms(): Promise<PendingTerm[]> {
+  return check(await supabase.rpc('my_pending_terms')) as PendingTerm[];
+}
+/** تسجيل الموافقة. الخادم يحدد الوقت والإصدار والبصمة والمستخدم — التطبيق يرسل المعرّف والسياق فقط */
+export async function acceptTerms(documentIds: number[], context: ConsentContext, companyId?: number | null, platform?: 'ios' | 'android' | 'web', appVersion?: string) {
+  if (!documentIds.length) return;
+  check(await supabase.from('terms_acceptances').insert(documentIds.map((document_id) => ({
+    document_id, context, company_id: companyId ?? null, platform: platform ?? null, app_version: appVersion ?? null,
+  }))));
+}
+/** للإدارة: كل النسخ (المنشورة والمسودات) */
+export async function adminTermsDocuments(): Promise<TermsDocument[]> {
+  return check(await supabase.from('terms_documents').select('*').order('kind').order('created_at', { ascending: false }));
+}
+/** نشر نسخة جديدة: إدراج غير سارٍ ← إلغاء السارية السابقة ← تفعيل الجديدة (الخادم يحسب البصمة ووقت النشر) */
+export async function adminPublishTerms(kind: TermsKind, version: string, title: string, body: string) {
+  const doc: TermsDocument = check(await supabase.from('terms_documents').insert({ kind, version, title, body }).select().single());
+  check(await supabase.from('terms_documents').update({ is_current: false }).eq('kind', kind).eq('is_current', true));
+  check(await supabase.from('terms_documents').update({ is_current: true }).eq('id', doc.id));
+}
+
+// ===== السطحات والونشات (المرحلة 1B) =====
+export async function getCompanyVehicles(companyId: number): Promise<Vehicle[]> {
+  return check(await supabase.from('company_vehicles').select('*').eq('company_id', companyId).order('id'));
+}
+export async function addVehicle(companyId: number, label: string, kind: VehicleKind) {
+  check(await supabase.from('company_vehicles').insert({ company_id: companyId, label, kind }));
+}
+/** وقت التحديث يحدده الخادم تلقائياً عند تغيير الحالة */
+export async function setVehicleStatus(id: number, status: VehicleStatus) {
+  check(await supabase.from('company_vehicles').update({ status }).eq('id', id));
+}
+export async function setVehicleActive(id: number, is_active: boolean) {
+  check(await supabase.from('company_vehicles').update({ is_active }).eq('id', id));
+}
+export async function deleteVehicle(id: number) {
+  check(await supabase.from('company_vehicles').delete().eq('id', id));
+}
+/** صاحب الشركة: قبول الطلب مع تحديد السطحة (اختياري) */
+export async function acceptRequestWithVehicle(requestId: number, vehicleId: number | null) {
+  const patch: Record<string, unknown> = { status: 'accepted' };
+  if (vehicleId) patch.vehicle_id = vehicleId;
+  check(await supabase.from('service_requests').update(patch).eq('id', requestId));
+}
+export async function assignRequestVehicle(requestId: number, vehicleId: number | null) {
+  check(await supabase.from('service_requests').update({ vehicle_id: vehicleId }).eq('id', requestId));
 }

@@ -4,6 +4,8 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Linking, View } from 'react-native';
 import { Logo } from '@/components/CompanyCard';
+import { ConsentCheckbox, recordConsent, useRequiredTerms } from '@/components/Consent';
+import { RequestVehicleActions, VehicleManager } from '@/components/Vehicles';
 import { Badge, Button, Card, Chip, Empty, Field, Loading, Row, Screen, SectionTitle, Text, useToast } from '@/components/ui';
 import * as api from '@/lib/api';
 import { useAreas, useServices } from '@/lib/queries';
@@ -83,6 +85,7 @@ function Dashboard({ c }: { c: Company }) {
       {editing ? <CompanyForm uid={session!.user.id} coords={coords} company={c} onSaved={() => { setEditing(false); qc.invalidateQueries({ queryKey: ['my-companies'] }); toast('تم حفظ التعديلات'); }} /> : null}
 
       <SubscriptionBox c={c} />
+      <VehicleManager companyId={c.id} />
       <PriceList c={c} />
 
       <SectionTitle title={`طلبات العملاء (${requests.data?.filter((r) => ['new', 'accepted', 'on_way'].includes(r.status)).length ?? 0} مفتوح)`} />
@@ -93,13 +96,15 @@ function Dashboard({ c }: { c: Company }) {
           </Row>
           <Text variant="small">{new Date(r.created_at).toLocaleString('ar-KW')}{r.area_name ? ' · ' + r.area_name : ''}</Text>
           {r.note ? <Text style={{ marginTop: 6 }}>{r.note}</Text> : null}
+          {r.company_vehicles ? <Text variant="small" style={{ marginTop: 4, color: colors.primary }}>السطحة: {r.company_vehicles.label}</Text> : null}
           <Row style={{ marginTop: 10, flexWrap: 'wrap' }}>
             <Button small icon="phone" title="اتصال" onPress={() => Linking.openURL(telUrl(r.phone))} />
             <Button small icon="whatsapp" kind="whatsapp" title="واتساب" onPress={() => Linking.openURL(whatsappUrl(intlPhone(r.phone), `مرحباً، بخصوص طلبك رقم ${r.id} في ماتعطل`))} />
             {r.lat != null && r.lng != null ? <Button small kind="soft" icon="map-marker" title="الموقع" onPress={() => Linking.openURL(mapsUrl(r.lat!, r.lng!))} /> : null}
           </Row>
           <Row style={{ marginTop: 8, flexWrap: 'wrap' }}>
-            {r.status === 'new' ? <><Button small title="قبول" onPress={() => setStatus.mutate({ id: r.id, s: 'accepted' })} /><Button small kind="danger" title="اعتذار" onPress={() => setStatus.mutate({ id: r.id, s: 'rejected' })} /></> : null}
+            <RequestVehicleActions r={r} companyId={c.id} onDone={() => qc.invalidateQueries({ queryKey: ['company-requests', c.id] })} />
+            {r.status === 'new' ? <Button small kind="danger" title="اعتذار" onPress={() => setStatus.mutate({ id: r.id, s: 'rejected' })} /> : null}
             {r.status === 'accepted' ? <Button small title="في الطريق" onPress={() => setStatus.mutate({ id: r.id, s: 'on_way' })} /> : null}
             {['accepted', 'on_way'].includes(r.status) ? <Button small kind="soft" title="تم الإنجاز" onPress={() => setStatus.mutate({ id: r.id, s: 'done' })} /> : null}
           </Row>
@@ -125,6 +130,8 @@ function SubscriptionBox({ c }: { c: Company }) {
   const [price, setPrice] = useState<{ base: number; total: number; discount_percent: number } | null>(null);
   const active = (plans.data ?? []).filter((p) => p.is_active);
   const pending = subs.data?.find((s) => s.status === 'pending');
+  const terms = useRequiredTerms(['providers', 'subscriptions']);
+  const [agreed, setAgreed] = useState(false);
   const plan = planInput ?? active[0]?.id ?? null;
   useEffect(() => {
     if (!plan) return;
@@ -133,9 +140,14 @@ function SubscriptionBox({ c }: { c: Company }) {
   }, [plan, code]);
 
   const req = useMutation({
-    mutationFn: () => api.requestSubscription(c.id, plan!, code.trim()),
+    mutationFn: async () => {
+      if (terms.pending.length) await recordConsent(terms.pending.map((d) => d.id), 'subscription', c.id);
+      return api.requestSubscription(c.id, plan!, code.trim());
+    },
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ['subs', c.id] });
+      qc.invalidateQueries({ queryKey: ['terms'] });
+      setAgreed(false);
       toast(`تم إنشاء طلب الاشتراك رقم ${r.subscription_id} بمبلغ ${formatKwd(r.amount_kwd)}. تواصل مع الإدارة لإتمام الدفع`);
     },
     onError: (e) => toast(arabicError(e)),
@@ -166,8 +178,9 @@ function SubscriptionBox({ c }: { c: Company }) {
             </Text>
           </Row>
         ) : null}
+        <ConsentCheckbox docs={terms.pending} checked={agreed} onChange={setAgreed} testID="sub-consent" />
         <Button title={isVisible(c) ? 'تجديد الاشتراك' : 'اطلب تفعيل الاشتراك'} icon="credit-card-check-outline" style={{ marginTop: 12 }}
-          disabled={!plan} loading={req.isPending} onPress={() => req.mutate()} />
+          disabled={!plan || terms.loading || (terms.pending.length > 0 && !agreed)} loading={req.isPending} onPress={() => req.mutate()} />
         <Text variant="small" style={{ marginTop: 8 }}>الدفع حالياً يدوي عبر الإدارة. سيتم إضافة الدفع الإلكتروني (كي نت) قريباً.</Text>
         {subs.data?.filter((s) => s.status !== 'pending').slice(0, 5).map((s) => (
           <Row key={s.id} style={{ justifyContent: 'space-between', marginTop: 8 }}>
@@ -229,6 +242,10 @@ function CompanyForm({ uid, company, coords, onSaved }: { uid: string; company?:
   const [areaIds, setAreaIds] = useState<number[]>(company?.company_areas?.map((a) => a.area_id) ?? []);
   const [logo, setLogo] = useState<{ uri: string; mime: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  // الموافقة مطلوبة عند إنشاء شركة جديدة فقط (يفرضها الخادم أيضاً)
+  const terms = useRequiredTerms(['providers', 'privacy']);
+  const [agreed, setAgreed] = useState(false);
+  const needConsent = !company && terms.pending.length > 0;
 
   async function pickLogo() {
     const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7 });
@@ -244,8 +261,10 @@ function CompanyForm({ uid, company, coords, onSaved }: { uid: string; company?:
     if (!isKuwaitPhone(phone)) return toast('رقم الهاتف غير صحيح');
     if (wa && !isKuwaitPhone(wa)) return toast('رقم الواتساب غير صحيح');
     if (!areaIds.length) return toast('اختر منطقة خدمة واحدة على الأقل');
+    if (needConsent && !agreed) return toast('وافق على شروط مقدمي الخدمات وسياسة الخصوصية للمتابعة');
     setBusy(true);
     try {
+      if (needConsent) await recordConsent(terms.pending.map((d) => d.id), 'company_create');
       const logo_url = logo ? await api.uploadCompanyImage(uid, logo.uri, logo.mime) : company?.logo_url ?? null;
       const body: api.CompanyInput = {
         name: name.trim().slice(0, 100), service_id: svc, phone: intlPhone(phone), whatsapp: intlPhone(wa || phone),
@@ -283,6 +302,7 @@ function CompanyForm({ uid, company, coords, onSaved }: { uid: string; company?:
           onPress={() => (coords ? setLoc(coords) : toast('حدد موقعك أولاً من زر المنطقة في الرئيسية'))} />
       </Row>
       <Field label="العنوان (اختياري)" value={address} onChangeText={setAddress} maxLength={200} />
+      {needConsent ? <ConsentCheckbox docs={terms.pending} checked={agreed} onChange={setAgreed} testID="company-consent" /> : null}
       <Button title={company ? 'حفظ التعديلات' : 'إنشاء الشركة'} loading={busy} onPress={save} style={{ marginTop: 16 }} />
     </Card>
   );

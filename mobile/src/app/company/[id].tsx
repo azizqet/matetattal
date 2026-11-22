@@ -4,6 +4,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Linking, Pressable, ScrollView } from 'react-native';
 import { contact, Logo } from '@/components/CompanyCard';
+import { VehicleStatusList } from '@/components/Vehicles';
 import { Badge, Button, Card, Empty, Field, Icon, Loading, Row, SectionTitle, Stars, Text, useToast } from '@/components/ui';
 import * as api from '@/lib/api';
 import { useServiceNames } from '@/lib/queries';
@@ -99,6 +100,8 @@ export default function CompanyScreen() {
             onPress={() => (isKuwaitMobile(phone) ? req.mutate() : toast('اكتب رقم جوال كويتي صحيح (8 أرقام)'))} />
         </Card>
       ) : null}
+
+      <VehicleStatusList companyId={c.id} initial={c.company_vehicles} />
 
       {c.description ? (<><SectionTitle title="عن الشركة" /><Card><Text>{c.description}</Text></Card></>) : null}
 

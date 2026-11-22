@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { I18nManager, Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ConsentGate } from '@/components/Consent';
 import { ToastProvider } from '@/components/ui';
 import { SessionProvider } from '@/lib/session';
 import { colors, fonts } from '@/lib/theme';
@@ -68,6 +69,7 @@ export default function RootLayout() {
               <Stack.Screen name="legal/index" options={{ title: 'الشروط والسياسات' }} />
               <Stack.Screen name="legal/[id]" options={{ title: 'الشروط والسياسات' }} />
             </Stack>
+            <ConsentGate />
             </View>
           </ToastProvider>
         </SessionProvider>

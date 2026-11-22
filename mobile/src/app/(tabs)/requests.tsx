@@ -8,7 +8,7 @@ import * as api from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { colors } from '@/lib/theme';
 import type { ServiceRequest } from '@/lib/types';
-import { arabicError, REQUEST_STATUS_AR, whatsappUrl } from '@/lib/utils';
+import { arabicError, REQUEST_STATUS_AR, timeAgoAr, VEHICLE_STATUS_AR, whatsappUrl } from '@/lib/utils';
 
 const tone = (s: string) => (s === 'done' ? 'green' : s === 'rejected' || s === 'cancelled' ? 'red' : s === 'new' ? 'yellow' : 'blue') as 'green';
 
@@ -16,7 +16,7 @@ export default function Requests() {
   const { session } = useSession();
   const toast = useToast();
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ['my-requests'], queryFn: () => api.getMyRequests(session!.user.id), enabled: !!session });
+  const q = useQuery({ queryKey: ['my-requests'], queryFn: () => api.getMyRequests(session!.user.id), enabled: !!session, refetchInterval: 30_000 });
   const cancel = useMutation({
     mutationFn: (id: number) => api.setRequestStatus(id, 'cancelled'),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['my-requests'] }); toast('تم إلغاء الطلب'); },
@@ -45,6 +45,11 @@ export default function Requests() {
               <Badge label={REQUEST_STATUS_AR[r.status]} tone={tone(r.status)} />
             </Row>
             {r.note ? <Text variant="muted" style={{ marginTop: 8 }}>{r.note}</Text> : null}
+            {r.company_vehicles ? (
+              <Text variant="small" style={{ marginTop: 6 }} testID={`req-vehicle-${r.id}`}>
+                السطحة: {r.company_vehicles.label} · {VEHICLE_STATUS_AR[r.company_vehicles.status]} (آخر تحديث {timeAgoAr(r.company_vehicles.status_updated_at)})
+              </Text>
+            ) : null}
             <Row style={{ marginTop: 10 }}>
               {r.companies?.whatsapp ? <Button small kind="whatsapp" icon="whatsapp" title="واتساب" style={{ flex: 1 }}
                 onPress={() => Linking.openURL(whatsappUrl(r.companies!.whatsapp, `بخصوص طلبي رقم ${r.id} في ماتعطل`))} /> : null}

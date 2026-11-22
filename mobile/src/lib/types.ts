@@ -37,6 +37,7 @@ export interface Company {
   created_at: string | null;
   company_areas?: { area_id: number; areas?: { name_ar: string } | null }[];
   company_services?: CompanyService[];
+  company_vehicles?: Vehicle[];
 }
 
 export interface CompanyService { id: number; company_id: number; service_id: string; title: string; price_from: number | null; price_note: string | null }
@@ -49,6 +50,8 @@ export interface ServiceRequest {
   id: number; company_id: number; customer_id: string; service_id: string | null; note: string | null; phone: string;
   area_name: string | null; lat: number | null; lng: number | null; status: RequestStatus; created_at: string; updated_at: string;
   companies?: { name: string; phone: string | null; whatsapp: string | null; logo_url: string | null } | null;
+  vehicle_id?: number | null;
+  company_vehicles?: Pick<Vehicle, 'id' | 'label' | 'status' | 'status_updated_at'> | null;
 }
 
 export interface Plan { id: string; name_ar: string; months: number; price_kwd: number; is_active: boolean; sort: number | null }
@@ -74,4 +77,21 @@ export interface Complaint {
   status: ComplaintStatus; admin_note: string | null; created_at: string;
   companies?: { name: string } | null;
   reporter?: { full_name: string | null; phone: string | null } | null;
+}
+
+// ===== المرحلة 1: الشروط والموافقات =====
+export type TermsKind = 'customers' | 'providers' | 'privacy' | 'subscriptions' | 'ads';
+export type ConsentContext = 'registration' | 'company_create' | 'subscription' | 'ads' | 'update';
+export interface TermsDocument {
+  id: number; kind: TermsKind; version: string; title: string; body: string; body_sha256: string;
+  published_at: string | null; is_current: boolean; created_at: string;
+}
+export interface PendingTerm { document_id: number; kind: TermsKind; version: string; title: string }
+
+// ===== المرحلة 1B: السطحات والونشات =====
+export type VehicleStatus = 'available' | 'busy' | 'offline';
+export type VehicleKind = 'flatbed' | 'wrecker' | 'other';
+export interface Vehicle {
+  id: number; company_id: number; label: string; kind: VehicleKind; status: VehicleStatus;
+  status_updated_at: string; is_active: boolean; created_at: string;
 }

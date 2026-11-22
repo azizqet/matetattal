@@ -8,11 +8,12 @@ import * as api from '@/lib/api';
 import { useAreas, useServiceNames } from '@/lib/queries';
 import { isAdmin, useSession } from '@/lib/session';
 import { colors, fonts } from '@/lib/theme';
-import type { Company, Complaint, Plan, Profile, Promotion, Service } from '@/lib/types';
-import { addDaysISO, arabicError, COMPANY_STATUS_AR, formatKwd, isVisible, SUB_STATUS_AR, todayISO, whatsappUrl } from '@/lib/utils';
+import { getLegalDoc, LEGAL_DOCS, legalDocToText } from '@/content/legal';
+import type { Company, Complaint, Plan, Profile, Promotion, Service, TermsKind } from '@/lib/types';
+import { addDaysISO, arabicError, hasLegalPlaceholders, COMPANY_STATUS_AR, formatKwd, isVisible, SUB_STATUS_AR, todayISO, whatsappUrl } from '@/lib/utils';
 
-type Tab = 'stats' | 'join' | 'companies' | 'subs' | 'complaints' | 'plans' | 'team' | 'settings';
-const TABS: [Tab, string][] = [['stats', 'نظرة عامة'], ['join', 'طلبات الانضمام'], ['companies', 'الشركات'], ['subs', 'الاشتراكات'], ['complaints', 'الشكاوى'], ['plans', 'الخطط والعروض'], ['team', 'فريق الإدارة'], ['settings', 'الإعدادات']];
+type Tab = 'stats' | 'join' | 'companies' | 'subs' | 'complaints' | 'plans' | 'terms' | 'team' | 'settings';
+const TABS: [Tab, string][] = [['stats', 'نظرة عامة'], ['join', 'طلبات الانضمام'], ['companies', 'الشركات'], ['subs', 'الاشتراكات'], ['complaints', 'الشكاوى'], ['plans', 'الخطط والعروض'], ['terms', 'الشروط'], ['team', 'فريق الإدارة'], ['settings', 'الإعدادات']];
 
 export default function Admin() {
   const { profile, ready } = useSession();
@@ -26,7 +27,7 @@ export default function Admin() {
         {TABS.map(([k, l]) => <Chip key={k} label={l} active={tab === k} onPress={() => setTab(k)} />)}
       </ScrollView>
       <Screen edges={['bottom']}>
-        {tab === 'stats' ? <Stats /> : tab === 'join' ? <JoinRequests /> : tab === 'companies' ? <Companies /> : tab === 'subs' ? <Subs /> : tab === 'complaints' ? <Complaints /> : tab === 'plans' ? <Plans /> : tab === 'team' ? <Team /> : <Settings />}
+        {tab === 'stats' ? <Stats /> : tab === 'join' ? <JoinRequests /> : tab === 'companies' ? <Companies /> : tab === 'subs' ? <Subs /> : tab === 'complaints' ? <Complaints /> : tab === 'plans' ? <Plans /> : tab === 'terms' ? <Terms /> : tab === 'team' ? <Team /> : <Settings />}
       </Screen>
     </View>
   );
@@ -347,6 +348,105 @@ function Complaints() {
   );
 }
 
+// ===== الشروط: نشر نسخة نافذة =====
+// النشر = إدراج نسخة جديدة (غير قابلة للتعديل بعد ذلك) ثم جعلها السارية. الخادم يحسب البصمة ووقت النشر.
+// يُرفض النشر إذا بقيت في النص بيانات ناقصة «[يُستكمل: ...]».
+function Terms() {
+  const q = useQuery({ queryKey: ['admin', 'terms'], queryFn: api.adminTermsDocuments });
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [kind, setKind] = useState<TermsKind>('customers');
+  const [form, setForm] = useState<{ title: string; version: string; body: string } | null>(null);
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const all = q.data ?? [];
+  const history = all.filter((d) => d.kind === kind);
+  const current = history.find((d) => d.is_current);
+
+  function startFromDraft() {
+    const d = getLegalDoc(kind)!;
+    const next = current ? `${current.version.split('.')[0]}.${Number(current.version.split('.')[1] ?? 0) + 1}` : d.version;
+    setForm({ title: current?.title ?? d.title, version: next, body: current?.body ?? legalDocToText(d) });
+    setConfirm(false);
+  }
+  const placeholders = form ? hasLegalPlaceholders(form.body) || hasLegalPlaceholders(form.title) : false;
+  const versionOk = !!form && /^\d+\.\d+$/.test(form.version) && !history.some((d) => d.version === form.version);
+
+  async function publish() {
+    if (!form) return;
+    if (placeholders) return toast('النص يحتوي بيانات ناقصة «[يُستكمل: ...]». أكملها قبل النشر');
+    if (!versionOk) return toast('رقم الإصدار غير صحيح أو مستخدم سابقاً (مثال: 1.0)');
+    if (form.body.trim().length < 50) return toast('النص قصير جداً');
+    setBusy(true);
+    try {
+      await api.adminPublishTerms(kind, form.version, form.title.trim(), form.body.trim());
+      toast('تم نشر النسخة. سيُطلب من المستخدمين الموافقة عليها');
+      setForm(null); setConfirm(false);
+      qc.invalidateQueries({ queryKey: ['admin', 'terms'] });
+      qc.invalidateQueries({ queryKey: ['terms'] });
+    } catch (e) { toast(arabicError(e)); } finally { setBusy(false); }
+  }
+
+  return (
+    <>
+      <Row style={{ flexWrap: 'wrap' }}>
+        {LEGAL_DOCS.map((d) => <Chip key={d.id} label={d.title} active={kind === d.id} onPress={() => { setKind(d.id); setForm(null); }} />)}
+      </Row>
+      <Card style={{ marginTop: 12 }}>
+        <Text variant="title">النسخة النافذة</Text>
+        {current ? (
+          <>
+            <Text>الإصدار {current.version} · نُشرت {current.published_at ? new Date(current.published_at).toLocaleString('ar-KW') : ''}</Text>
+            <Text variant="small" selectable>البصمة: {current.body_sha256.slice(0, 16)}…</Text>
+          </>
+        ) : <Text variant="muted">لم تُنشر أي نسخة بعد — التطبيق يعرض المسودة المضمّنة، ولا يُطلب إقرار من المستخدمين.</Text>}
+        {!form ? <Button small title={current ? 'إصدار نسخة جديدة' : 'تجهيز النسخة الأولى من المسودة'} icon="file-document-edit-outline" style={{ marginTop: 10 }} onPress={startFromDraft} /> : null}
+      </Card>
+
+      {form ? (
+        <Card style={{ marginTop: 12 }}>
+          <Text variant="title">نسخة جديدة</Text>
+          <Field label="العنوان" value={form.title} onChangeText={(v) => setForm({ ...form, title: v })} maxLength={120} />
+          <Field label="رقم الإصدار" value={form.version} onChangeText={(v) => setForm({ ...form, version: v.replace(/[^\d.]/g, '') })} keyboardType="decimal-pad"
+            error={versionOk ? undefined : 'رقم غير صحيح أو مستخدم سابقاً'} />
+          <Field label="النص الكامل (سطر يبدأ برقم ثم نقطة = عنوان قسم)" value={form.body} onChangeText={(v) => setForm({ ...form, body: v })} multiline
+            style={{ minHeight: 260 }} testID="terms-body" />
+          {placeholders ? (
+            <View style={{ backgroundColor: '#FDECEA', borderRadius: 12, padding: 10, marginTop: 10 }} testID="terms-placeholders">
+              <Text style={{ color: colors.danger, fontFamily: fonts.bold }}>لا يمكن النشر بعد</Text>
+              <Text variant="small" style={{ color: colors.danger }}>النص يحتوي «[يُستكمل: ...]» (مثل بيانات الجهة المشغّلة أو سياسة الاسترداد). أكملها بعد المراجعة القانونية.</Text>
+            </View>
+          ) : null}
+          {!confirm ? (
+            <Button title="نشر هذه النسخة" icon="publish" style={{ marginTop: 12 }} disabled={placeholders || !versionOk} onPress={() => setConfirm(true)} />
+          ) : (
+            <View style={{ marginTop: 12 }}>
+              <Text style={{ fontFamily: fonts.bold }}>تأكيد النشر</Text>
+              <Text variant="small">بعد النشر لا يمكن تعديل هذه النسخة، وتصبح نافذة فوراً، ويُطلب من المستخدمين الموافقة عليها عند دخولهم.</Text>
+              <Row style={{ marginTop: 8 }}>
+                <Button title="نعم، انشر" style={{ flex: 1 }} loading={busy} onPress={publish} testID="terms-publish" />
+                <Button title="تراجع" kind="soft" style={{ flex: 1 }} onPress={() => setConfirm(false)} />
+              </Row>
+            </View>
+          )}
+          <Button small kind="ghost" title="إلغاء" onPress={() => setForm(null)} />
+        </Card>
+      ) : null}
+
+      <SectionTitle title={`سجل الإصدارات (${history.length})`} />
+      {q.isLoading ? <Loading /> : history.length ? history.map((d) => (
+        <Card key={d.id} style={{ marginBottom: 8 }}>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Text variant="title">الإصدار {d.version}</Text>
+            <Badge label={d.is_current ? 'النافذة' : d.published_at ? 'سابقة' : 'غير منشورة'} tone={d.is_current ? 'green' : 'gray'} />
+          </Row>
+          <Text variant="small">{d.published_at ? new Date(d.published_at).toLocaleString('ar-KW') : new Date(d.created_at).toLocaleString('ar-KW')}</Text>
+        </Card>
+      )) : <Text variant="muted">لا توجد إصدارات منشورة لهذه الوثيقة.</Text>}
+    </>
+  );
+}
+
 const ROLE_AR: Record<Profile['role'], string> = { customer: 'عميل', company: 'مقدم خدمة', staff: 'مشرف', admin: 'مدير' };
 
 function Team() {
@@ -378,7 +478,7 @@ function Team() {
     <>
       <Card style={{ backgroundColor: colors.warningBg, borderColor: '#F3E2A9' }}>
         <Text style={{ color: colors.warningText, fontFamily: fonts.bold }}>تنبيه أمني</Text>
-        <Text variant="small" style={{ color: colors.warningText }}>صلاحية «مدير» تمنح كامل الصلاحيات التشغيلية. حماية ملكية المشروع والإجراءات الحساسة على مستوى قاعدة البيانات مقترحة في المرحلة الأولى وتنتظر موافقة المالك.</Text>
+        <Text variant="small" style={{ color: colors.warningText }}>صلاحية «مدير» تمنح كامل الصلاحيات التشغيلية. ملكية المشروع محمية في قاعدة البيانات: لا يمكن تغيير صلاحية المالك، ومنح أو سحب صلاحية «مدير» للمالك فقط، ولا يغيّر أحد صلاحية نفسه.</Text>
       </Card>
       <SectionTitle title="فريق الإدارة الحالي" />
       {team.isLoading ? <Loading /> : (team.data ?? []).map((p) => (

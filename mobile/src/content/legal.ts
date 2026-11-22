@@ -272,3 +272,8 @@ export const LEGAL_DOCS: LegalDoc[] = [
 export function getLegalDoc(id: string): LegalDoc | undefined {
   return LEGAL_DOCS.find((d) => d.id === id);
 }
+
+/** نص الوثيقة كما سيُنشر في قاعدة البيانات (عناوين مرقّمة وبنود) — نقطة بداية لتبويب النشر في الإدارة */
+export function legalDocToText(doc: LegalDoc): string {
+  return doc.sections.map((s, i) => [`${i + 1}. ${s.title}`, ...s.body.map((b) => `• ${b}`)].join('\n')).join('\n\n');
+}
