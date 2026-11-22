@@ -35,8 +35,8 @@ export default function Home() {
         refreshControl={<RefreshControl refreshing={companies.isRefetching} onRefresh={() => { companies.refetch(); services.refetch(); }} />}
       >
         <LinearGradientFallback>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={st.logo}>ماتعطل<Text style={{ color: colors.accent, fontSize: 30 }}>•</Text></Text>
+          <Row style={{ justifyContent: 'space-between', flexWrap: 'wrap', rowGap: 6 }}>
+            <Text style={st.logo} maxFontSizeMultiplier={1.2} numberOfLines={1} testID="home-logo">ماتعطل<Text style={st.logoDot}>•</Text></Text>
             <AreaPill light />
           </Row>
           <Text style={st.eyebrow}>خدمات السيارات في الكويت</Text>
@@ -86,7 +86,9 @@ export default function Home() {
 }
 
 const st = StyleSheet.create({
-  logo: { color: '#fff', fontFamily: fonts.heavy, fontSize: 28 },
+  // ارتفاع السطر لازم يكون أكبر من حجم الخط: كان النص يرث lineHeight: 24 (أصغر من 28) فيُقص أعلى الكلمة على iOS
+  logo: { color: '#fff', fontFamily: fonts.heavy, fontSize: 28, lineHeight: 44, paddingTop: 2, includeFontPadding: false },
+  logoDot: { color: colors.accent, fontSize: 30, lineHeight: 44 },
   eyebrow: { color: colors.accent, fontFamily: fonts.bold, fontSize: 13, marginTop: 18 },
   heroTitle: { color: '#fff', fontFamily: fonts.heavy, fontSize: 27, lineHeight: 40, marginTop: 4 },
   heroSub: { color: '#DCE7FF', fontSize: 14, lineHeight: 22 },
