@@ -6,7 +6,7 @@ import {
 } from './core.js';
 
 initSession('local');
-const VERSION = '4.6.0';
+const VERSION = '4.5.0';
 const COLS = 'id,service_id,name,phone,whatsapp,price_text,rating,rating_count,logo_url,cover_url,photos,description,address,lat,lng,is_24h,is_available,created_at,featured_until,is_sample,company_areas(areas(name_ar)),company_services(service_id)';
 
 /* ================= الحالة ================= */
@@ -109,21 +109,10 @@ const adSeen = new Set();
 const trackAd = (id, kind) => { const k = id + kind; if (adSeen.has(k)) return; adSeen.add(k); rpc('track_ad', { p_id: +id, p_kind: kind }, { anon: true }).catch(() => { }); };
 
 /* ================= أجزاء واجهة ================= */
-// رسالة واتساب جاهزة حسب نوع الخدمة + موقع العميل
-const WA_MSG = {
-  tow: ['أحتاج *سطحة* لسيارتي.', ['🚗 نوع السيارة:', '🏁 وين توديها:']],
-  tire: ['أحتاج *بنشر متنقل* (تبديل أو تصليح تاير).', ['🚗 نوع السيارة:', '🛞 مقاس التاير (إذا تعرفه):']],
-  keys: ['أحتاج خدمة *مفاتيح سيارة* (فتح / نسخ / برمجة).', ['🚗 نوع السيارة وسنة الصنع:']],
-  wash: ['أبي *غسيل سيارة متنقل*.', ['🚗 نوع السيارة:', '🕒 الوقت المناسب:']],
-  shield: ['أبي أستفسر عن *الحماية والتظليل*.', ['🚗 نوع السيارة وسنة الصنع:', '✨ الخدمة المطلوبة:']],
-  bat: ['أحتاج *بطارية* أو فحص كهرباء للسيارة.', ['🚗 نوع السيارة:', '⚡ المشكلة (ما تشتغل / ضعيفة):']],
-  mech: ['أحتاج *ميكانيكي متنقل*.', ['🚗 نوع السيارة:', '🔧 المشكلة:']],
-};
 const waText = c => {
-  const [need, extra] = WA_MSG[c && c.s] || ['أحتاج خدمة لسيارتي' + (c && c.s ? ' (*' + svcName(c.s) + '*)' : '') + '.', ['🚗 نوع السيارة:', '📝 التفاصيل:']];
-  const loc = S.pos ? '📍 موقعي: https://maps.google.com/?q=' + S.pos.lat.toFixed(6) + ',' + S.pos.lng.toFixed(6)
-    : (S.area && S.area !== 'all' ? '📍 المنطقة: ' + S.area : '📍 موقعي:');
-  return ['السلام عليكم 👋', need, loc, ...extra, '', 'تواصلت معكم عن طريق *ماتعطل*'].join('\n');
+  let t = 'السلام عليكم، وصلت لكم عن طريق تطبيق ماتعطل وأحتاج خدمة' + (c && c.s ? ' (' + svcName(c.s) + ')' : '') + '.';
+  if (S.pos) t += '\nموقعي: https://maps.google.com/?q=' + S.pos.lat.toFixed(6) + ',' + S.pos.lng.toFixed(6);
+  return t;
 };
 const telHref = p => 'tel:+' + intlPhone(p);
 const waHref = (p, text) => 'https://wa.me/' + intlPhone(p) + (text ? '?text=' + encodeURIComponent(text) : '');
@@ -938,20 +927,7 @@ document.addEventListener('click', e => {
   const a = e.target.closest('[data-act]');
   if (a) { const f = ACT[a.dataset.act]; if (f) { if (a.tagName === 'A' && a.dataset.act !== 'goreg') e.preventDefault(); f(a, e); return; } }
   const t = e.target.closest('[data-track]');
-  if (t) {
-    track(t.dataset.track, t.dataset.id);
-    // واتساب: نحدد موقع العميل لحظة الضغط (بحد أقصى 6 ثواني) ونرسله ضمن الرسالة
-    if (t.dataset.track === 'whatsapp' && !S.pos && navigator.geolocation && !t.dataset.located) {
-      e.preventDefault();
-      const c = coById(t.dataset.id); if (!c) return;
-      let done = false;
-      const go = () => { if (done) return; done = true; t.dataset.located = '1'; t.href = waHref(c.wa || c.phone, waText(c)); location.href = t.href; };
-      toast('جاري تحديد موقعك لإرساله مع الرسالة...');
-      const timer = setTimeout(go, 6000);
-      geo().then(p => { S.pos = p; store.set('pos', p); }).catch(() => { }).finally(() => { clearTimeout(timer); go(); });
-    }
-    return;
-  }
+  if (t) { track(t.dataset.track, t.dataset.id); return; }
   const ad = e.target.closest('[data-ad]');
   if (ad) trackAd(ad.dataset.ad, 'click');
   const card = e.target.closest('[data-href]');
