@@ -6,7 +6,7 @@ import {
 } from './core.js';
 
 initSession('local');
-const VERSION = '4.3.0';
+const VERSION = '4.4.0';
 const COLS = 'id,service_id,name,phone,whatsapp,price_text,rating,rating_count,logo_url,cover_url,photos,description,address,lat,lng,is_24h,is_available,created_at,featured_until,is_sample,company_areas(areas(name_ar)),company_services(service_id)';
 
 /* ================= الحالة ================= */
@@ -37,7 +37,7 @@ function applyPublic(d) {
   S.services = (d.services || []).filter(s => s.is_active !== false).sort((a, b) => (a.sort || 0) - (b.sort || 0));
   S.areas = (d.areas || []).map(a => a.name_ar);
   S.cos = (d.cos || []).filter(c => !c.is_sample).map(mapCo);
-  S.banners = d.banners || []; S.ads = d.ads || [];
+  S.banners = d.banners || []; S.ads = d.ads || []; S.plans = d.plans || [];
   S.settings = {}; (d.settings || []).forEach(x => { S.settings[x.key] = x.value; });
   const featIds = new Set(S.ads.filter(a => a.ad_type === 'featured' && a.company_id).map(a => a.company_id));
   S.cos.forEach(c => { if (featIds.has(c.id)) c.feat = true; });
@@ -49,15 +49,16 @@ async function loadPublic(force) {
   if (!force && cached && Date.now() - cached.t < 60000 && S.loaded) return;
   try {
     const t = todayISO();
-    const [services, areas, cos, banners, ads, settings] = await Promise.all([
+    const [services, areas, cos, banners, ads, settings, plans] = await Promise.all([
       rest('services?select=id,name_ar,sort,icon,is_active&order=sort.asc', { anon: true }),
       rest('areas?select=id,name_ar&order=id.asc', { anon: true }),
       rest(`companies?select=${COLS}&is_active=eq.true&status=eq.approved&sub_end=gte.${t}&order=created_at.desc&limit=1000`, { anon: true }),
       rest('banners?select=id,title,subtitle,image_url,company_id,sort&is_active=eq.true&order=sort.asc', { anon: true }).catch(() => []),
       rpc('live_ads', {}, { anon: true }).catch(() => []),
       rest('app_settings?select=key,value&is_public=eq.true', { anon: true }).catch(() => []),
+      rest('subscription_plans?select=id,name_ar,months,price_kwd,sort&is_active=eq.true&order=sort.asc', { anon: true }).catch(() => []),
     ]);
-    const d = { services, areas, cos, banners, ads, settings };
+    const d = { services, areas, cos, banners, ads, settings, plans };
     applyPublic(d); S.err = null; store.set('pub', { t: Date.now(), d });
   } catch (e) { S.err = e; if (!S.loaded) S.loaded = false; }
   render(true);
@@ -572,7 +573,8 @@ async function pgJoin(_, q) {
   return {
     tab: 'account',
     html: `${topbar('انضم الآن')}
-    <div class="join-hero"><span class="ic">${icon('store')}</span><div><b>سجّل نشاطك في دقيقة</b><small>مجاناً — يظهر للعملاء بعد موافقة الإدارة</small></div></div>
+    <div class="join-hero"><span class="ic">${icon('store')}</span><div><b>سجّل نشاطك في دقيقة</b><small>التسجيل مجاني${monthlyPrice() != null ? ' — الاشتراك ' + kwd(monthlyPrice()) + ' شهرياً بعد الموافقة' : ''}</small></div></div>
+    <div class="pad" style="margin-top:12px">${plansHtml()}</div>
     <form class="form" id="joinf" novalidate style="margin-top:14px">
       <div class="field"><label for="jn">اسم النشاط</label><input class="inp" id="jn" maxlength="100" placeholder="مثال: ونش السالمية" autocomplete="organization"></div>
       <div class="field"><label for="jsvc">الخدمة</label><select class="inp" id="jsvc">${S.services.map(s => `<option value="${esc(s.id)}">${esc(s.name_ar)}</option>`).join('')}</select></div>
@@ -641,6 +643,16 @@ function previewFile(input, box) {
   const u = URL.createObjectURL(f); box.innerHTML = `<img src="${u}" alt="">`;
 }
 
+/* ---------- الأسعار ---------- */
+const kwd = n => fmtNum(n) + ' د.ك';
+const adPrice = (type, days) => { const t = (S.settings.ad_prices || {})[type] || {}; const v = t[String(days)]; return v == null ? null : Number(v); };
+const monthlyPrice = () => { const m = (S.plans || []).filter(p => p.months === 1); return m.length ? Math.min(...m.map(p => Number(p.price_kwd))) : null; };
+function plansHtml() {
+  if (!S.plans || !S.plans.length) return '';
+  const base = monthlyPrice();
+  return `<div class="plans">${S.plans.map(p => { const save = base && p.months > 1 ? Math.round((1 - p.price_kwd / (base * p.months)) * 100) : 0;
+    return `<div class="plan ${p.months === 1 ? 'hl' : ''}"><small>${esc(String(p.name_ar).replace('اشتراك ', ''))}</small><b>${kwd(p.price_kwd)}</b>${save > 0 ? `<span class="save">وفّر ${save}%</span>` : '<span class="save mo">الأساسي</span>'}</div>`; }).join('')}</div>`;
+}
 /* ---------- أعلن معنا ---------- */
 const AD_TYPES = [
   { id: 'home_banner', t: 'بانر الصفحة الرئيسية', d: 'يظهر في أعلى الصفحة الرئيسية لكل الزوار', ic: 'layers' },
@@ -665,8 +677,9 @@ function pgAdvertise() {
       <div class="field"><label for="atitle">عنوان قصير (اختياري)</label><input class="inp" id="atitle" maxlength="80" placeholder="مثال: خصم 20% على تبديل البطاريات"></div>
       <div class="field"><span class="lbl">عند الضغط على الإعلان</span><div class="seg" id="alink"><button type="button" class="on" data-v="whatsapp">واتساب</button><button type="button" data-v="call">اتصال</button><button type="button" data-v="none">بدون</button></div></div>
       <div class="field"><span class="lbl">المدة المطلوبة *</span><div class="wrapchips" id="adur">${DURS.map(d => `<button type="button" class="chip out ${d === 30 ? 'on' : ''}" data-v="${d}">${d} يوم</button>`).join('')}</div></div>
+      <div class="price-box" id="aprice"></div>
       <div class="field"><label for="anotes">ملاحظات (اختياري)</label><textarea class="inp" id="anotes" maxlength="500" placeholder="أي تفاصيل إضافية للإدارة"></textarea></div>
-      <div class="note y">${icon('info')}<div>كل الإعلانات تكون <b>بانتظار الموافقة</b>. الإدارة تتواصل معك لتأكيد السعر وطريقة الدفع، ويبدأ الإعلان بعد تأكيد الدفع.</div></div>
+      <div class="note y">${icon('info')}<div>كل الإعلانات تكون <b>بانتظار الموافقة</b>. الإدارة تتواصل معك لطريقة الدفع، ويبدأ الإعلان بعد تأكيد الدفع.</div></div>
       <button class="btn primary block" type="submit">إرسال طلب الإعلان</button>
       ${session() ? '<a class="btn ghost block" href="#/my-ads">متابعة إعلاناتي</a>' : ''}
     </form>`,
@@ -677,7 +690,14 @@ function bindAdvertise(el) {
   const f = $('#adf', el);
   const segPick = id => $$(`#${id} button`, f).forEach(b => b.onclick = () => { $$(`#${id} button`, f).forEach(x => x.classList.remove('on')); b.classList.add('on'); if (id === 'atype') typeChanged(); });
   ['akind', 'alink', 'atype'].forEach(segPick);
-  $$('#adur .chip', f).forEach(b => b.onclick = () => { $$('#adur .chip', f).forEach(x => x.classList.remove('on')); b.classList.add('on'); });
+  const showPrice = () => {
+    const t = $('#atype .on', f).dataset.v, d = +$('#adur .on', f).dataset.v, v = adPrice(t, d);
+    $$('#adur .chip', f).forEach(c => { const pv = adPrice(t, +c.dataset.v); c.innerHTML = c.dataset.v + ' يوم' + (pv != null ? ` · <b>${fmtNum(pv)}</b> د.ك` : ''); });
+    $('#aprice', f).innerHTML = v != null ? `<span>السعر</span><b>${kwd(v)}</b><small>${d} يوم · الدفع بعد موافقة الإدارة</small>` : '';
+  };
+  $$('#adur .chip', f).forEach(b => b.onclick = () => { $$('#adur .chip', f).forEach(x => x.classList.remove('on')); b.classList.add('on'); showPrice(); });
+  $$('#atype button', f).forEach(b => b.addEventListener('click', showPrice));
+  showPrice();
   $('#aimg', f).onchange = e => previewFile(e.target, $('#aimgp', f));
   const loadCos = async () => { if (!session()) return; try { const l = (await myCompanies()).filter(c => c.status !== 'rejected'); $('#aco', f).innerHTML = l.length ? l.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('') : '<option value="">لا يوجد نشاط مسجّل</option>'; } catch (_) { } };
   function typeChanged() { const t = $('#atype .on', f).dataset.v; $('#asvcw', f).hidden = t !== 'category_banner'; $('#acow', f).hidden = t !== 'featured'; if (t === 'featured') loadCos(); }

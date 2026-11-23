@@ -189,8 +189,9 @@ function adState(a) {
   return ['ok', 'منشور الآن'];
 }
 async function vAds(m) {
-  const list = await rest('ad_campaigns?select=*&order=created_at.desc') || [];
-  A.cache.ads = list;
+  const [list0, ap] = await Promise.all([rest('ad_campaigns?select=*&order=created_at.desc'), rest('app_settings?select=value&key=eq.ad_prices').catch(() => [])]);
+  const list = list0 || [];
+  A.cache.ads = list; A.cache.adPrices = (ap && ap[0] && ap[0].value) || {};
   const f = A.cache.adFilter || 'all';
   const fl = list.filter(a => f === 'all' || (f === 'pending' && a.status === 'pending') || (f === 'live' && adState(a)[1] === 'منشور الآن') || (f === 'unpaid' && a.status === 'approved' && a.payment_status !== 'paid') || (f === 'done' && ['rejected', 'ended'].includes(a.status)));
   const chip = (id, t) => `<button class="chip ${f === id ? 'on' : 'out'}" data-act="ad-filter" data-v="${id}">${t}</button>`;
@@ -232,13 +233,19 @@ function adDatesSheet(a, approve) {
 
 /* ---------------- الاشتراكات والمدفوعات ---------------- */
 async function vSubs(m) {
-  const [subs, pays, plans, cos] = await Promise.all([
+  const [subs, pays, plans, cos, ap] = await Promise.all([
     rest('subscriptions?select=*,companies(name)&order=created_at.desc&limit=200'), rest('payments?select=*&order=created_at.desc&limit=200'),
-    rest('subscription_plans?select=*&order=sort.asc'), rest('companies?select=id,name,sub_end,status&order=name.asc')]);
+    rest('subscription_plans?select=*&order=sort.asc'), rest('companies?select=id,name,sub_end,status&order=name.asc'),
+    rest('app_settings?select=value&key=eq.ad_prices')]);
   A.cache.plans = plans || []; A.cache.allCos = cos || []; A.cache.subs = subs || [];
+  const prices = (ap && ap[0] && ap[0].value) || {};
+  const PT = { home_banner: 'بانر الرئيسية', category_banner: 'بانر قسم', featured: 'مقدم مميز' }, DD = [7, 14, 30, 60, 90];
+  const priceTable = `<div class="panel"><h3>أسعار الإعلانات (د.ك) <button class="btn xs primary" data-act="adprice-save">${icon('check')}حفظ الأسعار</button></h3><div class="tbl-wrap"><table class="tbl" id="ptbl"><thead><tr><th>النوع</th>${DD.map(d => `<th>${d} يوم</th>`).join('')}</tr></thead><tbody>
+    ${Object.entries(PT).map(([k, t]) => `<tr><td><b>${t}</b></td>${DD.map(d => `<td><input class="inp" style="height:38px;width:76px;font-size:14px;padding:0 8px" type="number" min="0" step="0.5" data-t="${k}" data-d="${d}" value="${esc((prices[k] || {})[d] ?? '')}"></td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    <p style="color:var(--mut);font-size:12.5px;margin:8px 0 0">تظهر هذه الأسعار للمعلن في صفحة «أعلن معنا»، وتُعبّأ تلقائياً عند تأكيد الدفع.</p></div>`;
   const st = { pending: ['warn', 'بانتظار الدفع'], active: ['ok', 'فعّال'], expired: ['', 'منتهي'], cancelled: ['bad', 'ملغي'] };
   m.innerHTML = head('الاشتراكات والمدفوعات', `<button class="btn sm primary" data-act="sub-new">${icon('plus')}اشتراك جديد</button>`) +
-    `<div class="panel"><h3>الباقات <button class="btn xs ghost" data-act="plan-new">${icon('plus')}باقة</button></h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>الباقة</th><th>المدة</th><th>السعر</th><th>الحالة</th><th></th></tr></thead><tbody>
+    priceTable + `<div class="panel"><h3>باقات اشتراك مقدمي الخدمة <button class="btn xs ghost" data-act="plan-new">${icon('plus')}باقة</button></h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>الباقة</th><th>المدة</th><th>السعر</th><th>الحالة</th><th></th></tr></thead><tbody>
       ${(plans || []).map(p => `<tr><td>${esc(p.name_ar)}</td><td>${p.months} شهر</td><td>${fmtNum(p.price_kwd)} د.ك</td><td>${p.is_active ? '<span class="tg ok">فعّالة</span>' : '<span class="tg">متوقفة</span>'}</td><td><button class="btn xs ghost" data-act="plan-edit" data-id="${esc(p.id)}">${icon('edit')}</button></td></tr>`).join('')}</tbody></table></div></div>
     <div class="panel"><h3>الاشتراكات (${(subs || []).length})</h3>${(subs || []).length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>#</th><th>مقدم الخدمة</th><th>المبلغ</th><th>من</th><th>إلى</th><th>الحالة</th><th></th></tr></thead><tbody>
       ${subs.map(s => `<tr><td>${s.id}</td><td>${esc((s.companies && s.companies.name) || '#' + s.company_id)}</td><td>${fmtNum(s.amount_kwd)} د.ك</td><td>${fmtDate(s.starts_on)}</td><td>${fmtDate(s.ends_on)}</td><td><span class="tg ${(st[s.status] || [])[0]}">${(st[s.status] || [, s.status])[1]}</span></td><td>${s.status === 'pending' ? `<button class="btn xs primary" data-act="sub-activate" data-id="${s.id}">تأكيد الدفع والتفعيل</button> <button class="btn xs ghost" data-act="sub-cancel" data-id="${s.id}">إلغاء</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p style="color:var(--mut);margin:0">لا توجد اشتراكات مسجّلة بعد. التمديد السريع (+30 يوم) من صفحة مقدمي الخدمات لا يُنشئ سجل دفع؛ استخدم «اشتراك جديد» لتوثيق المدفوعات.</p>'}</div>
@@ -341,7 +348,7 @@ const ACT = {
   }, 'تمت الإضافة باشتراك 30 يوم'),
   'jr-reject': async el => { if (await confirmBox('رفض الطلب؟', { ok: 'رفض', danger: true })) act(el, () => patch('join_requests', +el.dataset.id, { status: 'rejected' }), 'تم الرفض'); },
   'ad-filter': el => { A.cache.adFilter = el.dataset.v; show(); },
-  'ad-pay': el => { const a = adById(el.dataset.id); promptSheet('تأكيد استلام الدفع', `<div class="grid2"><div class="field"><label>المبلغ (د.ك)</label><input class="inp" id="pa" type="number" step="0.001" min="0" value="${a.amount_kwd ?? ''}"></div><div class="field"><label>مرجع الدفع (اختياري)</label><input class="inp" id="pr" maxlength="120" value="${esc(a.payment_ref || '')}" placeholder="رقم التحويل / KNET"></div></div><div class="note y">${icon('info')}<div>أكّد فقط بعد استلام المبلغ فعلياً.</div></div>`,
+  'ad-pay': el => { const a = adById(el.dataset.id); promptSheet('تأكيد استلام الدفع', `<div class="grid2"><div class="field"><label>المبلغ (د.ك)</label><input class="inp" id="pa" type="number" step="0.001" min="0" value="${a.amount_kwd ?? ((A.cache.adPrices || {})[a.ad_type] || {})[a.duration_days] ?? ''}"></div><div class="field"><label>مرجع الدفع (اختياري)</label><input class="inp" id="pr" maxlength="120" value="${esc(a.payment_ref || '')}" placeholder="رقم التحويل / KNET"></div></div><div class="note y">${icon('info')}<div>أكّد فقط بعد استلام المبلغ فعلياً.</div></div>`,
     (sh, b) => act(b, () => { const v = $('#pa', sh).value; if (v === '' || +v < 0) throw new Error('اكتب المبلغ'); return patch('ad_campaigns', a.id, { payment_status: 'paid', amount_kwd: +v, payment_ref: $('#pr', sh).value.trim() || null }); }, 'تم تأكيد الدفع')); },
   'ad-unpay': async el => { if (await confirmBox('إلغاء تأكيد الدفع؟ سيختفي الإعلان فوراً.', { danger: true })) act(el, () => patch('ad_campaigns', +el.dataset.id, { payment_status: 'unpaid' }), 'تم'); },
   'ad-approve': el => { const a = adById(el.dataset.id); if (a.status === 'paused' && a.ends_at && Date.parse(a.ends_at) > Date.now()) return act(el, () => patch('ad_campaigns', a.id, { status: 'approved' }), 'تم الاستئناف'); adDatesSheet(Object.assign({}, a, a.status === 'paused' ? {} : { starts_at: null, ends_at: null }), true); },
@@ -375,6 +382,12 @@ const ACT = {
   'plan-new': () => ACT['plan-edit']({ dataset: {} }),
   'plan-edit': el => { const p = A.cache.plans.find(x => x.id === el.dataset.id) || {}; promptSheet(p.id ? 'تعديل الباقة' : 'باقة جديدة', `${p.id ? '' : '<div class="field"><label>المعرّف (إنجليزي)</label><input class="inp ltr" id="pi" placeholder="quarterly"></div>'}<div class="field"><label>الاسم</label><input class="inp" id="pn" value="${esc(p.name_ar || '')}"></div><div class="grid2"><div class="field"><label>عدد الأشهر</label><input class="inp" id="pm" type="number" min="1" max="36" value="${p.months || 1}"></div><div class="field"><label>السعر (د.ك)</label><input class="inp" id="pv" type="number" step="0.001" value="${p.price_kwd ?? ''}"></div></div><button type="button" class="switch" id="pa"><span><b>فعّالة</b></span><span class="tgl ${p.is_active !== false ? 'on' : ''}"></span></button>`,
     (sh, b) => { act(b, async () => { const body = { name_ar: $('#pn', sh).value.trim(), months: +$('#pm', sh).value, price_kwd: +$('#pv', sh).value, is_active: $('#pa .tgl', sh).classList.contains('on') }; if (p.id) await patch('subscription_plans', p.id, body); else { const id = $('#pi', sh).value.trim().toLowerCase(); if (!/^[a-z][a-z0-9_]{1,30}$/.test(id)) throw new Error('المعرّف غير صالح'); await rest('subscription_plans', { method: 'POST', body: Object.assign({ id }, body), prefer: 'return=minimal' }); } }, 'تم الحفظ'); }); },
+  'adprice-save': el => act(el, async () => {
+    const v = {};
+    $$('#ptbl input').forEach(i => { if (i.value === '') return; const n = Number(i.value); if (!(n >= 0)) throw new Error('سعر غير صالح'); (v[i.dataset.t] = v[i.dataset.t] || {})[i.dataset.d] = n; });
+    const r = await rest('app_settings?key=eq.ad_prices', { method: 'PATCH', body: { value: v }, prefer: 'return=representation' });
+    if (!r || !r.length) await rest('app_settings', { method: 'POST', body: { key: 'ad_prices', value: v, is_public: true }, prefer: 'return=minimal' });
+  }, 'تم حفظ الأسعار'),
   'svc-new': () => svcSheet(),
   'svc-edit': el => svcSheet(A.services.find(s => s.id === el.dataset.id)),
   'area-new': () => promptSheet('منطقة جديدة', '<div class="field"><label>اسم المنطقة</label><input class="inp" id="an" maxlength="40"></div>', (sh, b) => act(b, () => { const n = $('#an', sh).value.trim(); if (n.length < 2) throw new Error('اكتب الاسم'); return rest('areas', { method: 'POST', body: { name_ar: n }, prefer: 'return=minimal' }); }, 'تمت الإضافة')),
