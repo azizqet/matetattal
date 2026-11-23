@@ -28,7 +28,8 @@ describe('خانة الجوال في «بياناتي»', () => {
     await render(<Profile />);
     const f = screen.getByTestId('profile-phone');
     const st = StyleSheet.flatten(f.props.style);
-    expect(st.writingDirection).toBe('ltr');
+    expect(st.writingDirection).toBeUndefined(); // لا writingDirection على خانات الإدخال (سبب مشترك لمشاكل الكتابة)
+    expect(st.textAlign).toBe('left');
     expect(st.color).toBe('#000000');
     expect(f.props.keyboardType).toBe('number-pad');
     expect(f.props.value).toBe('97706792');

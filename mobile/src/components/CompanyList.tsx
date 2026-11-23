@@ -78,5 +78,5 @@ export function CompanyList({ fixedService, autoFocus }: { fixedService?: string
 const st = StyleSheet.create({
   wrap: { padding: 16, paddingBottom: 40, width: '100%', maxWidth: 640, alignSelf: 'center' },
   searchBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, paddingHorizontal: 12, height: 50 },
-  input: { flex: 1, fontFamily: fonts.regular, fontSize: 15, color: colors.text, writingDirection: 'rtl', height: '100%' },
+  input: { flex: 1, fontFamily: fonts.regular, fontSize: 15, color: colors.text, textAlign: 'right', height: '100%' },
 });

@@ -68,9 +68,9 @@ export default function AuthCallback() {
       <Screen edges={['bottom']}>
         <Text variant="h1">كلمة مرور جديدة</Text>
         <Field label="كلمة المرور الجديدة" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoComplete="new-password"
-          style={{ writingDirection: 'ltr', textAlign: 'left', color: colors.inputText }} testID="new-password" />
+          style={{ textAlign: 'left', color: colors.inputText }} testID="new-password" />
         <Field label="تأكيد كلمة المرور" value={confirm} onChangeText={setConfirm} secureTextEntry autoCapitalize="none" autoComplete="new-password"
-          style={{ writingDirection: 'ltr', textAlign: 'left', color: colors.inputText }} testID="new-password-confirm" />
+          style={{ textAlign: 'left', color: colors.inputText }} testID="new-password-confirm" />
         <Button title="حفظ كلمة المرور" loading={busy} onPress={save} style={{ marginTop: 18 }} testID="save-password" />
       </Screen>
     </KeyboardAvoidingView>

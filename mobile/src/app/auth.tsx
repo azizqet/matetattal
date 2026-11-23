@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AuthField, AuthHero, AuthTabs, FadeSlide, KuwaitPhoneField, OtpBoxes, sanitizeKwPhone } from '@/components/AuthUI';
+import { AuthField, AuthHero, AuthTabs, KuwaitPhoneField, OtpBoxes, sanitizeKwPhone } from '@/components/AuthUI';
 import { ConsentCheckbox, rememberRegistrationConsent, useRequiredTerms } from '@/components/Consent';
 import { Button, Card, Icon, Row, Text, useToast } from '@/components/ui';
 import * as api from '@/lib/api';
@@ -152,7 +152,7 @@ export default function Auth() {
               <AuthTabs value={step} onChange={(v) => { setStep(v); setPassword(''); }} options={[['register', 'حساب جديد', 'account-plus-outline'], ['login', 'تسجيل دخول', 'login']]} />
             ) : null}
 
-            <FadeSlide k={step}>
+            <View>
               {step === 'register' ? (
                 <>
                   <AuthField icon="account-outline" label="الاسم" placeholder="اسمك الكامل" value={name} onChangeText={setName} autoComplete="name" textContentType="name" maxLength={80} testID="reg-name" />
@@ -204,7 +204,7 @@ export default function Auth() {
                   <Button title="احفظ وكمّل" icon="check" loading={busy} onPress={saveNewPassword} style={{ marginTop: 18 }} testID="new-password-save" />
                 </>
               )}
-            </FadeSlide>
+            </View>
           </Card>
 
           {step === 'register' ? (

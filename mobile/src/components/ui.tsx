@@ -276,9 +276,9 @@ const s = StyleSheet.create({
   card: { backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: 14, ...shadow },
   input: {
     backgroundColor: colors.input, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radius.sm, paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 16.5, fontFamily: fonts.medium, color: colors.inputText, writingDirection: 'rtl',
+    fontSize: 16.5, fontFamily: fonts.medium, color: colors.inputText, textAlign: 'right',
   },
-  phoneInput: { color: colors.inputText, writingDirection: 'ltr', textAlign: 'left', fontSize: 17, letterSpacing: 1, minHeight: 50, includeFontPadding: false },
+  phoneInput: { color: colors.inputText, textAlign: 'left', fontSize: 17, minHeight: 50 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
   badge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start' },
   empty: { alignItems: 'center', paddingVertical: 36, paddingHorizontal: 16 },

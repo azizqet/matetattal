@@ -12,15 +12,6 @@ const toLatinDigits = (v: string) => v.replace(/[٠-٩]/g, (d) => String(d.charC
 
 /** رأس بهوية ماتعطل: تدرّج ملكي + شعار بنبض خفيف — كل شيء داخل الإطار */
 export function AuthHero({ title, subtitle, topInset, children, onBack }: { title: string; subtitle?: string; topInset: number; children?: ReactNode; onBack?: () => void }) {
-  const [pulse] = useState(() => new Animated.Value(0));
-  useEffect(() => {
-    const loop = Animated.loop(Animated.sequence([
-      Animated.timing(pulse, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: native }),
-      Animated.timing(pulse, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: native }),
-    ]));
-    loop.start();
-    return () => loop.stop();
-  }, [pulse]);
   return (
     <LinearGradient colors={gradients.brand} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={[h.hero, { paddingTop: topInset }]}>
       {/* زر رجوع داخل المنطقة الآمنة (بدل رأس النظام الشفاف الذي كان يتداخل مع المحتوى وشريط الحالة) */}
@@ -30,9 +21,9 @@ export function AuthHero({ title, subtitle, topInset, children, onBack }: { titl
         </Pressable>
       ) : null}
       <View style={h.brandRow}>
-        <Animated.View style={[h.mark, { transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) }] }]}>
+        <View style={h.mark}>
           <Icon name="car-wrench" size={24} color={colors.white} />
-        </Animated.View>
+        </View>
         <Text style={h.word} maxFontSizeMultiplier={1.2}>ماتعطل<Text style={h.dot}>•</Text></Text>
       </View>
       <Text style={h.title} maxFontSizeMultiplier={1.3}>{title}</Text>
@@ -242,15 +233,15 @@ const f = StyleSheet.create({
   hint: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 22, color: colors.muted, marginTop: 6 },
   box: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 58, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.inputBorder, backgroundColor: colors.input, paddingHorizontal: 14 },
   boxFocus: { borderColor: colors.primary, borderWidth: 2, shadowColor: colors.primary, shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
-  input: { flex: 1, minWidth: 0, minHeight: 56, paddingVertical: 0, fontFamily: fonts.bold, fontSize: 17, color: colors.inputText, writingDirection: 'rtl', textAlign: 'right' },
-  ltr: { writingDirection: 'ltr', textAlign: 'left' },
+  input: { flex: 1, minWidth: 0, minHeight: 56, paddingVertical: 0, fontFamily: fonts.bold, fontSize: 17, color: colors.inputText, textAlign: 'right' },
+  ltr: { textAlign: 'left' },
   ltrRow: { direction: 'ltr' },
   cc: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
   flag: { width: 26, height: 18, borderRadius: 4, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
   flagBlack: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 9, backgroundColor: '#000' },
   ccText: { fontFamily: fonts.bold, fontSize: 18, lineHeight: 26, color: colors.inputText, writingDirection: 'ltr' },
   sep: { width: 1.5, height: 28, backgroundColor: colors.inputBorder, marginStart: 4 },
-  phoneInput: { writingDirection: 'ltr', textAlign: 'left', fontSize: 19, letterSpacing: 2 },
+  phoneInput: { textAlign: 'left', fontSize: 19 },
 });
 const o = StyleSheet.create({
   row: { flexDirection: 'row', direction: 'ltr', justifyContent: 'center', gap: 8 },
