@@ -215,6 +215,8 @@ export function arabicError(e: unknown): string {
   if (/phone_exists|Phone number already|A user with this phone/i.test(m)) return 'هذا الرقم مربوط بحساب ثاني. ادخل برقمك مباشرة أو تواصل مع الدعم';
   if (/Phone signups are disabled|phone_provider_disabled|Unsupported phone provider|phone.*(not enabled)/i.test(m)) return 'التسجيل برقم التلفون غير مفعّل حالياً. تواصل مع الدعم الفني';
   if (/sms_send_failed|Error sending sms|sms provider error|sms hook not configured|hook/i.test(m)) return 'تعذّر إرسال رسالة التحقق الآن. حاول لاحقاً أو تواصل مع الدعم';
+  if (/too many codes for this number this hour/i.test(m)) return 'طلبت رموز كثيرة لهذا الرقم. حاول بعد ساعة';
+  if (/too many codes for this number today/i.test(m)) return 'وصلت الحد اليومي لرموز هذا الرقم. حاول بكرة أو تواصل مع الدعم';
   if (/over_sms_send_rate_limit|sms.*rate limit|you can only request this after/i.test(m)) return 'انتظر قليلاً قبل طلب رمز جديد';
   if (/only Kuwaiti mobile numbers/i.test(m)) return 'الرقم لازم يكون جوال كويتي';
   if (/Token has expired or is invalid|otp_expired|invalid.*otp/i.test(m)) return 'رمز التحقق غير صحيح أو انتهت صلاحيته';
