@@ -194,6 +194,16 @@ const P = {
   tap: '<path d="M9 11.5V5.5a1.8 1.8 0 0 1 3.6 0V11l4.6.9c1 .2 1.7 1 1.6 2.1l-.6 4.5a2.5 2.5 0 0 1-2.5 2H11a3 3 0 0 1-2.3-1.1L5.5 15.5a1.6 1.6 0 0 1 2.3-2.2z"/>',
   refresh: '<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3L19.5 9"/><path d="M19.5 4v5h-5"/>',
   external: '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+  arrowL: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
+  siren: '<path d="M5 19v-4.5l1.6-3.6A2 2 0 0 1 8.4 9.7h7.2a2 2 0 0 1 1.8 1.2l1.6 3.6V19"/><path d="M4 19h16M7.5 15.5h.01M16.5 15.5h.01"/><path d="M12 6.5V4M7.2 7.6 5.8 6.2M16.8 7.6l1.4-1.4"/>',
+  // أيقونات الخدمات (نفس أسلوب تطبيق ماتعطل)
+  carKey: '<path d="M4.5 20v-4l1.5-3.3A2 2 0 0 1 7.8 11.5h8.4a2 2 0 0 1 1.8 1.2l1.5 3.3v4"/><path d="M4 20h16M8 17h.01M16 17h.01"/><circle cx="9" cy="5.5" r="2"/><path d="M11 5.5h6M15 5.5v2M17 5.5v1.5"/>',
+  carWash: '<path d="M4.5 20v-4l1.5-3.3A2 2 0 0 1 7.8 11.5h8.4a2 2 0 0 1 1.8 1.2l1.5 3.3v4"/><path d="M4 20h16M8 17h.01M16 17h.01"/><path d="M8 4.5v1.5M12 3.5v2M16 4.5v1.5"/>',
+  carShield: '<path d="M12 3 19.5 5.6v5.7c0 4.6-3.2 7.9-7.5 9.2-4.3-1.3-7.5-4.6-7.5-9.2V5.6z"/><path d="M8.5 14v-1.8l.8-1.7a1 1 0 0 1 .9-.5h3.6a1 1 0 0 1 .9.5l.8 1.7V14M8.2 14h7.6"/>',
+  batt: '<rect x="3" y="7.5" width="18" height="12" rx="2"/><path d="M7 7.5V5.5M17 7.5V5.5M6.5 13.5h4M8.5 11.5v4M14 13.5h4"/>',
+  carWrench: '<path d="M3.5 19v-3.5l1.4-3A2 2 0 0 1 6.7 11.3h6.8"/><path d="M3 19h9M7 16.5h.01"/><path d="M19.8 9.6a3.3 3.3 0 0 1-4.3 3.9l-3.4 3.4a1.3 1.3 0 0 1-1.8-1.8l3.4-3.4a3.3 3.3 0 0 1 3.9-4.3l-1.9 1.9.4 1.4 1.4.4z"/>',
+  towTruck: '<path d="M2.5 16.5V9.5h9.5v7"/><path d="M12 11.5h4.2l3.3 3.2v1.8H18"/><circle cx="6.5" cy="17" r="2"/><circle cx="16" cy="17" r="2"/><path d="M8.5 16.5h5.5M2.5 12.5h4l1.5-3"/>',
+  tireRing: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/><path d="M12 3.5V8M12 16v4.5M3.5 12H8M16 12h4.5"/>',
   // أيقونات الخدمات
   tow: '<path d="M2.5 16.5V12l2-4h6v8.5"/><path d="M10.5 16.5h3M10.5 10h5l3 3.5h3v3h-1.5"/><circle cx="6.5" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M4.5 8 9 3.5l1.5 1.5"/>',
   tire: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2"/><path d="M12 3.5v5.3M12 15.2v5.3M3.5 12h5.3M15.2 12h5.3"/>',
@@ -204,7 +214,7 @@ const P = {
   wrench: '<path d="M14.5 4a4.5 4.5 0 0 0-4.2 6.1L4 16.4 7.6 20l6.3-6.3A4.5 4.5 0 0 0 20 9.5l-2.8 2.8-3-.5-.5-3L16.5 6A4.5 4.5 0 0 0 14.5 4z"/>',
   car: '<path d="M4 15.5V12l1.8-4.6A2 2 0 0 1 7.7 6h8.6a2 2 0 0 1 1.9 1.4L20 12v3.5"/><path d="M3 15.5h18v2.5H3zM4 12h16"/><circle cx="7.5" cy="15" r="0.6"/><circle cx="16.5" cy="15" r="0.6"/><path d="M5 18v2M19 18v2"/>',
 };
-const SVC_ICON = { tow: 'tow', tire: 'tire', keys: 'key', key: 'key', wash: 'wash', shield: 'shield', bat: 'battery', battery: 'battery', mech: 'wrench', wrench: 'wrench', other: 'car', grid: 'car' };
+const SVC_ICON = { tow: 'towTruck', tire: 'tireRing', keys: 'carKey', key: 'carKey', wash: 'carWash', shield: 'carShield', bat: 'batt', battery: 'batt', mech: 'carWrench', wrench: 'carWrench', other: 'grid', grid: 'grid' };
 export const icon = (n, cls = '') => `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${P[n] || P.info}</svg>`;
 export const svcIcon = s => icon(SVC_ICON[(s && (s.icon || s.id)) || s] || SVC_ICON[s && s.id] || 'car');
 

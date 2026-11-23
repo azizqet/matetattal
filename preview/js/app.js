@@ -6,7 +6,7 @@ import {
 } from './core.js';
 
 initSession('local');
-const VERSION = '4.0.1';
+const VERSION = '4.1.0';
 const COLS = 'id,service_id,name,phone,whatsapp,price_text,rating,rating_count,logo_url,cover_url,photos,description,address,lat,lng,is_24h,is_available,created_at,featured_until,is_sample,company_areas(areas(name_ar)),company_services(service_id)';
 
 /* ================= الحالة ================= */
@@ -132,8 +132,10 @@ function actions(c) {
 function pcard(c) {
   const fav = S.favs.has(c.id);
   return `<div class="pcard" data-href="#/c/${c.id}" role="link" tabindex="0" aria-label="${esc(c.name)}">
-    <div class="media">${media(c)}<div class="badges">${c.feat ? `<span class="badge y">${icon('star')}مميز</span>` : ''}${c.h24 ? `<span class="badge dark">${icon('clock')}24 ساعة</span>` : ''}</div>
-      <button class="fav-mini ${fav ? 'on' : ''}" data-act="fav" data-id="${c.id}" aria-label="المفضلة">${icon('heart')}</button></div>
+    <div class="media blue">${c.cover ? `<img src="${esc(c.cover)}" alt="" loading="lazy" decoding="async">` : `<span class="bigic">${svcIcon(svc(c.s) || c.s)}</span>`}
+      <div class="badges">${distTxt(c) ? `<span class="badge glass">${icon('pin')}${distTxt(c)}</span>` : ''}${c.feat ? `<span class="badge y">${icon('star')}مميز</span>` : ''}${c.h24 ? `<span class="badge glass">${icon('clock')}24 ساعة</span>` : ''}</div>
+      <button class="fav-mini ${fav ? 'on' : ''}" data-act="fav" data-id="${c.id}" aria-label="المفضلة">${icon('heart')}</button>
+      <span class="av">${c.logo ? `<img src="${esc(c.logo)}" alt="" loading="lazy">` : svcIcon(svc(c.s) || c.s)}</span></div>
     <div class="body"><div class="nm">${esc(c.name)}</div>
       <div class="meta">${svcIcon(svc(c.s) || c.s)}<span>${esc(svcName(c.s))}</span></div>
       <div class="meta">${icon('pin')}<span>${esc(areaText(c))}${distTxt(c) ? ' · ' + distTxt(c) : ''}</span><span style="margin-inline-start:auto">${rateHtml(c)}</span></div>
@@ -197,7 +199,7 @@ function pgHome() {
   const maint = S.settings.maintenance_message;
   const homeAds = S.ads.filter(a => a.ad_type === 'home_banner' && safeImg(a.image_url));
   const items = [...homeAds.map(a => bannerHtml(a, 'ad')), ...S.banners.map(b => bannerHtml(b)), ...promos()];
-  const cats = S.services.map(s => `<a class="cat" href="#/s/${esc(s.id)}"><span class="ic">${svcIcon(s)}</span><span class="n">${esc(s.name_ar)}</span></a>`).join('');
+  const cats = S.services.map(s => `<a class="cat" href="#/s/${esc(s.id)}"><span class="ic tile t-${esc(s.icon || s.id)}">${svcIcon(s)}</span><span class="n">${esc(s.name_ar)}</span></a>`).join('');
   let nearby, featured = '', latest;
   if (!S.loaded) { nearby = skRail(); latest = skRail(); }
   else {
@@ -212,15 +214,18 @@ function pgHome() {
   return {
     tab: 'home',
     html: `
-    <div class="home-band"><div class="home-head"><div class="logo" aria-label="ماتعطل"><span class="mark">م</span>ماتعطل<span class="dot">•</span></div>
+    <div class="home-band"><div class="home-head"><div class="logo wordmark" aria-label="ماتعطل">ماتعطل<span class="dot"></span></div>
       <button class="loc-chip" data-act="area" aria-label="اختيار المنطقة">${icon('pin', 'pin')}<span>${esc(areaLabel())}</span>${icon('chevD')}</button></div>
-    <a class="searchbar" href="#/search" aria-label="بحث">${icon('search')}<span class="ph">ابحث عن ونش، بنشر، مفاتيح...</span></a></div>
-    ${maint ? `<div class="pad" style="margin-top:10px"><div class="note y">${icon('info')}<div>${esc(maint)}</div></div></div>` : ''}
+      <div class="greet"><small>${new Date().getHours() < 12 ? 'صباح الخير' : 'مساء الخير'} 👋</small><h1>وين ما تعطلت...<br>إحنا قريبين منك.</h1></div></div>
+    <div class="search-float"><a class="sbtn" href="#/search" aria-label="بحث">${icon('search')}</a><a class="sph" href="#/search">ابحث عن سطحة، بنشر، مفاتيح...</a><a class="sflt" href="#/categories" aria-label="الفلاتر">${icon('filter')}</a></div>
+    <a class="sos" href="#/s/tow"><span class="ic">${icon('siren')}</span><span class="t"><b>سيارتك تعطلت؟</b><small>اطلب سطحة الآن وتواصل مباشرة</small></span>${icon('arrowL', 'go')}</a>
+    ${maint ? `<div class="pad" style="margin-top:12px"><div class="note y">${icon('info')}<div>${esc(maint)}</div></div></div>` : ''}
     ${S.err && !S.loaded ? errBox() : ''}
-    <section class="sec" style="margin-top:14px">${carousel(items)}</section>
-    <section class="sec"><div class="sec-h"><h2>الأقسام</h2><a class="more" href="#/categories">عرض الكل${icon('chevL')}</a></div><div class="cats">${cats || '<div class="sk" style="grid-column:1/-1;height:180px"></div>'}</div></section>
-    <section class="sec"><div class="sec-h"><h2>القريبة منك</h2>${S.area !== 'all' || S.pos ? `<button class="more" data-act="area">${esc(areaLabel())}${icon('chevD')}</button>` : ''}</div>${nearby}</section>
+    ${homeAds.length || S.banners.length ? `<section class="sec">${carousel(items.slice(0, homeAds.length + S.banners.length))}</section>` : ''}
+    <section class="sec"><div class="sec-h"><h2>الخدمات</h2><a class="more" href="#/categories">الكل${icon('chevL')}</a></div><div class="cats">${cats || '<div class="sk" style="grid-column:1/-1;height:180px"></div>'}</div></section>
+    <section class="sec"><div class="sec-h"><h2>قريب منك</h2>${S.area !== 'all' || S.pos ? `<a class="more" href="#/s/${esc((S.services[0] || {}).id || 'tow')}?sort=near">عرض الكل${icon('chevL')}</a>` : ''}</div>${nearby}</section>
     ${featured}
+    ${!homeAds.length && !S.banners.length ? `<section class="sec">${carousel(promos())}</section>` : ''}
     <section class="sec"><div class="sec-h"><h2>أحدث مقدمي الخدمات</h2></div>${latest}</section>
     ${installCard()}
     <div class="footer-note">ماتعطل · منصة خدمات السيارات في الكويت<br>التواصل والدفع يتم مباشرة بينك وبين مقدم الخدمة.</div>`,
@@ -256,7 +261,7 @@ function pgCategories() {
     tab: 'cats',
     html: `<header class="topbar"><h1 style="font-size:24px">الأقسام</h1></header>
     <a class="searchbar" href="#/search" style="margin-bottom:14px">${icon('search')}<span class="ph">ابحث في كل الأقسام</span></a>
-    <div class="cat-list">${S.services.map(s => `<a class="cat-row" href="#/s/${esc(s.id)}"><span class="ic">${svcIcon(s)}</span><span><b>${esc(s.name_ar)}</b><small>${S.loaded ? (n(s.id) ? fmtNum(n(s.id)) + ' مقدم خدمة' : 'لا يوجد حالياً') : '...'}</small></span>${icon('chevL', 'chev')}</a>`).join('') || '<div class="sk" style="height:300px"></div>'}</div>
+    <div class="cat-list">${S.services.map(s => `<a class="cat-row" href="#/s/${esc(s.id)}"><span class="ic tile t-${esc(s.icon || s.id)}">${svcIcon(s)}</span><span><b>${esc(s.name_ar)}</b><small>${S.loaded ? (n(s.id) ? fmtNum(n(s.id)) + ' مقدم خدمة' : 'لا يوجد حالياً') : '...'}</small></span>${icon('chevL', 'chev')}</a>`).join('') || '<div class="sk" style="height:300px"></div>'}</div>
     ${S.err && !S.loaded ? errBox() : ''}`,
   };
 }
@@ -310,7 +315,7 @@ function pgService([id], q) {
 function pgSearch(_, q) {
   const text = q.get('q') || '';
   return {
-    tab: 'home',
+    tab: 'search',
     html: `<header class="topbar"><button class="icon-btn clear" data-act="back" aria-label="رجوع">${icon('chevR')}</button>
       <label class="searchbar" style="margin:0;flex:1;width:auto;height:48px">${icon('search')}<input id="sq" type="search" placeholder="ابحث عن خدمة أو اسم أو منطقة" value="${esc(text)}" data-live="search" enterkeyhint="search" autocomplete="off" aria-label="بحث"></label></header>
       <div id="sres">${searchResults(text)}</div>`,
@@ -322,7 +327,7 @@ function searchResults(text) {
   if (!t) {
     return `${S.recent.length ? `<div class="sec-h" style="margin-top:14px"><h2 style="font-size:16px">عمليات البحث الأخيرة</h2><button class="more" data-act="clear-recent">مسح</button></div><div class="chips" style="flex-wrap:wrap">${S.recent.map(r => `<a class="chip out" href="#/search?q=${encodeURIComponent(r)}">${icon('clock')}${esc(r)}</a>`).join('')}</div>` : ''}
       <div class="sec-h" style="margin-top:20px"><h2 style="font-size:16px">تصفّح حسب الخدمة</h2></div>
-      <div class="cat-list">${S.services.map(s => `<a class="cat-row" href="#/s/${esc(s.id)}"><span class="ic">${svcIcon(s)}</span><span><b>${esc(s.name_ar)}</b></span>${icon('chevL', 'chev')}</a>`).join('')}</div>`;
+      <div class="cat-list">${S.services.map(s => `<a class="cat-row" href="#/s/${esc(s.id)}"><span class="ic tile t-${esc(s.icon || s.id)}">${svcIcon(s)}</span><span><b>${esc(s.name_ar)}</b></span>${icon('chevL', 'chev')}</a>`).join('')}</div>`;
   }
   const cats = S.services.filter(s => norm(s.name_ar).includes(t) || t.split(' ').some(w => w.length > 1 && norm(s.name_ar).includes(w)));
   const syn = { 'ونش': 'tow', 'سطحه': 'tow', 'سحب': 'tow', 'بنشر': 'tire', 'تاير': 'tire', 'اطار': 'tire', 'كفر': 'tire', 'مفتاح': 'keys', 'ريموت': 'keys', 'غسيل': 'wash', 'تلميع': 'wash', 'تظليل': 'shield', 'نانو': 'shield', 'حمايه': 'shield', 'بطاريه': 'bat', 'بطارية': 'bat', 'كهرباء': 'bat', 'ميكانيك': 'mech', 'صيانه': 'mech' };
@@ -506,7 +511,7 @@ function pgAccount() {
 function pgFavorites() {
   const list = S.cos.filter(c => S.favs.has(c.id));
   return {
-    tab: 'fav',
+    tab: 'account',
     html: `<header class="topbar"><h1 style="font-size:24px">المفضلة</h1></header>
     ${!S.loaded ? '<div class="stack"><div class="sk" style="height:120px"></div></div>' : list.length ? `<div class="stack">${list.map(lcard).join('')}</div>` : emptyBox('heart', 'ما عندك مفضلة بعد', 'اضغط على القلب في أي مقدم خدمة لحفظه هنا والوصول له بسرعة.', '<a class="btn primary" href="#/categories">تصفّح الأقسام</a>')}
     ${!session() && list.length ? `<div class="pad" style="margin-top:14px"><div class="note">${icon('info')}<div>المفضلة محفوظة على هذا الجهاز. <a href="#/auth?next=/favorites" style="font-weight:800;text-decoration:underline">سجّل دخولك</a> لحفظها في حسابك.</div></div></div>` : ''}`,
@@ -542,7 +547,7 @@ async function pgMyBusiness() {
   let list = [];
   try { list = await myCompanies(); } catch (e) { return { html: topbar('نشاطي التجاري') + emptyBox('refresh', 'تعذّر التحميل', errText(e)) }; }
   return {
-    tab: 'account',
+    tab: 'req',
     html: topbar('نشاطي التجاري') + (list.length ? `<div class="stack" style="margin-top:12px">${list.map(c => `<div class="item-card"><div class="top">${safeImg(c.logo_url) ? `<img src="${esc(safeImg(c.logo_url))}" alt="">` : `<span class="ph">${svcIcon(svc(c.service_id) || c.service_id)}</span>`}<div style="flex:1;min-width:0"><b>${esc(c.name)}</b><small style="color:var(--mut)">${esc(svcName(c.service_id))}</small></div></div>
       <div class="tagline">${statusTag(c)}${c.status === 'approved' && c.sub_end ? `<span class="tg">الاشتراك حتى ${fmtDate(c.sub_end)}</span>` : ''}</div>
       ${c.status === 'approved' ? `<div class="stats3"><div><b>${fmtNum(c.visits)}</b><small>مشاهدة</small></div><div><b>${fmtNum(c.calls)}</b><small>اتصال</small></div><div><b>${fmtNum(c.wa_taps)}</b><small>واتساب</small></div></div>` : ''}
@@ -708,7 +713,7 @@ async function pgMyAds() {
   catch (e) { return { html: topbar('إعلاناتي') + emptyBox('refresh', 'تعذّر التحميل', errText(e)) }; }
   const tName = id => (AD_TYPES.find(t => t.id === id) || {}).t || id;
   return {
-    tab: 'ad',
+    tab: 'req',
     html: topbar('إعلاناتي') + (list.length ? `<div class="stack" style="margin-top:12px">${list.map(a => { const [k, t] = adStatus(a); return `<div class="item-card"><img class="wide-img" src="${esc(safeImg(a.image_url))}" alt="" loading="lazy">
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>${esc(a.title || tName(a.ad_type))}</b><span class="tg ${k}">${esc(t)}</span></div>
       <small style="color:var(--mut)">${esc(tName(a.ad_type))} · ${a.duration_days} يوم · أُرسل ${fmtDate(a.created_at)}</small>
@@ -716,6 +721,17 @@ async function pgMyAds() {
       ${a.status === 'approved' ? `<div class="stats3"><div><b>${fmtNum(a.views)}</b><small>مشاهدة</small></div><div><b>${fmtNum(a.clicks)}</b><small>نقرة</small></div><div><b>${a.views ? ((a.clicks / a.views) * 100).toFixed(1) + '%' : '—'}</b><small>نسبة النقر</small></div></div>` : ''}
       ${a.status === 'pending' && a.payment_status === 'unpaid' ? `<button class="btn sm danger-soft" data-act="del-ad" data-id="${a.id}">${icon('trash')}إلغاء الطلب</button>` : ''}</div>`; }).join('')}<a class="btn primary block" href="#/advertise">${icon('plus')}طلب إعلان جديد</a></div>`
         : emptyBox('megaphone', 'ما عندك إعلانات', 'قدّم طلب إعلانك وتابع حالته وإحصائياته من هنا.', '<a class="btn primary" href="#/advertise">أعلن معنا</a>')),
+  };
+}
+async function pgRequests(_, q) {
+  const t = q.get('t') === 'biz' ? 'biz' : 'ads';
+  const inner = await (t === 'ads' ? pgMyAds() : pgMyBusiness());
+  const body = (inner.html || '').replace(/^\s*<header[\s\S]*?<\/header>/, '');
+  return {
+    tab: 'req',
+    html: `<header class="topbar"><h1 style="font-size:24px">طلباتي</h1></header>
+      <div class="seg req-seg"><a href="#/requests?t=ads" class="${t === 'ads' ? 'on' : ''}" style="flex:1;height:44px;border-radius:11px;display:grid;place-items:center;font-weight:800;${t === 'ads' ? 'background:var(--surface);color:var(--brand);box-shadow:var(--sh-1)' : 'color:var(--mut)'}">إعلاناتي</a><a href="#/requests?t=biz" style="flex:1;height:44px;border-radius:11px;display:grid;place-items:center;font-weight:800;${t === 'biz' ? 'background:var(--surface);color:var(--brand);box-shadow:var(--sh-1)' : 'color:var(--mut)'}">طلب الانضمام</a></div>
+      ${body}`,
   };
 }
 function pgAbout() {
@@ -758,7 +774,7 @@ function setPos(p, quiet) {
 const ROUTES = [
   [/^\/?$/, pgHome], [/^\/categories$/, pgCategories], [/^\/s\/([\w-]+)$/, pgService], [/^\/search$/, pgSearch], [/^\/c\/(\d+)$/, pgCompany],
   [/^\/advertise$/, pgAdvertise], [/^\/join$/, pgJoin], [/^\/account$/, pgAccount], [/^\/auth$/, pgAuth], [/^\/favorites$/, pgFavorites],
-  [/^\/my-ads$/, pgMyAds], [/^\/my-business$/, pgMyBusiness], [/^\/notifications$/, pgNotifications], [/^\/about$/, pgAbout],
+  [/^\/my-ads$/, pgMyAds], [/^\/requests$/, pgRequests], [/^\/my-business$/, pgMyBusiness], [/^\/notifications$/, pgNotifications], [/^\/about$/, pgAbout],
 ];
 const parse = () => { const h = location.hash.replace(/^#/, '') || '/'; const [p, qs] = h.split('?'); return { p: p || '/', q: new URLSearchParams(qs || '') }; };
 export function go(path, replace) { const h = '#' + (path.startsWith('/') ? path : '/' + path); if (replace) { history.replaceState(null, '', h); render(); } else location.hash = h; }
