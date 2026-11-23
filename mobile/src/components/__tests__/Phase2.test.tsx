@@ -145,6 +145,14 @@ describe('التسجيل والدخول', () => {
     expect(screen.getByTestId('tab-login').props.accessibilityState).toMatchObject({ selected: true });
   });
 
+  test('شاشة الدخول: زر رجوع خاص داخل المنطقة الآمنة، والمحتوى يتحرك مع لوحة المفاتيح', async () => {
+    await render(wrap(<Auth />));
+    expect(screen.getByTestId('auth-back')).toBeTruthy();
+    const scroll = screen.getByTestId('auth-scroll');
+    expect(scroll.props.automaticallyAdjustKeyboardInsets).toBe(true);
+    expect(scroll.props.keyboardShouldPersistTaps).toBe('handled');
+  });
+
   test('كلمة المرور: قابلة للكتابة والحذف واللصق، بدون «كلمة سر قوية» في iOS، والعين لا تمسح النص', async () => {
     const user = userEvent.setup();
     await render(wrap(<Auth />));

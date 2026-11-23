@@ -43,3 +43,13 @@ describe('رسائل الأخطاء الجديدة', () => {
     expect(arabicError(new Error('published terms are immutable; create a new version'))).toBe('لا يمكن تعديل نسخة شروط بعد نشرها');
   });
 });
+
+describe('رسائل أخطاء التسجيل برقم التلفون', () => {
+  test('رسائل واضحة بدل الإنجليزية', () => {
+    expect(arabicError(new Error('Phone signups are disabled'))).toBe('التسجيل برقم التلفون غير مفعّل حالياً. تواصل مع الدعم الفني');
+    expect(arabicError(new Error('Error sending sms OTP to user'))).toBe('تعذّر إرسال رسالة التحقق الآن. حاول لاحقاً أو تواصل مع الدعم');
+    expect(arabicError(new Error('Invalid login credentials'))).toBe('رقم التلفون أو كلمة المرور غير صحيحة');
+    expect(arabicError(new Error('User already registered'))).toBe('هذا الرقم مسجل عندنا، سجّل دخولك');
+    expect(arabicError(new Error('Token has expired or is invalid'))).toBe('رمز التحقق غير صحيح أو انتهت صلاحيته');
+  });
+});

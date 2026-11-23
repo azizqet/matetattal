@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -129,13 +130,16 @@ export default function Auth() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={undefined}>
+      <StatusBar style="light" />
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + 28 }}
         keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive"
         automaticallyAdjustKeyboardInsets
+        testID="auth-scroll"
         showsVerticalScrollIndicator={false}
       >
-        <AuthHero title={hero[0]} subtitle={hero[1]} topInset={insets.top + 60}>
+        <AuthHero title={hero[0]} subtitle={hero[1]} topInset={insets.top + 12}
+          onBack={() => (step === 'verify' ? setStep('register') : step === 'forgot-code' || step === 'new-password' ? setStep('forgot') : step === 'forgot' ? setStep('login') : router.canGoBack() ? router.back() : router.replace('/'))}>
           {isCode ? <Text style={st.heroPhone}>{'⁦'}+965 {phone.slice(0, 4)} {phone.slice(4)}{'⁩'}</Text> : null}
         </AuthHero>
 

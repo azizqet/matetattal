@@ -16,7 +16,7 @@ export const Icon = ({ name, size = 22, color = colors.primary }: { name: IconNa
 
 type Variant = 'body' | 'small' | 'title' | 'h1' | 'h2' | 'label' | 'muted';
 export function Text({ variant = 'body', style, ...p }: TextProps & { variant?: Variant }) {
-  return <RNText {...p} style={[t.base, t[variant], style]} />;
+  return <RNText maxFontSizeMultiplier={1.35} {...p} style={[t.base, t[variant], style]} />;
 }
 
 export function Screen({ children, scroll = true, style, edges = ['top'] }: { children: ReactNode; scroll?: boolean; style?: StyleProp<ViewStyle>; edges?: ('top' | 'bottom')[] }) {
@@ -121,6 +121,7 @@ export function Field({ label, error, style, ...p }: TextInputProps & { label: s
       <Text variant="label">{label}</Text>
       <TextInput
         placeholderTextColor={colors.placeholder}
+        maxFontSizeMultiplier={1.35}
         {...p}
         accessibilityLabel={label}
         style={[s.input, p.multiline && { minHeight: 90, textAlignVertical: 'top' }, error ? { borderColor: colors.danger } : null, style as StyleProp<TextStyle>]}

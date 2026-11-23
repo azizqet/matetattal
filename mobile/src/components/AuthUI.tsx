@@ -11,7 +11,7 @@ const native = Platform.OS !== 'web';
 const toLatinDigits = (v: string) => v.replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660)).replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0));
 
 /** رأس بهوية ماتعطل: تدرّج ملكي + شعار بنبض خفيف — كل شيء داخل الإطار */
-export function AuthHero({ title, subtitle, topInset, children }: { title: string; subtitle?: string; topInset: number; children?: ReactNode }) {
+export function AuthHero({ title, subtitle, topInset, children, onBack }: { title: string; subtitle?: string; topInset: number; children?: ReactNode; onBack?: () => void }) {
   const [pulse] = useState(() => new Animated.Value(0));
   useEffect(() => {
     const loop = Animated.loop(Animated.sequence([
@@ -23,6 +23,12 @@ export function AuthHero({ title, subtitle, topInset, children }: { title: strin
   }, [pulse]);
   return (
     <LinearGradient colors={gradients.brand} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={[h.hero, { paddingTop: topInset }]}>
+      {/* زر رجوع داخل المنطقة الآمنة (بدل رأس النظام الشفاف الذي كان يتداخل مع المحتوى وشريط الحالة) */}
+      {onBack ? (
+        <Pressable onPress={onBack} hitSlop={12} accessibilityRole="button" accessibilityLabel="رجوع" style={h.back} testID="auth-back">
+          <Icon name="arrow-right" size={24} color={colors.white} />
+        </Pressable>
+      ) : null}
       <View style={h.brandRow}>
         <Animated.View style={[h.mark, { transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) }] }]}>
           <Icon name="car-wrench" size={24} color={colors.white} />
@@ -216,6 +222,7 @@ export function FadeSlide({ k, children }: { k: string; children: ReactNode }) {
 const h = StyleSheet.create({
   hero: { paddingHorizontal: 22, paddingBottom: 58, borderBottomLeftRadius: 34, borderBottomRightRadius: 34, overflow: 'hidden' },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  back: { alignSelf: 'flex-start', width: 42, height: 42, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   mark: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' },
   word: { color: '#fff', fontFamily: fonts.heavy, fontSize: 26, lineHeight: 40, includeFontPadding: false },
   dot: { color: colors.accent, fontSize: 28, lineHeight: 40 },
