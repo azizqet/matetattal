@@ -6,7 +6,7 @@ import {
 } from './core.js';
 
 initSession('local');
-const VERSION = '4.2.0';
+const VERSION = '4.3.0';
 const COLS = 'id,service_id,name,phone,whatsapp,price_text,rating,rating_count,logo_url,cover_url,photos,description,address,lat,lng,is_24h,is_available,created_at,featured_until,is_sample,company_areas(areas(name_ar)),company_services(service_id)';
 
 /* ================= الحالة ================= */
@@ -219,6 +219,7 @@ function pgHome() {
       <div class="greet"><small>${new Date().getHours() < 12 ? 'صباح الخير' : 'مساء الخير'} 👋</small><h1>وين ما تعطلت...<br>إحنا قريبين منك.</h1></div></div>
     <div class="search-float"><a class="sbtn" href="#/search" aria-label="بحث">${icon('search')}</a><a class="sph" href="#/search">ابحث عن سطحة، بنشر، مفاتيح...</a><a class="sflt" href="#/categories" aria-label="الفلاتر">${icon('filter')}</a></div>
     <a class="sos" href="#/s/tow"><span class="ic">${icon('siren')}</span><span class="t"><b>سيارتك تعطلت؟</b><small>اطلب سطحة الآن وتواصل مباشرة</small></span>${icon('arrowL', 'go')}</a>
+    ${installCard()}
     ${maint ? `<div class="pad" style="margin-top:12px"><div class="note y">${icon('info')}<div>${esc(maint)}</div></div></div>` : ''}
     ${S.err && !S.loaded ? errBox() : ''}
     ${homeAds.length || S.banners.length ? `<section class="sec">${carousel(items.slice(0, homeAds.length + S.banners.length))}</section>` : ''}
@@ -227,7 +228,6 @@ function pgHome() {
     ${featured}
     ${!homeAds.length && !S.banners.length ? `<section class="sec">${carousel(promos())}</section>` : ''}
     <section class="sec"><div class="sec-h"><h2>أحدث مقدمي الخدمات</h2></div>${latest}</section>
-    ${installCard()}
     <div class="footer-note">ماتعطل · منصة خدمات السيارات في الكويت<br>التواصل والدفع يتم مباشرة بينك وبين مقدم الخدمة.</div>`,
     after: el => { initCarousel(el); },
   };
@@ -235,7 +235,7 @@ function pgHome() {
 function installCard() {
   const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
   if (standalone || store.get('installDismiss')) return '';
-  return `<div class="install-card"><span class="ic">م</span><div style="flex:1"><b>ثبّت تطبيق ماتعطل</b><small>أضفه لشاشتك الرئيسية لوصول أسرع</small></div><button class="btn sm primary" data-act="install">تثبيت</button></div>`;
+  return `<div class="install-card"><img class="app-ic" src="icons/icon-192.png" alt="أيقونة ماتعطل" width="52" height="52"><div style="flex:1"><b>حمّل تطبيق ماتعطل</b><small>أيقونة على شاشتك الرئيسية — يفتح مثل التطبيق</small></div><button class="btn sm primary" data-act="install">${icon('download')}تحميل</button><button class="icon-btn clear" data-act="install-hide" aria-label="إخفاء" style="width:32px;height:32px">${icon('close')}</button></div>`;
 }
 function initCarousel(root) {
   const c = $('[data-carousel]', root); if (!c) return;
@@ -887,6 +887,8 @@ const ACT = {
   'del-ad': async el => { if (!(await confirmBox('إلغاء طلب الإعلان؟', { ok: 'إلغاء الطلب', danger: true }))) return; try { await rest('ad_campaigns?id=eq.' + (+el.dataset.id), { method: 'DELETE' }); toast('تم إلغاء الطلب'); render(true); } catch (e) { toast(errText(e), 'err'); } },
   'clear-recent': () => { S.recent = []; store.set('recent', []); render(true); },
   install: () => installApp(),
+  'install-hide': () => { store.set('installDismiss', 1); render(true); },
+  'copy-link': async () => { try { await navigator.clipboard.writeText(location.origin + location.pathname); toast('تم نسخ الرابط — افتحه في Safari', 'ok'); } catch (_) { toast(location.origin); } },
   theme: () => { const order = ['auto', 'light', 'dark']; const cur = store.get('theme', 'auto'); const n = order[(order.indexOf(cur) + 1) % 3]; store.set('theme', n); applyTheme(); render(true); },
   goreg: (el, e) => { e.preventDefault(); go('/auth'); setTimeout(() => { const b = $('.seg button[data-mode="register"]'); b && b.click(); }, 50); },
 };
@@ -922,13 +924,28 @@ document.addEventListener('input', e => {
 /* ================= PWA ================= */
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.installEvt = e; });
 async function installApp() {
-  if (S.installEvt) { S.installEvt.prompt(); try { await S.installEvt.userChoice; } catch (_) { } S.installEvt = null; store.set('installDismiss', 1); render(true); return; }
-  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  sheet(`<div class="sheet-h"><h3>تثبيت ماتعطل</h3><button class="icon-btn clear" data-close>${icon('close')}</button></div><div class="sheet-body">
-    ${ios ? `<div class="steps" style="margin:0"><div><span>1</span>اضغط زر المشاركة ${icon('share')} أسفل Safari</div><div><span>2</span>اختر «إضافة إلى الشاشة الرئيسية»</div><div><span>3</span>اضغط «إضافة»</div></div>`
-      : `<div class="steps" style="margin:0"><div><span>1</span>افتح قائمة المتصفح (⋮)</div><div><span>2</span>اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية»</div></div>`}
-    <button class="btn ghost block" data-act="install-dismiss" data-close>تم</button></div>`);
-  store.set('installDismiss', 1);
+  // أندرويد/كروم/إيدج: تثبيت مباشر بضغطة واحدة
+  if (S.installEvt) {
+    const ev = S.installEvt; S.installEvt = null;
+    ev.prompt(); let ok = false; try { ok = (await ev.userChoice).outcome === 'accepted'; } catch (_) { }
+    if (ok) { store.set('installDismiss', 1); toast('تم تحميل ماتعطل على شاشتك الرئيسية', 'ok'); render(true); }
+    return;
+  }
+  const ua = navigator.userAgent, ios = /iphone|ipad|ipod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  const iosOther = ios && /CriOS|FxiOS|EdgiOS|OPiOS|GSA|FBAN|FBAV|Instagram|Snapchat/i.test(ua);
+  const head = `<div class="inst-head"><img src="icons/icon-192.png" alt="" width="72" height="72"><div><b>ماتعطل</b><small>mat3tl.com</small></div></div>`;
+  let body;
+  if (iosOther) body = `<div class="note y">${icon('info')}<div>على الآيفون التحميل يشتغل من <b>Safari</b> فقط. انسخ الرابط وافتحه في Safari.</div></div>
+    <button class="btn primary block" data-act="copy-link">${icon('share')}نسخ الرابط</button>`;
+  else if (ios) body = `<div class="inst-steps">
+      <div class="st"><span class="n">1</span><span class="tx">اضغط زر <b>المشاركة</b> أسفل الشاشة</span><span class="vis">${icon('share')}</span></div>
+      <div class="st"><span class="n">2</span><span class="tx">اختر <b>«إضافة إلى الشاشة الرئيسية»</b></span><span class="vis">${icon('plus')}</span></div>
+      <div class="st"><span class="n">3</span><span class="tx">اضغط <b>«إضافة»</b> — تظهر أيقونة ماتعطل على شاشتك</span><span class="vis app"><img src="icons/icon-96.png" alt=""></span></div></div>
+    <div class="inst-arrow">${icon('chevD')}زر المشاركة تحت ${icon('chevD')}</div>`;
+  else body = `<div class="inst-steps">
+      <div class="st"><span class="n">1</span><span class="tx">افتح قائمة المتصفح <b>⋮</b> فوق</span><span class="vis">⋮</span></div>
+      <div class="st"><span class="n">2</span><span class="tx">اختر <b>«تثبيت التطبيق»</b> أو <b>«إضافة إلى الشاشة الرئيسية»</b></span><span class="vis app"><img src="icons/icon-96.png" alt=""></span></div></div>`;
+  sheet(`<div class="sheet-h"><h3>تحميل تطبيق ماتعطل</h3><button class="icon-btn clear" data-close>${icon('close')}</button></div><div class="sheet-body">${head}${body}<button class="btn ghost block" data-close>تم</button></div>`);
 }
 function applyTheme() { const t = store.get('theme', 'auto'); t === 'auto' ? document.documentElement.removeAttribute('data-theme') : document.documentElement.setAttribute('data-theme', t); }
 applyTheme();
