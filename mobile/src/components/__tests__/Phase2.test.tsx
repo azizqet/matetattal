@@ -7,6 +7,7 @@ jest.mock('expo-haptics', () => ({ selectionAsync: () => Promise.resolve() }));
 jest.mock('@expo/vector-icons', () => ({ MaterialCommunityIcons: Object.assign(() => null, { glyphMap: {} }) }));
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 jest.mock('@react-native-async-storage/async-storage', () => require('@react-native-async-storage/async-storage/jest/async-storage-mock'));
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 47, bottom: 34, left: 0, right: 0 }), SafeAreaView: ({ children }: { children: unknown }) => children }));
 jest.mock('expo-router', () => ({ router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: () => true }, Stack: { Screen: () => null }, useLocalSearchParams: () => ({}) }));
 jest.mock('expo-image-picker', () => ({ launchImageLibraryAsync: jest.fn() }));
 jest.mock('@/lib/queries', () => ({
@@ -25,6 +26,8 @@ jest.mock('@/lib/api', () => ({
   getNotifications: jest.fn(async () => []),
   getMyCompanies: jest.fn(async () => []),
   createAd: jest.fn(async (a: object) => ({ id: 1, status: 'pending', ...a })),
+  sendPhoneOtp: jest.fn(async () => {}),
+  verifyPhoneOtp: jest.fn(async () => ({})),
   deleteMyAccount: jest.fn(async () => {}),
 }));
 jest.mock('@/lib/supabase', () => ({ supabase: { auth: { signInWithPassword: jest.fn(), signUp: jest.fn(), resetPasswordForEmail: jest.fn() } } }));
@@ -90,56 +93,42 @@ describe('حسابي', () => {
   });
 });
 
-describe('التسجيل والدخول بالبريد', () => {
+describe('الدخول برقم الجوال', () => {
   beforeEach(() => { jest.clearAllMocks(); mockSession.current = null; });
 
-  test('إنشاء حساب: يتحقق من التطابق ثم يرسل الاسم، ولا يعتبر الحساب مفعّلاً قبل تأكيد البريد', async () => {
-    sb.auth.signUp.mockResolvedValueOnce({ data: { user: { identities: [{}] }, session: null }, error: null });
+  test('+965 ثابت، يرفض رقماً غير كويتي، يرسل الرمز ثم يتحقق تلقائياً عند اكتمال 6 أرقام', async () => {
     const user = userEvent.setup();
     await render(wrap(<Auth />));
-    await user.press(screen.getByText('إنشاء حساب جديد'));
-    await user.type(screen.getByTestId('auth-name'), 'عزيز');
-    await user.type(screen.getByTestId('email'), 'Test@Example.com');
-    await user.type(screen.getByTestId('password'), 'abc12345');
-    await user.type(screen.getByTestId('password-confirm'), 'abc12346');
-    await user.press(screen.getByTestId('auth-submit'));
-    expect(sb.auth.signUp).not.toHaveBeenCalled();
-    await user.clear(screen.getByTestId('password-confirm'));
-    await user.type(screen.getByTestId('password-confirm'), 'abc12345');
-    await user.press(screen.getByTestId('auth-submit'));
-    await waitFor(() => expect(sb.auth.signUp).toHaveBeenCalledTimes(1));
-    const arg = sb.auth.signUp.mock.calls[0][0] as { email: string; password: string; options: { data: { full_name: string } } };
-    expect(arg.email).toBe('test@example.com');
-    expect(arg.options.data.full_name).toBe('عزيز');
-    await waitFor(() => expect(screen.getByTestId('auth-notice')).toBeTruthy());
-    expect(screen.getByText(/لا يمكن الدخول قبل تفعيل البريد/)).toBeTruthy();
+    expect(screen.getByText(/\+965/)).toBeTruthy();
+    await user.type(screen.getByTestId('auth-phone'), '1234567');
+    await user.press(screen.getByTestId('auth-send'));
+    expect(api.sendPhoneOtp).not.toHaveBeenCalled();
+    await user.clear(screen.getByTestId('auth-phone'));
+    await user.type(screen.getByTestId('auth-phone'), '٩٧٧٠٦٧٩٢');
+    expect(screen.getByTestId('auth-phone').props.value).toBe('97706792');
+    await user.press(screen.getByTestId('auth-send'));
+    await waitFor(() => expect(api.sendPhoneOtp).toHaveBeenCalledWith('97706792'));
+    await waitFor(() => expect(screen.getByTestId('auth-code')).toBeTruthy());
+    const codeField = screen.getByTestId('auth-code');
+    expect(codeField.props.textContentType).toBe('oneTimeCode');
+    expect(codeField.props.autoComplete).toBe('sms-otp');
+    expect(screen.getByText(/إعادة الإرسال بعد/)).toBeTruthy();
+    await user.type(codeField, '12345');
+    expect(api.verifyPhoneOtp).not.toHaveBeenCalled();
+    await user.type(screen.getByTestId('auth-code'), '6');
+    await waitFor(() => expect(api.verifyPhoneOtp).toHaveBeenCalledWith('97706792', '123456'));
+    expect(api.verifyPhoneOtp).toHaveBeenCalledTimes(1);
   });
 
-  test('بريد مسجل مسبقاً لا ينشئ حساباً مكرراً', async () => {
-    sb.auth.signUp.mockResolvedValueOnce({ data: { user: { identities: [] }, session: null }, error: null });
-    const user = userEvent.setup();
-    await render(wrap(<Auth />));
-    await user.press(screen.getByText('إنشاء حساب جديد'));
-    await user.type(screen.getByTestId('auth-name'), 'عزيز');
-    await user.type(screen.getByTestId('email'), 'old@example.com');
-    await user.type(screen.getByTestId('password'), 'abc12345');
-    await user.type(screen.getByTestId('password-confirm'), 'abc12345');
-    await user.press(screen.getByTestId('auth-submit'));
-    await waitFor(() => expect(screen.getByText('هذا البريد مسجل مسبقاً، سجّل الدخول')).toBeTruthy());
-  });
-
-  test('تسجيل الدخول ونسيت كلمة المرور', async () => {
+  test('الحسابات القديمة: الدخول بالبريد ما زال متاحاً (بدون تسجيل جديد بالبريد)', async () => {
     sb.auth.signInWithPassword.mockResolvedValueOnce({ data: {}, error: null });
-    sb.auth.resetPasswordForEmail.mockResolvedValueOnce({ data: {}, error: null });
     const user = userEvent.setup();
     await render(wrap(<Auth />));
+    await user.press(screen.getByTestId('auth-email-link'));
+    expect(screen.queryByText('إنشاء حساب جديد')).toBeNull();
     await user.type(screen.getByTestId('email'), 'a@b.co');
     await user.type(screen.getByTestId('password'), 'abc12345');
     await user.press(screen.getByTestId('auth-submit'));
     await waitFor(() => expect(sb.auth.signInWithPassword).toHaveBeenCalledWith({ email: 'a@b.co', password: 'abc12345' }));
-    await user.press(screen.getByTestId('auth-forgot'));
-    await user.press(screen.getByTestId('auth-submit'));
-    await waitFor(() => expect(sb.auth.resetPasswordForEmail).toHaveBeenCalledWith('a@b.co', { redirectTo: 'matetattal://auth-callback' }));
-    expect(screen.queryByTestId('password')).toBeNull();
   });
 });

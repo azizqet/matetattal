@@ -58,8 +58,9 @@ export default function RootLayout() {
               <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'ماتعطل' }} />
               <Stack.Screen name="company/[id]" options={{ title: 'تفاصيل الشركة' }} />
               <Stack.Screen name="service/[id]" options={{ title: 'الخدمة' }} />
-              <Stack.Screen name="auth" options={{ title: 'تسجيل الدخول' }} />
+              <Stack.Screen name="auth" options={{ title: '', headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } }} />
               <Stack.Screen name="auth-callback" options={{ title: 'ماتعطل' }} />
+              <Stack.Screen name="auth-reset" options={{ title: 'استعادة كلمة المرور' }} />
               <Stack.Screen name="admin" options={{ title: 'لوحة الإدارة' }} />
               <Stack.Screen name="notifications" options={{ title: 'الإشعارات' }} />
               <Stack.Screen name="favorites" options={{ title: 'المفضلة' }} />

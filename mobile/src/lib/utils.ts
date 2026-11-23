@@ -194,7 +194,10 @@ export function arabicError(e: unknown): string {
   if (/cannot review own company/i.test(m)) return 'لا يمكنك تقييم شركتك';
   if (/plan not found/i.test(m)) return 'الخطة غير متوفرة';
   if (/Network request failed|Failed to fetch|fetch failed/i.test(m)) return 'تعذر الاتصال. تأكد من الإنترنت';
-  if (/Token has expired or is invalid|otp_expired|invalid.*otp|Email link is invalid/i.test(m)) return 'الرابط غير صالح أو انتهت صلاحيته. اطلب رابطاً جديداً';
+  if (/phone_provider_disabled|Unsupported phone provider|phone.*(disabled|not enabled)|sms_send_failed|Error sending sms|sms provider error|sms hook not configured/i.test(m)) return 'تعذّر إرسال رسالة التحقق الآن. حاول لاحقاً أو تواصل مع الدعم';
+  if (/over_sms_send_rate_limit|sms.*rate limit|you can only request this after/i.test(m)) return 'انتظر قليلاً قبل طلب رمز جديد';
+  if (/only Kuwaiti mobile numbers/i.test(m)) return 'الرقم لازم يكون جوال كويتي';
+  if (/Token has expired or is invalid|otp_expired|invalid.*otp|Email link is invalid/i.test(m)) return /otp|Token/i.test(m) ? 'رمز التحقق غير صحيح أو انتهت صلاحيته' : 'الرابط غير صالح أو انتهت صلاحيته. اطلب رابطاً جديداً';
   if (/For security purposes, you can only request this|over_email_send_rate_limit|email rate limit/i.test(m)) return 'طلبات كثيرة، انتظر قليلاً ثم حاول مرة أخرى';
   if (/Password should|weak.?password|password.*(short|weak|pwned|leaked)/i.test(m)) return 'كلمة المرور ضعيفة. اختر كلمة أقوى (8 أحرف على الأقل مع أرقام)';
   if (/New password should be different/i.test(m)) return 'اختر كلمة مرور مختلفة عن القديمة';
