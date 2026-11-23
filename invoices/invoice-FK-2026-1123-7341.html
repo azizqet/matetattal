@@ -45,6 +45,7 @@ header{display:flex;justify-content:space-between;align-items:flex-start;padding
 .facts dd{font-weight:600;color:var(--navy);font-size:10pt}
 .ltr{direction:ltr;unicode-bidi:isolate;font-family:'IBM Plex Mono',monospace;font-size:9.5pt;letter-spacing:.3pt}
 .status{display:inline-flex;align-items:center;gap:1.8mm;background:var(--warn-bg);color:var(--warn);border:.6pt solid #E8C9A8;padding:1mm 3mm;border-radius:10mm;font-size:9pt;font-weight:700}
+.status.ok{background:#EAF4EE;color:#1F6B45;border-color:#B9D9C6}.status.ok i{background:#1F6B45}
 .status i{width:1.8mm;height:1.8mm;border-radius:50%;background:var(--warn)}
 
 table{width:100%;border-collapse:collapse;margin-top:10mm}
@@ -118,7 +119,8 @@ footer .fine b{color:var(--gold);font-weight:600}
     <dl class="facts">
       <div><dt>رقم الفاتورة</dt><dd class="ltr">FK-2026-1123-7341</dd></div>
       <div><dt>تاريخ الإصدار</dt><dd>23 نوفمبر 2026</dd></div>
-      <div><dt>حالة الدفع</dt><dd><span class="status"><i></i>بانتظار السداد</span></dd></div>
+      <div><dt>حالة الإعلان</dt><dd><span class="status ok"><i></i>تم نشر الإعلان</span></dd></div>
+      <div><dt>حالة الدفع</dt><dd><span class="status"><i></i>بانتظار الدفع</span></dd></div>
     </dl>
   </section>
 
