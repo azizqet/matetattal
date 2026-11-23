@@ -1,0 +1,50 @@
+name: Mobile CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths: ['mobile/**']
+
+jobs:
+  website-guard:
+    # يمنع أي تعديل على ملفات الموقع الإلكتروني من فرع التطبيق
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Website files must stay untouched
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          CHANGED=$(git diff --name-only "$BASE"...HEAD -- index.html index-backup.html '*.html' ':!mobile/**')
+          if [ -n "$CHANGED" ]; then
+            echo "::error::هذا الفرع خاص بالتطبيق ولا يجوز أن يعدّل ملفات الموقع:"; echo "$CHANGED"; exit 1
+          fi
+          echo "ملفات الموقع لم تتغير ✓"
+
+  checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npx expo lint
+      - name: Unit tests
+        run: npx jest --ci
+      - name: Expo doctor
+        run: npx --yes expo-doctor
+      - name: Web export (bundle builds)
+        run: npx expo export --platform web
