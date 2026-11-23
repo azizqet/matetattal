@@ -9,7 +9,7 @@ import * as api from '@/lib/api';
 import { useServiceNames } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { colors, fonts } from '@/lib/theme';
-import { AD_STATUS_AR, arabicError, formatKwd, telUrl, whatsappUrl } from '@/lib/utils';
+import { AD_STATUS_AR, arabicError, formatKwd, telUrl, whatsappNumber, whatsappUrl } from '@/lib/utils';
 
 export default function AdScreen() {
   const id = Number(useLocalSearchParams<{ id: string }>().id);
@@ -56,7 +56,7 @@ export default function AdScreen() {
           </Card>
           <Row style={{ marginTop: 12 }}>
             <Button title="اتصال" icon="phone" style={{ flex: 1 }} onPress={() => Linking.openURL(telUrl(ad.phone)).catch(() => {})} testID="ad-call" />
-            <Button title="واتساب" icon="whatsapp" kind="whatsapp" style={{ flex: 1 }} onPress={() => Linking.openURL(whatsappUrl(ad.phone, `السلام عليكم، بخصوص إعلانك «${ad.title}» في ماتعطل`)).catch(() => {})} testID="ad-wa" />
+            <Button title="واتساب" icon="whatsapp" kind="whatsapp" style={{ flex: 1 }} disabled={!whatsappNumber(ad.phone, ad.whatsapp)} onPress={() => Linking.openURL(whatsappUrl(whatsappNumber(ad.phone, ad.whatsapp), `السلام عليكم، بخصوص إعلانك «${ad.title}» في ماتعطل`)).catch(() => {})} testID="ad-wa" />
           </Row>
           {mine ? (
             <>

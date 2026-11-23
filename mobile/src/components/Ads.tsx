@@ -9,8 +9,9 @@ import * as api from '@/lib/api';
 import { useAreas, useServices } from '@/lib/queries';
 import { colors, fonts } from '@/lib/theme';
 import type { Ad, AdInput } from '@/lib/types';
-import { AD_STATUS_AR, arabicError, formatKwd, isKuwaitPhone, localPhone } from '@/lib/utils';
-import { Badge, Button, Card, Chip, Field, Icon, PhoneField, Row, Text, useToast } from './ui';
+import { AD_STATUS_AR, arabicError, checkContactNumbers, formatKwd, localPhone } from '@/lib/utils';
+import { ContactNumbers } from '@/components/ContactNumbers';
+import { Badge, Button, Card, Chip, Field, Icon, Row, Text, useToast } from './ui';
 
 export const adTone = (s: string) => (s === 'approved' ? 'green' : s === 'pending' ? 'yellow' : s === 'rejected' ? 'red' : 'gray') as 'green';
 
@@ -51,6 +52,8 @@ export function AdForm({ uid, ad, defaultPhone, onSaved }: { uid: string; ad?: A
   const [desc, setDesc] = useState(ad?.description ?? '');
   const [area, setArea] = useState<string | null>(ad?.area_name ?? null);
   const [phone, setPhone] = useState(localPhone(ad?.phone ?? defaultPhone));
+  const [sameWa, setSameWa] = useState(!ad?.whatsapp);
+  const [whatsapp, setWhatsapp] = useState(localPhone(ad?.whatsapp));
   const [price, setPrice] = useState(ad?.price != null ? String(ad.price) : '');
   const [images, setImages] = useState<{ uri: string; mime?: string; remote: boolean }[]>((ad?.images ?? []).map((u) => ({ uri: u, remote: true })));
   const [busy, setBusy] = useState(false);
@@ -70,7 +73,8 @@ export function AdForm({ uid, ad, defaultPhone, onSaved }: { uid: string; ad?: A
     if (!svc) return toast('اختر نوع الخدمة');
     if (desc.trim().length < 10) return toast('اكتب وصفاً للإعلان (10 أحرف على الأقل)');
     if (!area) return toast('اختر المنطقة');
-    if (!isKuwaitPhone(phone)) return toast('اكتب رقم تواصل كويتي صحيح (8 أرقام)');
+    const nums = checkContactNumbers(phone, sameWa, whatsapp);
+    if (!nums.ok) return toast(nums.error);
     const priceNum = price.trim() ? Number(price) : null;
     if (priceNum != null && (!isFinite(priceNum) || priceNum < 0)) return toast('السعر غير صحيح');
     if (sending.current) return;
@@ -79,7 +83,7 @@ export function AdForm({ uid, ad, defaultPhone, onSaved }: { uid: string; ad?: A
     try {
       const urls: string[] = [];
       for (const im of images) urls.push(im.remote ? im.uri : await api.uploadAdImage(uid, im.uri, im.mime));
-      const body: AdInput = { title: title.trim(), service_id: svc, description: desc.trim(), area_name: area, phone: localPhone(phone), price: priceNum, images: urls };
+      const body: AdInput = { title: title.trim(), service_id: svc, description: desc.trim(), area_name: area, phone: nums.phone, whatsapp: nums.whatsapp, price: priceNum, images: urls };
       if (ad) { await api.updateAd(ad.id, body); onSaved(); }
       else onSaved(await api.createAd(body));
     } catch (e) {
@@ -115,7 +119,7 @@ export function AdForm({ uid, ad, defaultPhone, onSaved }: { uid: string; ad?: A
 
       <Text variant="label" style={{ marginTop: 12 }}>المنطقة</Text>
       <Row style={{ flexWrap: 'wrap' }}>{(areas.data ?? []).map((a) => <Chip key={a.id} label={a.name_ar} active={area === a.name_ar} onPress={() => setArea(a.name_ar)} />)}</Row>
-      <PhoneField label="رقم التواصل" value={phone} onChangeText={setPhone} testID="ad-phone" />
+      <ContactNumbers phone={phone} onPhone={setPhone} sameWhatsapp={sameWa} onSameWhatsapp={setSameWa} whatsapp={whatsapp} onWhatsapp={setWhatsapp} testID="ad" />
       <Field label="السعر بالدينار (اختياري)" value={price} onChangeText={(v) => setPrice(v.replace(/[^\d.]/g, ''))} keyboardType="decimal-pad" testID="ad-price"
         style={{ textAlign: 'left', color: colors.inputText }} />
 

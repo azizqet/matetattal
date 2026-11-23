@@ -49,7 +49,7 @@ export default function Account() {
             </LinearGradient>
             <View style={{ flex: 1 }}>
               <Text variant="title">{profile?.full_name || 'مستخدم ماتعطل'}</Text>
-              <Text variant="small" style={{ writingDirection: 'ltr', textAlign: 'right' }}>{phone || session.user.email}</Text>
+              <Text variant="small" style={{ writingDirection: 'ltr', textAlign: 'right' }}>{session.user.email || phone}</Text>
             </View>
             <Button small kind="ghost" icon="pencil" title="" onPress={() => router.push('/profile')} />
           </Row>
@@ -57,7 +57,7 @@ export default function Account() {
       ) : (
         <Card style={{ marginTop: 12 }}>
           <Text variant="title">أهلاً بك في ماتعطل</Text>
-          <Text variant="muted">سوّ حسابك برقم تلفونك لإضافة الإعلانات وطلب الخدمات ومتابعتها.</Text>
+          <Text variant="muted">تقدر تتصفح الخدمات والشركات بدون حساب. سوّ حساب بالإيميل لإضافة الإعلانات وطلب الخدمات ومتابعتها.</Text>
           <Button title="سجّل دخولك أو سوّ حساب" style={{ marginTop: 12 }} onPress={() => router.push('/auth')} testID="login-btn" />
         </Card>
       )}

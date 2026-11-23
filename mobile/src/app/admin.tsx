@@ -12,7 +12,8 @@ import { getLegalDoc, LEGAL_DOCS, legalDocToText } from '@/content/legal';
 import { AdCard } from '@/components/Ads';
 import { TicketRow, TicketThread, ticketTone } from '@/components/Support';
 import type { Ad, AdStatus, Company, Plan, Profile, Promotion, Service, TermsKind, TicketStatus } from '@/lib/types';
-import { AD_STATUS_AR, REQUEST_STATUS_AR, TICKET_STATUS_AR, addDaysISO, arabicError, hasLegalPlaceholders, COMPANY_STATUS_AR, formatKwd, isVisible, SUB_STATUS_AR, todayISO, whatsappUrl } from '@/lib/utils';
+import { ContactNumbers } from '@/components/ContactNumbers';
+import { AD_STATUS_AR, checkContactNumbers, localPhone, REQUEST_STATUS_AR, TICKET_STATUS_AR, addDaysISO, arabicError, hasLegalPlaceholders, COMPANY_STATUS_AR, formatKwd, isVisible, SUB_STATUS_AR, todayISO, whatsappUrl } from '@/lib/utils';
 
 type Tab = 'stats' | 'ads' | 'requests' | 'support' | 'join' | 'companies' | 'subs' | 'plans' | 'terms' | 'team' | 'settings';
 const TABS: [Tab, string][] = [['stats', 'نظرة عامة'], ['ads', 'الإعلانات'], ['requests', 'الطلبات'], ['support', 'الدعم الفني'], ['companies', 'الشركات'], ['subs', 'الاشتراكات'], ['join', 'طلبات الانضمام (أرشيف)'], ['plans', 'الخطط والعروض'], ['terms', 'الشروط'], ['team', 'المستخدمون والإدارة'], ['settings', 'الإعدادات']];
@@ -111,6 +112,7 @@ function Companies() {
   const [filter, setFilter] = useState<'all' | 'visible' | 'pending' | 'hidden'>('all');
   const [search, setSearch] = useState('');
   const [linkFor, setLinkFor] = useState<number | null>(null);
+  const [contactFor, setContactFor] = useState<number | null>(null);
   const [email, setEmail] = useState('');
   const upd = useAct(({ id, c }: { id: number; c: Partial<Company> }) => api.adminUpdateCompany(id, c), 'تم التحديث');
   if (q.isLoading) return <Loading />;
@@ -160,8 +162,13 @@ function Companies() {
             {c.status !== 'suspended' ? <Button small kind="ghost" title="تعليق" onPress={() => upd.mutate({ id: c.id, c: { status: 'suspended' } })} />
               : <Button small kind="ghost" title="إلغاء التعليق" onPress={() => upd.mutate({ id: c.id, c: { status: 'approved' } })} />}
             <Button small kind="ghost" title="ربط بحساب" onPress={() => setLinkFor(linkFor === c.id ? null : c.id)} />
+            <Button small kind="ghost" title="أرقام التواصل" onPress={() => setContactFor(contactFor === c.id ? null : c.id)} />
             <Button small kind="ghost" title="عرض" onPress={() => router.push(`/company/${c.id}`)} />
           </Row>
+          {contactFor === c.id ? (
+            <CompanyContactEditor c={c} busy={upd.isPending}
+              onSave={(phone, whatsapp) => { upd.mutate({ id: c.id, c: { phone, whatsapp } }); setContactFor(null); }} />
+          ) : null}
           {linkFor === c.id ? (
             <View>
               <Field label="إيميل صاحب الشركة (مسجل في التطبيق)" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
@@ -171,6 +178,25 @@ function Companies() {
         </Card>
       ))}
     </>
+  );
+}
+
+/** رقم اتصال الشركة (8 أرقام) + رقم الواتساب (نفس الرقم أو مختلف). تُحفظ بالصيغة الدولية 965XXXXXXXX كباقي الشركات */
+function CompanyContactEditor({ c, busy, onSave }: { c: Company; busy: boolean; onSave: (phone: string, whatsapp: string) => void }) {
+  const toast = useToast();
+  const [phone, setPhone] = useState(localPhone(c.phone));
+  const [sameWa, setSameWa] = useState(!c.whatsapp || localPhone(c.whatsapp) === localPhone(c.phone));
+  const [wa, setWa] = useState(sameWa ? '' : localPhone(c.whatsapp));
+  function save() {
+    const r = checkContactNumbers(phone, sameWa, wa);
+    if (!r.ok) return toast(r.error);
+    onSave('965' + r.phone, '965' + (r.whatsapp ?? r.phone));
+  }
+  return (
+    <View>
+      <ContactNumbers phone={phone} onPhone={setPhone} sameWhatsapp={sameWa} onSameWhatsapp={setSameWa} whatsapp={wa} onWhatsapp={setWa} testID={`company-${c.id}`} />
+      <Button small title="حفظ الأرقام" loading={busy} style={{ marginTop: 8 }} onPress={save} />
+    </View>
   );
 }
 

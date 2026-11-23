@@ -1,4 +1,5 @@
 // طبقة الوصول للبيانات. كل الصلاحيات مفروضة في قاعدة البيانات (RLS)، والتطبيق مجرد واجهة.
+import * as Linking from 'expo-linking';
 import { supabase, SUPABASE_URL } from './supabase';
 import type {
   Ad, AdInput, AdStatus, SupportMessage, SupportTicket, TicketStatus,
@@ -359,21 +360,30 @@ export async function adminSetTicketStatus(id: number, status: TicketStatus) {
   check(await supabase.from('support_tickets').update({ status }).eq('id', id));
 }
 
-// ===== الحساب: الدخول برقم الهاتف وحذف الحساب =====
-const kw = (local8: string) => '+965' + local8;
+// ===== الحساب: الدخول بالبريد الإلكتروني وكلمة المرور، وحذف الحساب =====
+// لا يوجد دخول برقم الهاتف ولا رسائل SMS. روابط التفعيل واستعادة كلمة المرور تصل بالبريد من Supabase Auth (مجاناً)
+// وتفتح صفحة auth-callback داخل التطبيق.
+const authRedirect = () => Linking.createURL('auth-callback');
 
-/**
- * الدخول برقم التلفون: Supabase Auth يرسل رمز SMS حقيقي (عبر Send SMS Hook).
- * رقم جديد = حساب جديد بعد التحقق، ورقم مسجّل = دخول لنفس الحساب (نفس البيانات والصلاحيات).
- */
-export async function sendPhoneCode(local8: string) {
-  const { error } = await supabase.auth.signInWithOtp({ phone: kw(local8), options: { shouldCreateUser: true } });
-  if (error) throw error;
-}
-export async function verifyPhoneCode(local8: string, code: string) {
-  const { data, error } = await supabase.auth.verifyOtp({ phone: kw(local8), token: code, type: 'sms' });
+export async function signInWithEmail(email: string, password: string) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
   if (error) throw error;
   return data.user;
+}
+/** حساب جديد. يرجع needsConfirm=true إذا كان «تأكيد البريد» مفعّلاً في Supabase، و exists=true إذا كان البريد مسجلاً */
+export async function signUpWithEmail(email: string, password: string, fullName: string) {
+  const { data, error } = await supabase.auth.signUp({
+    email: email.trim().toLowerCase(), password,
+    options: { data: { full_name: fullName.trim().slice(0, 80) }, emailRedirectTo: authRedirect() },
+  });
+  if (error) throw error;
+  // Supabase لا يكشف وجود البريد: يرجع مستخدماً بلا هويات إذا كان مسجلاً مسبقاً
+  const exists = !!data.user && (data.user.identities?.length ?? 0) === 0;
+  return { user: data.user, exists, needsConfirm: !data.session && !exists };
+}
+export async function sendPasswordReset(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: authRedirect() });
+  if (error) throw error;
 }
 export async function deleteMyAccount() {
   check(await supabase.rpc('delete_my_account'));

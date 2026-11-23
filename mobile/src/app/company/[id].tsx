@@ -10,7 +10,7 @@ import * as api from '@/lib/api';
 import { useServiceNames } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { colors, fonts } from '@/lib/theme';
-import { arabicError, companyAreas, distanceKm, formatKm, isKuwaitMobile, localPhone, mapsUrl } from '@/lib/utils';
+import { arabicError, companyAreas, distanceKm, formatKm, isKuwaitMobile, localPhone, mapsUrl, whatsappNumber } from '@/lib/utils';
 
 export default function CompanyScreen() {
   const id = Number(useLocalSearchParams<{ id: string }>().id);
@@ -84,7 +84,7 @@ export default function CompanyScreen() {
         </Row>
         <Row style={{ marginTop: 14, alignSelf: 'stretch' }}>
           <Button title="اتصال" icon="phone" style={{ flex: 1 }} onPress={() => contact(c, 'call')} testID="call-btn" />
-          <Button title="واتساب" icon="whatsapp" kind="whatsapp" style={{ flex: 1 }} onPress={() => contact(c, 'wa', locMsg)} testID="wa-btn" />
+          <Button title="واتساب" icon="whatsapp" kind="whatsapp" style={{ flex: 1 }} disabled={!whatsappNumber(c.phone, c.whatsapp)} onPress={() => contact(c, 'wa', locMsg)} testID="wa-btn" />
         </Row>
         <Button title="اطلب الخدمة عبر التطبيق" icon="clipboard-plus-outline" kind="soft" style={{ alignSelf: 'stretch', marginTop: 8 }}
           onPress={() => (session ? setShowReq(!showReq) : needLogin())} />

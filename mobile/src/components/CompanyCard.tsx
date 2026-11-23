@@ -6,7 +6,7 @@ import { trackCompany } from '@/lib/api';
 import { colors, fonts, radius, serviceGradients, serviceIcons, shadow } from '@/lib/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { Company } from '@/lib/types';
-import { companyAreas, formatKm, telUrl, whatsappUrl } from '@/lib/utils';
+import { companyAreas, formatKm, telUrl, whatsappNumber, whatsappUrl } from '@/lib/utils';
 import { Badge, Button, Card, Icon, PressableScale, Row, Text } from './ui';
 import { AvailableVehiclesBadge } from './Vehicles';
 
@@ -21,7 +21,10 @@ export function Logo({ c, size = 64 }: { c: Pick<Company, 'name' | 'logo_url'>; 
 
 export function contact(c: Company, kind: 'call' | 'wa', message?: string) {
   trackCompany(c.id, kind === 'call' ? 'call' : 'wa').catch(() => {});
-  const url = kind === 'call' ? telUrl(c.phone || c.whatsapp) : whatsappUrl(c.whatsapp || c.phone, message ?? 'السلام عليكم، تواصلت معكم عن طريق تطبيق ماتعطل وأحتاج خدمة.');
+  const wa = whatsappNumber(c.phone, c.whatsapp);
+  if (kind === 'wa' && !wa) return;
+  // الاتصال: يفتح تطبيق الهاتف (tel:+965…). الواتساب: محادثة مباشرة مع رقم الشركة (wa.me/965…)
+  const url = kind === 'call' ? telUrl(c.phone || c.whatsapp) : whatsappUrl(wa, message ?? 'السلام عليكم، تواصلت معكم عن طريق تطبيق ماتعطل وأحتاج خدمة.');
   Linking.openURL(url).catch(() => {});
 }
 
@@ -49,7 +52,7 @@ function CompanyCardBase({ c, distance, serviceName }: { c: Company; distance?: 
       </Row>
       <Row style={{ marginTop: 12 }}>
         <Button small title="اتصال" icon="phone" style={{ flex: 1 }} onPress={() => contact(c, 'call')} />
-        <Button small title="واتساب" icon="whatsapp" kind="whatsapp" style={{ flex: 1 }} onPress={() => contact(c, 'wa')} />
+        <Button small title="واتساب" icon="whatsapp" kind="whatsapp" style={{ flex: 1 }} disabled={!whatsappNumber(c.phone, c.whatsapp)} onPress={() => contact(c, 'wa')} />
       </Row>
     </Card>
   );
@@ -89,7 +92,7 @@ function NearbyCardBase({ c, distance, serviceName }: { c: Company; distance?: n
         </Row>
         <Row style={{ marginTop: 12 }}>
           <Button small title="اتصال" icon="phone" style={{ flex: 1 }} onPress={() => contact(c, 'call')} />
-          <Button small title="" icon="whatsapp" kind="whatsapp" style={{ width: 48 }} onPress={() => contact(c, 'wa')} />
+          <Button small title="" icon="whatsapp" kind="whatsapp" style={{ width: 48 }} disabled={!whatsappNumber(c.phone, c.whatsapp)} onPress={() => contact(c, 'wa')} />
         </Row>
       </View>
     </PressableScale>

@@ -1,12 +1,12 @@
-// صفحة الدخول والتسجيل — مكتوبة من الصفر.
+// صفحة الدخول والتسجيل: البريد الإلكتروني + كلمة المرور (للعملاء والشركات). لا دخول برقم الهاتف ولا رسائل SMS.
 // مبادئ ثابتة حتى تعمل الكتابة على الآيفون والأندرويد:
 //  • TextInput قياسي مباشرة: بدون تغليف بعناصر ضغط، بدون حركات حوله، بدون writingDirection، بدون maxLength
 //    (التنقية والحد في onChangeText)، وبدون مكوّنات تُعاد إنشاؤها مع كل حرف.
-//  • شاشة واحدة بثلاث خطوات: الرقم ← الرمز ← الاسم (للحساب الجديد فقط).
+//  • التصفح لا يحتاج حساباً: هذه الصفحة تُفتح فقط عند إضافة إعلان أو طلب خدمة أو الدخول من «حسابي».
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ConsentCheckbox, rememberRegistrationConsent, useRequiredTerms } from '@/components/Consent';
@@ -14,43 +14,36 @@ import { Icon, Text, useToast } from '@/components/ui';
 import * as api from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { colors, fonts, gradients, radius, shadow } from '@/lib/theme';
-import { arabicError, isKuwaitMobile } from '@/lib/utils';
+import { arabicError } from '@/lib/utils';
 
-const RESEND_SECONDS = 60;
-const CODE_LEN = 6;
-
-const latin = (v: string) => v.replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660)).replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0));
-/** رقم كويتي محلي (8) من أي إدخال: كتابة، لصق «‎+965 9991 2313»، «00965…»، أو تعبئة تلقائية */
-export function cleanPhone(v: string) {
-  let d = latin(v).replace(/\D/g, '');
-  if (d.length > 8 && d.startsWith('00965')) d = d.slice(5);
-  else if (d.length > 8 && d.startsWith('965')) d = d.slice(3);
-  return d.slice(0, 8);
+export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+/** كلمة مرور الحساب الجديد: 8 خانات على الأقل وفيها حروف وأرقام */
+export function passwordProblem(p: string): string | null {
+  if (p.length < 8) return 'كلمة المرور 8 خانات على الأقل';
+  if (!/\d/.test(p) || !/[^\d]/.test(p)) return 'كلمة المرور لازم فيها حروف وأرقام';
+  return null;
 }
-export const cleanCode = (v: string) => latin(v).replace(/\D/g, '').slice(0, CODE_LEN);
+const cleanEmail = (v: string) => v.replace(/\s/g, '').slice(0, 120);
 
-type Step = 'phone' | 'code' | 'name';
+type Mode = 'login' | 'register' | 'forgot';
 
 export default function Auth() {
+  const params = useLocalSearchParams<{ mode?: string }>();
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const { refreshProfile } = useSession();
   const terms = useRequiredTerms(['customers', 'privacy']);
-  const [step, setStep] = useState<Step>('phone');
-  const [phone, setPhone] = useState('');
-  const [code, setCode] = useState('');
+  const [mode, setMode] = useState<Mode>(params.mode === 'register' ? 'register' : 'login');
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [agreed, setAgreed] = useState(false);
-  const [wait, setWait] = useState(0);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [uid, setUid] = useState<string | null>(null);
   const lock = useRef(false);
 
-  useEffect(() => {
-    if (wait <= 0) return;
-    const t = setTimeout(() => setWait(wait - 1), 1000);
-    return () => clearTimeout(t);
-  }, [wait]);
+  const switchMode = (m: Mode) => { setMode(m); setNotice(null); setPassword(''); setConfirm(''); };
 
   async function run(fn: () => Promise<void>) {
     if (lock.current) return;
@@ -62,52 +55,53 @@ export default function Auth() {
   async function finish(userId: string) {
     const prof = await api.getMyProfile(userId).catch(() => null);
     await refreshProfile().catch(() => {});
+    toast('أهلاً فيك');
     if (prof?.role === 'admin') { router.replace('/admin'); return; }
-    if (!prof?.full_name?.trim()) { setStep('name'); return; }
-    toast('أهلاً فيك'); router.replace('/');
+    if (router.canGoBack()) router.back(); else router.replace('/');
   }
 
-  const sendCode = () => run(async () => {
-    if (!isKuwaitMobile(phone)) { toast('اكتب رقم تلفون كويتي من 8 أرقام يبدأ بـ 5 أو 6 أو 9'); return; }
-    if (terms.docs.length && !agreed) { toast('وافق على الشروط وسياسة الخصوصية للمتابعة'); return; }
-    if (wait > 0) return;
-    await api.sendPhoneCode(phone);
-    if (terms.docs.length) await rememberRegistrationConsent(terms.docs.map((d) => d.id));
-    setCode(''); setWait(RESEND_SECONDS); setStep('code');
-  });
+  const submit = () => run(async () => {
+    const em = email.trim().toLowerCase();
+    if (!EMAIL_RE.test(em)) { toast('اكتب بريد إلكتروني صحيح'); return; }
 
-  const verify = (value: string) => run(async () => {
-    if (value.length !== CODE_LEN) { toast('اكتب الرمز المكوّن من 6 أرقام'); return; }
-    let user;
-    try { user = await api.verifyPhoneCode(phone, value); } catch (e) { setCode(''); throw e; }
-    if (!user) { toast('تعذّر التحقق، حاول مرة ثانية'); return; }
-    setUid(user.id);
-    await finish(user.id);
-  });
+    if (mode === 'forgot') {
+      await api.sendPasswordReset(em);
+      setNotice(`إذا كان ${em} مسجلاً عندنا، بيوصلك رابط لتعيين كلمة مرور جديدة. افتح الرابط من هذا الجوال.`);
+      return;
+    }
 
-  const saveName = () => run(async () => {
+    if (mode === 'login') {
+      if (!password) { toast('اكتب كلمة المرور'); return; }
+      const user = await api.signInWithEmail(em, password);
+      if (user) await finish(user.id);
+      return;
+    }
+
+    // حساب جديد
     if (name.trim().length < 2) { toast('اكتب اسمك'); return; }
-    if (uid) await api.updateMyProfile(uid, { full_name: name.trim().slice(0, 80) });
-    await refreshProfile().catch(() => {});
-    toast('أهلاً فيك في ماتعطل'); router.replace('/');
+    const pw = passwordProblem(password);
+    if (pw) { toast(pw); return; }
+    if (password !== confirm) { toast('كلمتا المرور غير متطابقتين'); return; }
+    if (terms.docs.length && !agreed) { toast('وافق على الشروط وسياسة الخصوصية للمتابعة'); return; }
+    const r = await api.signUpWithEmail(em, password, name);
+    if (r.exists) { toast('هذا البريد مسجل مسبقاً، سجّل دخولك'); switchMode('login'); return; }
+    if (terms.docs.length) await rememberRegistrationConsent(terms.docs.map((d) => d.id));
+    if (!r.needsConfirm && r.user) { await finish(r.user.id); return; }
+    setMode('login'); setPassword(''); setConfirm('');
+    setNotice(`أرسلنا رابط التفعيل إلى ${em}. افتح الرسالة واضغط الرابط، بعدها سجّل دخولك.`);
   });
-
-  const onCode = (v: string) => {
-    const c = cleanCode(v);
-    setCode(c);
-    if (c.length === CODE_LEN) verify(c);
-  };
 
   const back = () => {
-    if (step === 'code') { setStep('phone'); setCode(''); return; }
+    if (mode === 'forgot') { switchMode('login'); return; }
     if (router.canGoBack()) router.back(); else router.replace('/');
   };
 
-  const titles: Record<Step, [string, string]> = {
-    phone: ['حياك في ماتعطل', 'سجّل أو ادخل برقم تلفونك'],
-    code: ['رمز التحقق', `أرسلنا رمزاً من 6 أرقام إلى ⁦+965 ${phone.slice(0, 4)} ${phone.slice(4)}⁩`],
-    name: ['آخر خطوة', 'شنو اسمك؟'],
+  const titles: Record<Mode, [string, string]> = {
+    login: ['حياك في ماتعطل', 'سجّل دخولك بالإيميل وكلمة المرور'],
+    register: ['حساب جديد', 'حساب واحد لطلب الخدمات وإضافة الإعلانات'],
+    forgot: ['نسيت كلمة المرور؟', 'اكتب إيميلك ونرسل لك رابط تعيين كلمة مرور جديدة'],
   };
+  const action = { login: 'تسجيل الدخول', register: 'سوّ حسابي', forgot: 'أرسل الرابط' }[mode];
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -115,91 +109,79 @@ export default function Auth() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + 24 }} keyboardShouldPersistTaps="handled">
           <LinearGradient colors={gradients.brand} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={[st.hero, { paddingTop: insets.top + 12 }]}>
-            {step !== 'name' ? (
-              <Pressable onPress={back} hitSlop={12} accessibilityRole="button" accessibilityLabel="رجوع" style={st.back} testID="auth-back">
-                <Icon name="arrow-right" size={24} color={colors.white} />
-              </Pressable>
-            ) : null}
+            <Pressable onPress={back} hitSlop={12} accessibilityRole="button" accessibilityLabel="رجوع" style={st.back} testID="auth-back">
+              <Icon name="arrow-right" size={24} color={colors.white} />
+            </Pressable>
             <Text style={st.brand}>ماتعطل<Text style={st.dot}>•</Text></Text>
-            <Text style={st.title}>{titles[step][0]}</Text>
-            <Text style={st.sub}>{titles[step][1]}</Text>
+            <Text style={st.title}>{titles[mode][0]}</Text>
+            <Text style={st.sub}>{titles[mode][1]}</Text>
           </LinearGradient>
 
           <View style={st.card}>
-            {step === 'phone' ? (
-              <>
-                <Text style={st.label}>رقم التلفون</Text>
-                {/* المفتاح ثابت ومنفصل؛ الحقل يأخذ الأرقام فقط */}
-                <View style={st.phoneRow}>
-                  <View style={st.cc}><Text style={st.ccText}>🇰🇼 +965</Text></View>
-                  <TextInput
-                    testID="phone"
-                    value={phone}
-                    onChangeText={(v) => setPhone(cleanPhone(v))}
-                    keyboardType="number-pad"
-                    textContentType="telephoneNumber"
-                    autoComplete="tel"
-                    placeholder="XXXXXXXX"
-                    placeholderTextColor={colors.placeholder}
-                    returnKeyType="done"
-                    onSubmitEditing={sendCode}
-                    style={[st.input, st.ltr, st.grow]}
-                  />
-                </View>
-                <ConsentCheckbox docs={terms.docs} checked={agreed} onChange={setAgreed} />
-                <MainButton title={wait > 0 ? `متابعة (${wait})` : 'متابعة'} onPress={sendCode} busy={busy} disabled={phone.length !== 8 || wait > 0} testID="send" />
-                <Text style={st.note}>بنرسل لك رمز تحقق برسالة نصية. رقمك ما يظهر لأي أحد.</Text>
-              </>
-            ) : step === 'code' ? (
-              <>
-                <Text style={st.label}>رمز التحقق</Text>
-                <TextInput
-                  testID="code"
-                  value={code}
-                  onChangeText={onCode}
-                  keyboardType="number-pad"
-                  textContentType="oneTimeCode"
-                  autoComplete="sms-otp"
-                  autoFocus
-                  placeholder="000000"
-                  placeholderTextColor={colors.placeholder}
-                  style={[st.input, st.code]}
-                />
-                <MainButton title="تأكيد" onPress={() => verify(code)} busy={busy} disabled={code.length !== CODE_LEN} testID="verify" />
-                <View style={st.row}>
-                  {wait > 0 ? (
-                    <Text style={st.note}>تقدر تطلب رمز جديد بعد {wait} ثانية</Text>
-                  ) : (
-                    <Pressable onPress={sendCode} hitSlop={8} accessibilityRole="button" testID="resend"><Text style={st.link}>أرسل الرمز مرة ثانية</Text></Pressable>
-                  )}
-                </View>
-                <Pressable onPress={back} hitSlop={8} accessibilityRole="button" style={st.row} testID="change-number"><Text style={st.link}>تعديل رقم التلفون</Text></Pressable>
-              </>
-            ) : (
+            {mode !== 'forgot' ? (
+              <View style={st.tabs}>
+                {(['login', 'register'] as const).map((m) => (
+                  <Pressable key={m} onPress={() => switchMode(m)} accessibilityRole="tab" accessibilityState={{ selected: mode === m }}
+                    style={[st.tab, mode === m && st.tabOn]} testID={`tab-${m}`}>
+                    <Text style={[st.tabText, mode === m && st.tabTextOn]}>{m === 'login' ? 'تسجيل الدخول' : 'حساب جديد'}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+
+            {notice ? <Text style={st.notice} testID="auth-notice">{notice}</Text> : null}
+
+            {mode === 'register' ? (
               <>
                 <Text style={st.label}>الاسم</Text>
-                <TextInput
-                  testID="name"
-                  value={name}
-                  onChangeText={setName}
-                  autoComplete="name"
-                  textContentType="name"
-                  placeholder="اسمك"
-                  placeholderTextColor={colors.placeholder}
-                  returnKeyType="done"
-                  onSubmitEditing={saveName}
-                  style={[st.input, st.rtl]}
-                />
-                <MainButton title="ابدأ" onPress={saveName} busy={busy} disabled={name.trim().length < 2} testID="save-name" />
+                <TextInput testID="name" value={name} onChangeText={(v) => setName(v.slice(0, 80))} autoComplete="name" textContentType="name"
+                  placeholder="اسمك أو اسم شركتك" placeholderTextColor={colors.placeholder} returnKeyType="next" style={[st.input, st.rtl]} />
               </>
-            )}
+            ) : null}
+
+            <Text style={[st.label, mode === 'register' && st.gap]}>البريد الإلكتروني</Text>
+            <TextInput testID="email" value={email} onChangeText={(v) => setEmail(cleanEmail(v))} keyboardType="email-address"
+              autoCapitalize="none" autoCorrect={false} autoComplete="email" textContentType={mode === 'register' ? 'emailAddress' : 'username'}
+              placeholder="name@example.com" placeholderTextColor={colors.placeholder} returnKeyType={mode === 'forgot' ? 'send' : 'next'}
+              onSubmitEditing={mode === 'forgot' ? submit : undefined} style={[st.input, st.ltr]} />
+
+            {mode !== 'forgot' ? (
+              <>
+                <Text style={[st.label, st.gap]}>كلمة المرور</Text>
+                <TextInput testID="password" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoCorrect={false}
+                  autoComplete={mode === 'register' ? 'new-password' : 'current-password'} textContentType={mode === 'register' ? 'newPassword' : 'password'}
+                  placeholder={mode === 'register' ? '8 خانات، حروف وأرقام' : '••••••••'} placeholderTextColor={colors.placeholder}
+                  returnKeyType={mode === 'login' ? 'go' : 'next'} onSubmitEditing={mode === 'login' ? submit : undefined} style={[st.input, st.ltr]} />
+              </>
+            ) : null}
+
+            {mode === 'register' ? (
+              <>
+                <Text style={[st.label, st.gap]}>تأكيد كلمة المرور</Text>
+                <TextInput testID="confirm" value={confirm} onChangeText={setConfirm} secureTextEntry autoCapitalize="none" autoCorrect={false}
+                  autoComplete="new-password" textContentType="newPassword" placeholderTextColor={colors.placeholder}
+                  returnKeyType="done" style={[st.input, st.ltr]} />
+                <ConsentCheckbox docs={terms.docs} checked={agreed} onChange={setAgreed} />
+              </>
+            ) : null}
+
+            <MainButton title={action} onPress={submit} busy={busy} testID="submit" />
+
+            {mode === 'login' ? (
+              <Pressable onPress={() => switchMode('forgot')} hitSlop={8} accessibilityRole="button" style={st.row} testID="forgot">
+                <Text style={st.link}>نسيت كلمة المرور؟</Text>
+              </Pressable>
+            ) : mode === 'forgot' ? (
+              <Pressable onPress={() => switchMode('login')} hitSlop={8} accessibilityRole="button" style={st.row}>
+                <Text style={st.link}>رجوع لتسجيل الدخول</Text>
+              </Pressable>
+            ) : null}
+            <Text style={st.note}>بياناتك ما تظهر لأي أحد. تقدر تتصفح الخدمات والشركات بدون حساب.</Text>
           </View>
 
-          {step === 'phone' ? (
-            <Pressable onPress={() => router.push('/legal')} hitSlop={8} accessibilityRole="button" style={st.row}>
-              <Text style={st.link}>الشروط والسياسات</Text>
-            </Pressable>
-          ) : null}
+          <Pressable onPress={() => router.push('/legal')} hitSlop={8} accessibilityRole="button" style={st.row}>
+            <Text style={st.link}>الشروط والسياسات</Text>
+          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -225,16 +207,17 @@ const st = StyleSheet.create({
   sub: { color: '#fff', opacity: 0.92, fontFamily: fonts.medium, fontSize: 16, lineHeight: 26 },
   card: { marginTop: -32, marginHorizontal: 16, padding: 20, borderRadius: radius.xl, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, ...shadow },
   label: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 24, color: colors.label, marginBottom: 8 },
-  phoneRow: { flexDirection: 'row', direction: 'ltr', gap: 8 },
-  cc: { height: 58, paddingHorizontal: 14, borderRadius: radius.md, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
-  ccText: { fontFamily: fonts.bold, fontSize: 17, lineHeight: 24, color: colors.link },
   // حقل قياسي: إطار + خط واضح فقط
-  input: { height: 58, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.inputBorder, backgroundColor: colors.input, paddingHorizontal: 16, fontSize: 20, color: colors.inputText, fontFamily: fonts.bold },
+  input: { height: 56, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.inputBorder, backgroundColor: colors.input, paddingHorizontal: 16, fontSize: 17, color: colors.inputText, fontFamily: fonts.bold },
   ltr: { textAlign: 'left' },
-  // يمنع الحقل من تجاوز البطاقة على الشاشات الصغيرة (عرض ذاتي للحقل في المتصفح)
-  grow: { flex: 1, minWidth: 0, width: 0 },
   rtl: { textAlign: 'right', fontSize: 18 },
-  code: { textAlign: 'center', fontSize: 28, letterSpacing: 10 },
+  gap: { marginTop: 14 },
+  tabs: { flexDirection: 'row', backgroundColor: colors.primarySoft, borderRadius: radius.md, padding: 4, marginBottom: 16 },
+  tab: { flex: 1, height: 44, borderRadius: radius.md - 2, alignItems: 'center', justifyContent: 'center' },
+  tabOn: { backgroundColor: colors.card, ...shadow },
+  tabText: { fontFamily: fonts.bold, fontSize: 15.5, lineHeight: 24, color: colors.muted },
+  tabTextOn: { color: colors.link },
+  notice: { fontFamily: fonts.medium, fontSize: 15, lineHeight: 24, color: colors.heading, backgroundColor: colors.primarySoft, borderRadius: radius.md, padding: 12, marginBottom: 12 },
   btn: { marginTop: 18, height: 56, borderRadius: radius.md, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   btnText: { color: '#fff', fontFamily: fonts.bold, fontSize: 17, lineHeight: 26 },
   note: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 22, color: colors.muted, textAlign: 'center', marginTop: 12 },

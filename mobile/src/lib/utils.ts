@@ -51,6 +51,32 @@ export function whatsappUrl(s: string | null | undefined, text?: string): string
   return text ? `${base}?text=${encodeURIComponent(text)}` : base;
 }
 
+/**
+ * أرقام تواصل المعلن: الاتصال (8 أرقام) + الواتساب (نفس الرقم أو رقم جوال مختلف).
+ * يرجع رسالة خطأ بالعربي، أو الأرقام بالصيغة المحلية (whatsapp = null يعني نفس رقم الاتصال).
+ */
+export function checkContactNumbers(phone: string, sameWhatsapp: boolean, whatsapp: string):
+  { ok: false; error: string } | { ok: true; phone: string; whatsapp: string | null } {
+  const p = localPhone(phone);
+  if (p.length !== 8) return { ok: false, error: 'رقم الاتصال لازم يكون 8 أرقام' };
+  if (!isKuwaitPhone(p)) return { ok: false, error: 'رقم الاتصال لازم يبدأ بـ 2 أو 5 أو 6 أو 9' };
+  if (sameWhatsapp) {
+    if (!isKuwaitMobile(p)) return { ok: false, error: 'رقم الأرضي ما عليه واتساب. اختر «رقم مختلف» واكتب رقم الواتساب' };
+    return { ok: true, phone: p, whatsapp: null };
+  }
+  const w = localPhone(whatsapp);
+  if (w.length !== 8) return { ok: false, error: 'رقم الواتساب لازم يكون 8 أرقام' };
+  if (!isKuwaitMobile(w)) return { ok: false, error: 'رقم الواتساب لازم يكون جوال يبدأ بـ 5 أو 6 أو 9' };
+  return { ok: true, phone: p, whatsapp: w === p ? null : w };
+}
+
+/** الرقم اللي يفتح عليه زر الواتساب: رقم الواتساب إن وُجد، وإلا رقم الاتصال إذا كان جوالاً. null = لا واتساب */
+export function whatsappNumber(phone: string | null | undefined, whatsapp?: string | null): string | null {
+  if (whatsapp && isKuwaitMobile(whatsapp)) return localPhone(whatsapp);
+  if (phone && isKuwaitMobile(phone)) return localPhone(phone);
+  return null;
+}
+
 export function mapsUrl(lat: number, lng: number): string {
   return `https://maps.google.com/?q=${lat.toFixed(6)},${lng.toFixed(6)}`;
 }
@@ -183,12 +209,10 @@ export const SUB_STATUS_AR: Record<string, string> = {
 /** تحويل رسائل أخطاء الخادم إلى عربية مفهومة */
 export function arabicError(e: unknown): string {
   const m = (e as { message?: string })?.message ?? String(e ?? '');
-  if (/Invalid login credentials/i.test(m)) return 'رقم التلفون أو كلمة المرور غير صحيحة';
-  if (/Phone not confirmed/i.test(m)) return 'الحساب غير مفعّل بعد. أكمل التحقق برمز الرسالة';
-  if (/Signups not allowed for otp|otp_disabled|user not found/i.test(m)) return 'ما لقينا حساب بهذا الرقم';
+  if (/Invalid login credentials/i.test(m)) return 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
   if (/Email not confirmed/i.test(m)) return 'فعّل حسابك من الرابط المرسل إلى بريدك أولاً';
-  if (/User already registered|phone_exists|already been registered/i.test(m)) return 'هذا الرقم مسجل عندنا، سجّل دخولك';
-  if (/Password should be at least/i.test(m)) return 'كلمة السر لازم تكون 6 أحرف على الأقل';
+  if (/User already registered|phone_exists|already been registered/i.test(m)) return 'هذا البريد مسجل عندنا، سجّل دخولك';
+  if (/Password should be at least/i.test(m)) return 'كلمة المرور قصيرة. اكتب 8 خانات على الأقل';
   if (/too many requests for this phone/i.test(m)) return 'وصلنا أكثر من طلب لهذا الرقم اليوم. بنتواصل معك قريباً';
   if (/rate limit/i.test(m)) return 'محاولات كثيرة، حاول بعد قليل';
   if (/duplicate key|unique/i.test(m)) return 'موجود مسبقاً';
@@ -196,11 +220,7 @@ export function arabicError(e: unknown): string {
   if (/cannot review own company/i.test(m)) return 'لا يمكنك تقييم شركتك';
   if (/plan not found/i.test(m)) return 'الخطة غير متوفرة';
   if (/Network request failed|Failed to fetch|fetch failed/i.test(m)) return 'تعذر الاتصال. تأكد من الإنترنت';
-  if (/Phone signups are disabled|phone_provider_disabled|Unsupported phone provider|phone.*(not enabled)/i.test(m)) return 'التسجيل برقم التلفون غير مفعّل حالياً. تواصل مع الدعم الفني';
-  if (/sms_send_failed|Error sending sms|sms provider error|sms hook not configured|hook/i.test(m)) return 'تعذّر إرسال رسالة التحقق الآن. حاول لاحقاً أو تواصل مع الدعم';
-  if (/over_sms_send_rate_limit|sms.*rate limit|you can only request this after/i.test(m)) return 'انتظر قليلاً قبل طلب رمز جديد';
-  if (/only Kuwaiti mobile numbers/i.test(m)) return 'الرقم لازم يكون جوال كويتي';
-  if (/Token has expired or is invalid|otp_expired|invalid.*otp|Email link is invalid/i.test(m)) return /otp|Token/i.test(m) ? 'رمز التحقق غير صحيح أو انتهت صلاحيته' : 'الرابط غير صالح أو انتهت صلاحيته. اطلب رابطاً جديداً';
+  if (/Token has expired or is invalid|otp_expired|invalid.*otp|Email link is invalid/i.test(m)) return 'الرابط غير صالح أو انتهت صلاحيته. اطلب رابطاً جديداً';
   if (/For security purposes, you can only request this|over_email_send_rate_limit|email rate limit/i.test(m)) return 'طلبات كثيرة، انتظر قليلاً ثم حاول مرة أخرى';
   if (/Password should|weak.?password|password.*(short|weak|pwned|leaked)/i.test(m)) return 'كلمة المرور ضعيفة. اختر كلمة أقوى (8 أحرف على الأقل مع أرقام)';
   if (/New password should be different/i.test(m)) return 'اختر كلمة مرور مختلفة عن القديمة';

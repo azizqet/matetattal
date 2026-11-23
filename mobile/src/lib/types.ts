@@ -100,10 +100,10 @@ export interface Vehicle {
 export type AdStatus = 'pending' | 'approved' | 'rejected' | 'paused';
 export interface Ad {
   id: number; owner_id: string; service_id: string; title: string; description: string; images: string[];
-  area_name: string; phone: string; price: number | null; status: AdStatus; reject_reason: string | null;
+  area_name: string; phone: string; whatsapp: string | null; price: number | null; status: AdStatus; reject_reason: string | null;
   reviewed_at: string | null; published_at: string | null; created_at: string; updated_at: string;
 }
-export type AdInput = Pick<Ad, 'service_id' | 'title' | 'description' | 'images' | 'area_name' | 'phone' | 'price'>;
+export type AdInput = Pick<Ad, 'service_id' | 'title' | 'description' | 'images' | 'area_name' | 'phone' | 'whatsapp' | 'price'>;
 
 // ===== المرحلة 2: الدعم الفني =====
 export type TicketStatus = 'new' | 'in_progress' | 'resolved';

@@ -106,7 +106,7 @@ describe('البحث', () => {
 
 describe('رسائل الأخطاء', () => {
   test('ترجمة أخطاء الخادم', () => {
-    expect(arabicError(new Error('Invalid login credentials'))).toBe('رقم التلفون أو كلمة المرور غير صحيحة');
+    expect(arabicError(new Error('Invalid login credentials'))).toBe('البريد الإلكتروني أو كلمة المرور غير صحيحة');
     expect(arabicError(new Error('protected fields'))).toBe('ليس لديك صلاحية لهذا الإجراء');
     expect(arabicError(new Error('rate limit: too many'))).toBe('محاولات كثيرة، حاول بعد قليل');
     expect(arabicError(new Error('TypeError: Network request failed'))).toBe('تعذر الاتصال. تأكد من الإنترنت');
