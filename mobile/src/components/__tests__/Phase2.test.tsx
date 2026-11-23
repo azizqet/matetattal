@@ -26,8 +26,12 @@ jest.mock('@/lib/api', () => ({
   getNotifications: jest.fn(async () => []),
   getMyCompanies: jest.fn(async () => []),
   createAd: jest.fn(async (a: object) => ({ id: 1, status: 'pending', ...a })),
-  sendPhoneOtp: jest.fn(async () => {}),
+  signUpWithPhone: jest.fn(async () => ({ session: null, user: {} })),
   verifyPhoneOtp: jest.fn(async () => ({})),
+  resendSignupOtp: jest.fn(async () => {}),
+  sendLoginOtp: jest.fn(async () => {}),
+  signInWithPassword: jest.fn(async () => {}),
+  setNewPassword: jest.fn(async () => {}),
   deleteMyAccount: jest.fn(async () => {}),
 }));
 jest.mock('@/lib/supabase', () => ({ supabase: { auth: { signInWithPassword: jest.fn(), signUp: jest.fn(), resetPasswordForEmail: jest.fn() } } }));
@@ -41,8 +45,6 @@ import { ToastProvider } from '../ui';
 /* eslint-enable import/first */
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const api = require('@/lib/api') as Record<string, jest.Mock>;
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const sb = require("@/lib/supabase").supabase as { auth: Record<string, jest.Mock<(...a: unknown[]) => Promise<unknown>>> };
 
 const wrap = (ui: ReactNode) => <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><ToastProvider>{ui}</ToastProvider></QueryClientProvider>;
 
@@ -93,42 +95,66 @@ describe('حسابي', () => {
   });
 });
 
-describe('الدخول برقم الجوال', () => {
+describe('التسجيل والدخول', () => {
   beforeEach(() => { jest.clearAllMocks(); mockSession.current = null; });
 
-  test('+965 ثابت، يرفض رقماً غير كويتي، يرسل الرمز ثم يتحقق تلقائياً عند اكتمال 6 أرقام', async () => {
+  test('حساب جديد: يتحقق من الحقول، يرسل التلفون +965 والاسم والبريد، ثم شاشة الرمز ويتحقق تلقائياً عند 6 أرقام', async () => {
     const user = userEvent.setup();
     await render(wrap(<Auth />));
-    expect(screen.getByText(/\+965/)).toBeTruthy();
-    await user.type(screen.getByTestId('auth-phone'), '1234567');
-    await user.press(screen.getByTestId('auth-send'));
-    expect(api.sendPhoneOtp).not.toHaveBeenCalled();
-    await user.clear(screen.getByTestId('auth-phone'));
-    await user.type(screen.getByTestId('auth-phone'), '٩٧٧٠٦٧٩٢');
-    expect(screen.getByTestId('auth-phone').props.value).toBe('97706792');
-    await user.press(screen.getByTestId('auth-send'));
-    await waitFor(() => expect(api.sendPhoneOtp).toHaveBeenCalledWith('97706792'));
-    await waitFor(() => expect(screen.getByTestId('auth-code')).toBeTruthy());
-    const codeField = screen.getByTestId('auth-code');
-    expect(codeField.props.textContentType).toBe('oneTimeCode');
-    expect(codeField.props.autoComplete).toBe('sms-otp');
-    expect(screen.getByText(/إعادة الإرسال بعد/)).toBeTruthy();
-    await user.type(codeField, '12345');
+    expect(screen.getByText('+965')).toBeTruthy();
+    await user.type(screen.getByTestId('reg-phone'), '1234567');
+    await user.press(screen.getByTestId('reg-submit'));
+    expect(api.signUpWithPhone).not.toHaveBeenCalled();
+    await user.clear(screen.getByTestId('reg-phone'));
+    await user.type(screen.getByTestId('reg-phone'), '٩٧٧٠٦٧٩٢');
+    expect(screen.getByTestId('reg-phone').props.value).toBe('97706792');
+    await user.type(screen.getByTestId('reg-name'), 'عزيز');
+    await user.type(screen.getByTestId('reg-email'), 'aziz@example.com');
+    await user.type(screen.getByTestId('reg-password'), 'abcdefgh');
+    await user.press(screen.getByTestId('reg-submit'));
+    expect(api.signUpWithPhone).not.toHaveBeenCalled(); // كلمة مرور بدون أرقام
+    await user.type(screen.getByTestId('reg-password'), '12');
+    await user.press(screen.getByTestId('reg-submit'));
+    await waitFor(() => expect(api.signUpWithPhone).toHaveBeenCalledWith({ phone: '97706792', password: 'abcdefgh12', name: 'عزيز', email: 'aziz@example.com' }));
+    await waitFor(() => expect(screen.getByTestId('otp')).toBeTruthy());
+    expect(screen.getByTestId('otp').props.textContentType).toBe('oneTimeCode');
+    expect(screen.getByTestId('otp').props.autoComplete).toBe('sms-otp');
+    expect(screen.getByText(/تقدر تطلب رمز جديد بعد/)).toBeTruthy();
+    await user.type(screen.getByTestId('otp'), '12345');
     expect(api.verifyPhoneOtp).not.toHaveBeenCalled();
-    await user.type(screen.getByTestId('auth-code'), '6');
+    await user.type(screen.getByTestId('otp'), '6');
     await waitFor(() => expect(api.verifyPhoneOtp).toHaveBeenCalledWith('97706792', '123456'));
     expect(api.verifyPhoneOtp).toHaveBeenCalledTimes(1);
   });
 
-  test('الحسابات القديمة: الدخول بالبريد ما زال متاحاً (بدون تسجيل جديد بالبريد)', async () => {
-    sb.auth.signInWithPassword.mockResolvedValueOnce({ data: {}, error: null });
+  test('عندك حساب؟ سجّل دخولك — بالتلفون، ويقبل البريد للحسابات القديمة بدون رابط منفصل', async () => {
     const user = userEvent.setup();
     await render(wrap(<Auth />));
-    await user.press(screen.getByTestId('auth-email-link'));
-    expect(screen.queryByText('إنشاء حساب جديد')).toBeNull();
-    await user.type(screen.getByTestId('email'), 'a@b.co');
-    await user.type(screen.getByTestId('password'), 'abc12345');
-    await user.press(screen.getByTestId('auth-submit'));
-    await waitFor(() => expect(sb.auth.signInWithPassword).toHaveBeenCalledWith({ email: 'a@b.co', password: 'abc12345' }));
+    expect(screen.queryByText(/حساب قديم/)).toBeNull();
+    await user.press(screen.getByTestId('to-login'));
+    await user.type(screen.getByTestId('login-id'), '97706792');
+    await user.type(screen.getByTestId('login-password'), 'abc12345');
+    await user.press(screen.getByTestId('login-submit'));
+    await waitFor(() => expect(api.signInWithPassword).toHaveBeenCalledWith('97706792', 'abc12345'));
+    await user.clear(screen.getByTestId('login-id'));
+    await user.type(screen.getByTestId('login-id'), 'owner@example.com');
+    await user.press(screen.getByTestId('login-submit'));
+    await waitFor(() => expect(api.signInWithPassword).toHaveBeenLastCalledWith('owner@example.com', 'abc12345'));
+  });
+
+  test('نسيت كلمة المرور: رمز SMS ثم كلمة مرور جديدة', async () => {
+    const user = userEvent.setup();
+    await render(wrap(<Auth />));
+    await user.press(screen.getByTestId('to-login'));
+    await user.type(screen.getByTestId('login-id'), '97706792');
+    await user.press(screen.getByTestId('login-forgot'));
+    await user.press(screen.getByTestId('forgot-submit'));
+    await waitFor(() => expect(api.sendLoginOtp).toHaveBeenCalledWith('97706792'));
+    await user.type(screen.getByTestId('otp'), '654321');
+    await waitFor(() => expect(api.verifyPhoneOtp).toHaveBeenCalledWith('97706792', '654321'));
+    await waitFor(() => expect(screen.getByTestId('new-password')).toBeTruthy());
+    await user.type(screen.getByTestId('new-password'), 'newpass99');
+    await user.press(screen.getByTestId('new-password-save'));
+    await waitFor(() => expect(api.setNewPassword).toHaveBeenCalledWith('newpass99'));
   });
 });

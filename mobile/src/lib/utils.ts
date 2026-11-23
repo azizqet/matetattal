@@ -183,9 +183,11 @@ export const SUB_STATUS_AR: Record<string, string> = {
 /** تحويل رسائل أخطاء الخادم إلى عربية مفهومة */
 export function arabicError(e: unknown): string {
   const m = (e as { message?: string })?.message ?? String(e ?? '');
-  if (/Invalid login credentials/i.test(m)) return 'الإيميل أو كلمة السر غير صحيحة';
+  if (/Invalid login credentials/i.test(m)) return 'رقم التلفون أو كلمة المرور غير صحيحة';
+  if (/Phone not confirmed/i.test(m)) return 'الحساب غير مفعّل بعد. أكمل التحقق برمز الرسالة';
+  if (/Signups not allowed for otp|otp_disabled|user not found/i.test(m)) return 'ما لقينا حساب بهذا الرقم';
   if (/Email not confirmed/i.test(m)) return 'فعّل حسابك من الرابط المرسل إلى بريدك أولاً';
-  if (/User already registered/i.test(m)) return 'هذا الإيميل مسجل مسبقاً، سجّل الدخول';
+  if (/User already registered|phone_exists|already been registered/i.test(m)) return 'هذا الرقم مسجل عندنا، سجّل دخولك';
   if (/Password should be at least/i.test(m)) return 'كلمة السر لازم تكون 6 أحرف على الأقل';
   if (/too many requests for this phone/i.test(m)) return 'وصلنا أكثر من طلب لهذا الرقم اليوم. بنتواصل معك قريباً';
   if (/rate limit/i.test(m)) return 'محاولات كثيرة، حاول بعد قليل';
