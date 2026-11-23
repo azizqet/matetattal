@@ -6,7 +6,7 @@ import {
 } from './core.js';
 
 initSession('local');
-const VERSION = '4.1.0';
+const VERSION = '4.1.1';
 const COLS = 'id,service_id,name,phone,whatsapp,price_text,rating,rating_count,logo_url,cover_url,photos,description,address,lat,lng,is_24h,is_available,created_at,featured_until,is_sample,company_areas(areas(name_ar)),company_services(service_id)';
 
 /* ================= الحالة ================= */
@@ -576,17 +576,18 @@ async function pgJoin(_, q) {
     tab: 'account',
     html: `${topbar('انضم الآن')}
     <form class="form" id="joinf" novalidate style="margin-top:8px">
-      <div class="field"><label for="jn">اسم النشاط *</label><input class="inp" id="jn" maxlength="100" placeholder="مثال: ونش السالمية السريع" required></div>
-      <div class="field"><span class="lbl">نوع الخدمة *</span><div class="wrapchips" id="jsvc">${S.services.map((s, i) => `<button type="button" class="chip out ${i === 0 ? 'on' : ''}" data-v="${esc(s.id)}">${svcIcon(s)}${esc(s.name_ar)}</button>`).join('')}</div></div>
-      <div class="field"><span class="lbl">مناطق الخدمة *</span><div class="wrapchips" id="jar">${S.areas.map(a => `<button type="button" class="chip out" data-v="${esc(a)}">${esc(a)}</button>`).join('')}</div><span class="hint">اختر منطقة أو أكثر.</span></div>
-      <div class="field"><label for="jp">هاتف الاتصال *</label><div class="inp-wrap has-prefix"><span class="prefix">+965</span><input class="inp ltr" id="jp" inputmode="numeric" maxlength="12" value="${esc(prof.phone || '')}" placeholder="XXXXXXXX"></div></div>
+      <div class="field"><label for="jn">اسم النشاط</label><input class="inp" id="jn" maxlength="100" placeholder="مثال: ونش السالمية السريع" required></div>
+      <div class="field"><label for="jsvc">نوع الخدمة</label><select class="inp" id="jsvc">${S.services.map(s => `<option value="${esc(s.id)}">${esc(s.name_ar)}</option>`).join('')}</select></div>
+      <div class="field"><label for="jar">المنطقة</label><select class="inp" id="jar">${S.areas.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('')}</select></div>
+      <div class="field"><label for="jp">رقم الهاتف (اتصال وواتساب)</label><div class="inp-wrap has-prefix"><span class="prefix">+965</span><input class="inp ltr" id="jp" inputmode="numeric" maxlength="12" value="${esc(prof.phone || '')}" placeholder="XXXXXXXX"></div></div>
+      <details class="more-opts"><summary>${icon('plus')}إضافات اختيارية <small>(شعار، وصف، أسعار، 24 ساعة، الموقع)</small></summary><div class="form" style="padding:12px 0 0">
       <div class="field"><label for="jw">رقم الواتساب</label><div class="inp-wrap has-prefix"><span class="prefix">+965</span><input class="inp ltr" id="jw" inputmode="numeric" maxlength="12" placeholder="نفس رقم الاتصال إذا تركته فارغاً"></div></div>
       <div class="field"><label for="jd">وصف النشاط</label><textarea class="inp" id="jd" maxlength="1500" placeholder="اكتب خدماتك، أوقات العمل، أي تفاصيل تهم العميل"></textarea></div>
       <div class="field"><label for="jpr">الأسعار (اختياري)</label><input class="inp" id="jpr" maxlength="120" placeholder="مثال: يبدأ من 10 د.ك"></div>
       <button type="button" class="switch" id="j24"><span><b>متاح 24 ساعة</b><small>يظهر شعار «24 ساعة» على بطاقتك</small></span><span class="tgl"></span></button>
       <div class="field"><span class="lbl">الشعار أو صورة النشاط</span><label class="upload"><input type="file" id="jl" accept="image/jpeg,image/png,image/webp"><span class="pv" id="jlp">${icon('image')}</span><span><b>اختر صورة</b><small>JPG أو PNG — يتم ضغطها تلقائياً</small></span></label></div>
-      <div class="field"><span class="lbl">موقع النشاط على الخريطة (اختياري)</span><button type="button" class="btn line block" id="jmap">${icon('map')}<span>تحديد الموقع</span></button><span class="hint">يساعد العملاء القريبين يوصلون لك.</span></div>
-      <div class="note">${icon('shieldc')}<div>ما يظهر نشاطك للعامة إلا بعد مراجعة الإدارة وموافقتها وتفعيل الاشتراك.</div></div>
+      <div class="field"><span class="lbl">موقع النشاط على الخريطة (اختياري)</span><button type="button" class="btn line block" id="jmap">${icon('map')}<span>تحديد الموقع</span></button><span class="hint">يساعد العملاء القريبين يوصلون لك.</span></div></div></details>
+      <div class="note">${icon('shieldc')}<div>يظهر نشاطك للعملاء بعد موافقة الإدارة.</div></div>
       <button class="btn primary block" type="submit">إرسال طلب الانضمام</button>
     </form>`,
     after: el => bindJoin(el),
@@ -594,15 +595,13 @@ async function pgJoin(_, q) {
 }
 function bindJoin(el) {
   const f = $('#joinf', el); let pos = null, h24 = false;
-  $$('#jsvc .chip', f).forEach(b => b.onclick = () => { $$('#jsvc .chip', f).forEach(x => x.classList.remove('on')); b.classList.add('on'); });
-  $$('#jar .chip', f).forEach(b => b.onclick = () => b.classList.toggle('on'));
   $('#j24', f).onclick = e => { h24 = !h24; $('.tgl', e.currentTarget).classList.toggle('on', h24); };
   $('#jl', f).onchange = e => previewFile(e.target, $('#jlp', f));
   $('#jmap', f).onclick = async e => { const p = await pickOnMap(pos || S.pos); if (p) { pos = p; $('span', e.currentTarget).textContent = 'تم تحديد الموقع ✓'; } };
   f.onsubmit = ev => {
     ev.preventDefault();
     busy($('button[type=submit]', f), async () => {
-      const name = $('#jn', f).value.trim(), sv = ($('#jsvc .chip.on', f) || {}).dataset?.v, areas = $$('#jar .chip.on', f).map(b => b.dataset.v);
+      const name = $('#jn', f).value.trim(), sv = $('#jsvc', f).value, areas = [$('#jar', f).value].filter(Boolean);
       const ph = localPhone($('#jp', f).value), wa = $('#jw', f).value.trim() ? localPhone($('#jw', f).value) : ph;
       if (name.length < 2) return toast('اكتب اسم النشاط', 'err');
       if (!sv) return toast('اختر نوع الخدمة', 'err');
