@@ -1,7 +1,7 @@
 // ماتعطل — Service Worker آمن
 // يخزّن ملفات الواجهة الثابتة فقط. لا يخزّن أي طلبات للخادم (Supabase) أو بيانات الحساب أو لوحة الإدارة.
-const VERSION = 'm3-v4.5.0';
-const SHELL = ['./', './index.html', './css/app.css?v=4.5.0', './js/core.js', './js/app.js?v=4.5.0', './manifest.webmanifest',
+const VERSION = 'm3-v4.6.0';
+const SHELL = ['./', './index.html', './css/app.css?v=4.6.0', './js/core.js', './js/app.js?v=4.6.0', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/favicon.svg', './icons/apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION && k.startsWith('m3-')).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
