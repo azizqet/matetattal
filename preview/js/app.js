@@ -6,7 +6,7 @@ import {
 } from './core.js';
 
 initSession('local');
-const VERSION = '4.0.0';
+const VERSION = '4.0.1';
 const COLS = 'id,service_id,name,phone,whatsapp,price_text,rating,rating_count,logo_url,cover_url,photos,description,address,lat,lng,is_24h,is_available,created_at,featured_until,is_sample,company_areas(areas(name_ar)),company_services(service_id)';
 
 /* ================= الحالة ================= */
@@ -212,9 +212,9 @@ function pgHome() {
   return {
     tab: 'home',
     html: `
-    <div class="home-head"><div class="logo" aria-label="ماتعطل"><span class="mark">م</span>ماتعطل</div>
+    <div class="home-band"><div class="home-head"><div class="logo" aria-label="ماتعطل"><span class="mark">م</span>ماتعطل<span class="dot">•</span></div>
       <button class="loc-chip" data-act="area" aria-label="اختيار المنطقة">${icon('pin', 'pin')}<span>${esc(areaLabel())}</span>${icon('chevD')}</button></div>
-    <a class="searchbar" href="#/search" aria-label="بحث">${icon('search')}<span class="ph">ابحث عن ونش، بنشر، مفاتيح...</span></a>
+    <a class="searchbar" href="#/search" aria-label="بحث">${icon('search')}<span class="ph">ابحث عن ونش، بنشر، مفاتيح...</span></a></div>
     ${maint ? `<div class="pad" style="margin-top:10px"><div class="note y">${icon('info')}<div>${esc(maint)}</div></div></div>` : ''}
     ${S.err && !S.loaded ? errBox() : ''}
     <section class="sec" style="margin-top:14px">${carousel(items)}</section>
