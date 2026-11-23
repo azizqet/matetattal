@@ -12,10 +12,10 @@ import { getLegalDoc, LEGAL_DOCS, legalDocToText } from '@/content/legal';
 import { AdCard } from '@/components/Ads';
 import { TicketRow, TicketThread, ticketTone } from '@/components/Support';
 import type { Ad, AdStatus, Company, Plan, Profile, Promotion, Service, TermsKind, TicketStatus } from '@/lib/types';
-import { AD_STATUS_AR, TICKET_STATUS_AR, addDaysISO, arabicError, hasLegalPlaceholders, COMPANY_STATUS_AR, formatKwd, isVisible, SUB_STATUS_AR, todayISO, whatsappUrl } from '@/lib/utils';
+import { AD_STATUS_AR, REQUEST_STATUS_AR, TICKET_STATUS_AR, addDaysISO, arabicError, hasLegalPlaceholders, COMPANY_STATUS_AR, formatKwd, isVisible, SUB_STATUS_AR, todayISO, whatsappUrl } from '@/lib/utils';
 
-type Tab = 'stats' | 'ads' | 'support' | 'join' | 'companies' | 'subs' | 'plans' | 'terms' | 'team' | 'settings';
-const TABS: [Tab, string][] = [['stats', 'نظرة عامة'], ['ads', 'الإعلانات'], ['support', 'الدعم الفني'], ['companies', 'الشركات'], ['subs', 'الاشتراكات'], ['join', 'طلبات الانضمام (أرشيف)'], ['plans', 'الخطط والعروض'], ['terms', 'الشروط'], ['team', 'المستخدمون والإدارة'], ['settings', 'الإعدادات']];
+type Tab = 'stats' | 'ads' | 'requests' | 'support' | 'join' | 'companies' | 'subs' | 'plans' | 'terms' | 'team' | 'settings';
+const TABS: [Tab, string][] = [['stats', 'نظرة عامة'], ['ads', 'الإعلانات'], ['requests', 'الطلبات'], ['support', 'الدعم الفني'], ['companies', 'الشركات'], ['subs', 'الاشتراكات'], ['join', 'طلبات الانضمام (أرشيف)'], ['plans', 'الخطط والعروض'], ['terms', 'الشروط'], ['team', 'المستخدمون والإدارة'], ['settings', 'الإعدادات']];
 
 export default function Admin() {
   const { profile, ready } = useSession();
@@ -29,7 +29,7 @@ export default function Admin() {
         {TABS.map(([k, l]) => <Chip key={k} label={l} active={tab === k} onPress={() => setTab(k)} />)}
       </ScrollView>
       <Screen edges={['bottom']}>
-        {tab === 'stats' ? <Stats /> : tab === 'join' ? <JoinRequests /> : tab === 'companies' ? <Companies /> : tab === 'subs' ? <Subs /> : tab === 'ads' ? <AdsReview /> : tab === 'support' ? <SupportAdmin /> : tab === 'plans' ? <Plans /> : tab === 'terms' ? <Terms /> : tab === 'team' ? <Team /> : <Settings />}
+        {tab === 'stats' ? <Stats /> : tab === 'join' ? <JoinRequests /> : tab === 'companies' ? <Companies /> : tab === 'subs' ? <Subs /> : tab === 'ads' ? <AdsReview /> : tab === 'requests' ? <RequestsAdmin /> : tab === 'support' ? <SupportAdmin /> : tab === 'plans' ? <Plans /> : tab === 'terms' ? <Terms /> : tab === 'team' ? <Team /> : <Settings />}
       </Screen>
     </View>
   );
@@ -348,6 +348,36 @@ function AdReviewCard({ a, serviceName }: { a: Ad; serviceName?: string }) {
         </View>
       ) : null}
     </Card>
+  );
+}
+
+// ===== طلبات الخدمة =====
+const REQ_FILTERS: [string, string][] = [['', 'الكل'], ['new', 'جديد'], ['accepted', 'مقبول'], ['on_way', 'في الطريق'], ['done', 'تم'], ['cancelled', 'ملغي'], ['rejected', 'مرفوض']];
+function RequestsAdmin() {
+  const [filter, setFilter] = useState('');
+  const q = useQuery({ queryKey: ['admin', 'requests', filter], queryFn: () => api.adminRequests(filter || undefined), refetchInterval: 30_000 });
+  const setStatus = useAct(({ id, s }: { id: number; s: string }) => api.setRequestStatus(id, s), 'تم تحديث الطلب');
+  if (q.isLoading) return <Loading />;
+  if (q.error) return <ErrorBox message={arabicError(q.error)} onRetry={q.refetch} />;
+  return (
+    <>
+      <Row style={{ flexWrap: 'wrap' }}>{REQ_FILTERS.map(([k, l]) => <Chip key={k || 'all'} label={l} active={filter === k} onPress={() => setFilter(k)} />)}</Row>
+      {q.data?.length ? q.data.map((r) => (
+        <Card key={r.id} style={{ marginTop: 10 }}>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Text variant="title" style={{ flex: 1 }} numberOfLines={1}>#{r.id} · {r.companies?.name ?? 'شركة'}</Text>
+            <Badge label={REQUEST_STATUS_AR[r.status] ?? r.status} tone={r.status === 'done' ? 'green' : r.status === 'new' ? 'yellow' : ['cancelled', 'rejected'].includes(r.status) ? 'red' : 'blue'} />
+          </Row>
+          <Text variant="small">{new Date(r.created_at).toLocaleString('ar-KW')}{r.area_name ? ' · ' + r.area_name : ''} · {'\u2066'}{r.phone}{'\u2069'}</Text>
+          {r.note ? <Text style={{ marginTop: 6 }}>{r.note}</Text> : null}
+          <Row style={{ marginTop: 8, flexWrap: 'wrap' }}>
+            {['accepted', 'on_way', 'done', 'cancelled'].filter((s) => s !== r.status).map((s) => (
+              <Button key={s} small kind={s === 'cancelled' ? 'danger' : 'soft'} title={REQUEST_STATUS_AR[s]} onPress={() => setStatus.mutate({ id: r.id, s })} />
+            ))}
+          </Row>
+        </Card>
+      )) : <Empty icon="clipboard-text-outline" title="لا توجد طلبات" />}
+    </>
   );
 }
 

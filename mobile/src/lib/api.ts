@@ -394,8 +394,9 @@ export async function sendLoginOtp(local8: string) {
 export async function signInWithPassword(identifier: string, password: string) {
   const id = identifier.trim();
   const creds = id.includes('@') ? { email: id.toLowerCase(), password } : { phone: kw(id), password };
-  const { error } = await supabase.auth.signInWithPassword(creds);
+  const { data, error } = await supabase.auth.signInWithPassword(creds);
   if (error) throw error;
+  return data.user;
 }
 export async function setNewPassword(password: string) {
   const { error } = await supabase.auth.updateUser({ password });
@@ -403,4 +404,11 @@ export async function setNewPassword(password: string) {
 }
 export async function deleteMyAccount() {
   check(await supabase.rpc('delete_my_account'));
+}
+
+// ===== الإدارة: طلبات الخدمة (RLS: is_staff للقراءة و is_admin للتعديل) =====
+export async function adminRequests(status?: string): Promise<ServiceRequest[]> {
+  let q = supabase.from('service_requests').select('*, companies(name, phone, whatsapp, logo_url)');
+  if (status) q = q.eq('status', status);
+  return check(await q.order('created_at', { ascending: false }).limit(200));
 }

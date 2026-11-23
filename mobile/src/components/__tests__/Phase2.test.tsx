@@ -30,7 +30,8 @@ jest.mock('@/lib/api', () => ({
   verifyPhoneOtp: jest.fn(async () => ({})),
   resendSignupOtp: jest.fn(async () => {}),
   sendLoginOtp: jest.fn(async () => {}),
-  signInWithPassword: jest.fn(async () => {}),
+  signInWithPassword: jest.fn(async () => undefined as unknown),
+  getMyProfile: jest.fn(async () => null as unknown),
   setNewPassword: jest.fn(async () => {}),
   deleteMyAccount: jest.fn(async () => {}),
 }));
@@ -44,7 +45,7 @@ import Auth from '../../app/auth';
 import { ToastProvider } from '../ui';
 /* eslint-enable import/first */
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const api = require('@/lib/api') as Record<string, jest.Mock>;
+const api = require('@/lib/api') as Record<string, jest.Mock<(...a: unknown[]) => Promise<unknown>>>;
 
 const wrap = (ui: ReactNode) => <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><ToastProvider>{ui}</ToastProvider></QueryClientProvider>;
 
@@ -187,6 +188,21 @@ describe('التسجيل والدخول', () => {
     await user.type(screen.getByTestId('login-id'), 'owner@example.com');
     await user.press(screen.getByTestId('login-submit'));
     await waitFor(() => expect(api.signInWithPassword).toHaveBeenLastCalledWith('owner@example.com', 'abc12345'));
+  });
+
+  test('المدير: بعد تسجيل الدخول تفتح لوحة الإدارة تلقائياً (الصلاحية من قاعدة البيانات)', async () => {
+    api.signInWithPassword.mockResolvedValueOnce({ id: 'owner' });
+    api.getMyProfile.mockResolvedValueOnce({ id: 'owner', role: 'admin' });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { router } = require('expo-router') as { router: { replace: jest.Mock } };
+    const user = userEvent.setup();
+    await render(wrap(<Auth />));
+    await user.press(screen.getByTestId('to-login'));
+    await user.type(screen.getByTestId('login-id'), 'owner@example.com');
+    await user.type(screen.getByTestId('login-password'), 'abc12345');
+    await user.press(screen.getByTestId('login-submit'));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/admin'));
+    expect(api.getMyProfile).toHaveBeenCalledWith('owner');
   });
 
   test('نسيت كلمة المرور: رمز SMS ثم كلمة مرور جديدة', async () => {

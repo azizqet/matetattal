@@ -98,8 +98,11 @@ export default function Auth() {
     const id = isEmail ? raw : sanitizeKwPhone(raw);
     if (isEmail ? !EMAIL.test(id) : !isKuwaitMobile(id)) { toast('اكتب رقم التلفون (8 أرقام) أو البريد الإلكتروني'); return; }
     if (!password) { toast('اكتب كلمة المرور'); return; }
-    await api.signInWithPassword(id, password);
-    toast('أهلاً فيك'); goHome();
+    const user = await api.signInWithPassword(id, password);
+    // المدير: لوحة الإدارة تفتح تلقائياً. الصلاحية تُقرأ من قاعدة البيانات (profiles.role)، والخادم يفرضها بـ RLS
+    const prof = user ? await api.getMyProfile(user.id).catch(() => null) : null;
+    toast('أهلاً فيك');
+    if (prof?.role === 'admin') router.replace('/admin'); else goHome();
   });
 
   // ===== نسيت كلمة المرور =====
