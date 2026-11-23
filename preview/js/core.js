@@ -323,3 +323,59 @@ export function nearestArea(p, names) {
   names.forEach(n => { const c = AREA_XY[n]; if (!c) return; const d = distKm(p, { lat: c[0], lng: c[1] }); if (d < bd) { bd = d; best = n; } });
   return best;
 }
+
+/* ---------------- أداة قص الصورة بمقاس ثابت ----------------
+   تفتح الصورة داخل إطار بنفس نسبة الإعلان، المستخدم يسحب ويكبّر، والناتج دائماً W×H يغطي الإطار بالكامل */
+export function cropImage(file, W, H) {
+  return new Promise(res => {
+    if (!file || !/^image\//.test(file.type)) { toast('اختر صورة صالحة', 'err'); return res(null); }
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onerror = () => { URL.revokeObjectURL(url); toast('هذا الملف مو صورة صالحة', 'err'); res(null); };
+    im.onload = () => {
+      const o = document.createElement('div'); o.className = 'crop-ov';
+      o.innerHTML = `<div class="crop-top"><button class="icon-btn" data-x aria-label="إلغاء">${icon('close')}</button><b>اضبط صورة الإعلان</b><span style="width:42px"></span></div>
+        <div class="crop-stage"><div class="crop-frame" dir="ltr"><img alt=""><div class="crop-grid"></div></div><p class="crop-hint">اسحب الصورة لتحريكها، وكبّرها بإصبعين أو بالشريط</p></div>
+        <div class="crop-bar"><div class="crop-zoom">${icon('image')}<input type="range" min="1" max="4" step="0.01" value="1" aria-label="تكبير">${icon('search')}</div>
+        <button class="btn primary block" data-ok>${icon('check')}اعتماد الصورة</button></div>`;
+      document.body.appendChild(o); document.body.classList.add('noscroll');
+      const fr = o.querySelector('.crop-frame'), img = fr.querySelector('img'), rng = o.querySelector('input[type=range]');
+      img.src = url;
+      let fw, fh, base, s, ox, oy;
+      const layout = () => {
+        fw = fr.clientWidth; fh = fw * H / W; fr.style.height = fh + 'px';
+        base = Math.max(fw / im.naturalWidth, fh / im.naturalHeight);
+        if (s == null) { s = base; ox = (fw - im.naturalWidth * s) / 2; oy = (fh - im.naturalHeight * s) / 2; }
+        clamp(); draw();
+      };
+      const clamp = () => {
+        s = Math.max(s, base); const iw = im.naturalWidth * s, ih = im.naturalHeight * s;
+        ox = Math.min(0, Math.max(fw - iw, ox)); oy = Math.min(0, Math.max(fh - ih, oy));
+      };
+      const draw = () => { img.style.transform = `translate(${ox}px,${oy}px) scale(${s})`; rng.value = (s / base).toFixed(2); };
+      const zoomTo = (ns, cx = fw / 2, cy = fh / 2) => { ns = Math.min(base * 4, Math.max(base, ns)); ox = cx - (cx - ox) * ns / s; oy = cy - (cy - oy) * ns / s; s = ns; clamp(); draw(); };
+      requestAnimationFrame(layout); addEventListener('resize', layout);
+      rng.oninput = () => zoomTo(base * +rng.value);
+      // سحب + تكبير بإصبعين
+      const pts = new Map(); let last = null, pinch = null;
+      fr.addEventListener('pointerdown', e => { fr.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); last = { x: e.clientX, y: e.clientY };
+        if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), s }; } });
+      fr.addEventListener('pointermove', e => {
+        if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pts.size === 2 && pinch) { const [a, b] = [...pts.values()], r = fr.getBoundingClientRect(); zoomTo(pinch.s * Math.hypot(a.x - b.x, a.y - b.y) / pinch.d, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top); return; }
+        if (pts.size === 1 && last) { ox += e.clientX - last.x; oy += e.clientY - last.y; last = { x: e.clientX, y: e.clientY }; clamp(); draw(); }
+      });
+      const up = e => { pts.delete(e.pointerId); pinch = null; last = pts.size ? [...pts.values()][0] : null; };
+      fr.addEventListener('pointerup', up); fr.addEventListener('pointercancel', up);
+      fr.addEventListener('wheel', e => { e.preventDefault(); const r = fr.getBoundingClientRect(); zoomTo(s * (e.deltaY < 0 ? 1.08 : 0.93), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+      const end = v => { removeEventListener('resize', layout); o.remove(); document.body.classList.remove('noscroll'); URL.revokeObjectURL(url); res(v); };
+      o.querySelector('[data-x]').onclick = () => end(null);
+      o.querySelector('[data-ok]').onclick = () => {
+        const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+        x.fillStyle = '#fff'; x.fillRect(0, 0, W, H); x.imageSmoothingQuality = 'high';
+        x.drawImage(im, -ox / s, -oy / s, fw / s, fh / s, 0, 0, W, H);
+        c.toBlob(b => end(b), 'image/jpeg', 0.88);
+      };
+    };
+    im.src = url;
+  });
+}

@@ -2,11 +2,11 @@
 import {
   CFG, esc, $, $$, todayISO, digits, localPhone, intlPhone, rnd, safeImg, fmtDate, fmtNum, norm, store, errText,
   initSession, session, onAuth, login, register, logout, myProfile, api, rpc, rest, shrinkImage, upload,
-  icon, svcIcon, toast, sheet, closeSheet, confirmBox, busy, loadLeaflet, tileLayer, markerIcon, pickOnMap, geo, distKm, nearestArea,
+  icon, svcIcon, toast, sheet, closeSheet, confirmBox, busy, cropImage, loadLeaflet, tileLayer, markerIcon, pickOnMap, geo, distKm, nearestArea,
 } from './core.js';
 
 initSession('local');
-const VERSION = '4.4.0';
+const VERSION = '4.5.0';
 const COLS = 'id,service_id,name,phone,whatsapp,price_text,rating,rating_count,logo_url,cover_url,photos,description,address,lat,lng,is_24h,is_available,created_at,featured_until,is_sample,company_areas(areas(name_ar)),company_services(service_id)';
 
 /* ================= الحالة ================= */
@@ -673,7 +673,8 @@ function pgAdvertise() {
       <div class="field"><span class="lbl">نوع الإعلان *</span><div class="opt-grid" id="atype">${AD_TYPES.map((a, i) => `<button type="button" class="opt ${i === 0 ? 'on' : ''}" data-v="${a.id}"><span class="ic">${icon(a.ic)}</span><span><b>${a.t}</b><small>${a.d}</small></span><span class="rad"></span></button>`).join('')}</div></div>
       <div class="field" id="asvcw" hidden><label for="asvc">القسم</label><select class="inp" id="asvc">${S.services.map(s => `<option value="${esc(s.id)}">${esc(s.name_ar)}</option>`).join('')}</select></div>
       <div class="field" id="acow" hidden><label for="aco">النشاط المراد تمييزه</label><select class="inp" id="aco"><option value="">— سجّل دخولك لعرض أنشطتك —</option></select><span class="hint">لازم يكون عندك نشاط مسجّل في ماتعطل. <a href="#/join" style="text-decoration:underline;font-weight:800">سجّل نشاطك</a></span></div>
-      <div class="field"><span class="lbl">صورة الإعلان *</span><label class="upload wide"><input type="file" id="aimg" accept="image/jpeg,image/png,image/webp"><span class="pv" id="aimgp">${icon('image')}</span><span><b>اختر صورة</b><small>المقاس المثالي 1200×510 بكسل</small></span></label></div>
+      <div class="field"><span class="lbl">صورة الإعلان *</span><label class="upload wide" id="aup"><input type="file" id="aimg" accept="image/jpeg,image/png,image/webp"><span class="pv" id="aimgp">${icon('image')}</span><span><b>اختر صورة</b><small>تقدر تحرّكها وتكبّرها لتغطي الإعلان بالكامل</small></span></label>
+        <div id="aprev" hidden><div class="ad-preview"><img id="aprevimg" alt="معاينة الإعلان"><span class="adtag">إعلان</span></div><div class="row2" style="margin-top:8px"><button type="button" class="btn sm ghost" id="arecrop">${icon('edit')}تعديل القص</button><button type="button" class="btn sm ghost" id="achange">${icon('image')}تغيير الصورة</button></div></div></div>
       <div class="field"><label for="atitle">عنوان قصير (اختياري)</label><input class="inp" id="atitle" maxlength="80" placeholder="مثال: خصم 20% على تبديل البطاريات"></div>
       <div class="field"><span class="lbl">عند الضغط على الإعلان</span><div class="seg" id="alink"><button type="button" class="on" data-v="whatsapp">واتساب</button><button type="button" data-v="call">اتصال</button><button type="button" data-v="none">بدون</button></div></div>
       <div class="field"><span class="lbl">المدة المطلوبة *</span><div class="wrapchips" id="adur">${DURS.map(d => `<button type="button" class="chip out ${d === 30 ? 'on' : ''}" data-v="${d}">${d} يوم</button>`).join('')}</div></div>
@@ -698,14 +699,24 @@ function bindAdvertise(el) {
   $$('#adur .chip', f).forEach(b => b.onclick = () => { $$('#adur .chip', f).forEach(x => x.classList.remove('on')); b.classList.add('on'); showPrice(); });
   $$('#atype button', f).forEach(b => b.addEventListener('click', showPrice));
   showPrice();
-  $('#aimg', f).onchange = e => previewFile(e.target, $('#aimgp', f));
+  let adBlob = null, srcFile = null;
+  const applyCrop = async file => {
+    const blob = await cropImage(file, 1200, 510);
+    if (!blob) return;
+    adBlob = blob; srcFile = file;
+    const pv = $('#aprevimg', f); if (pv.src) URL.revokeObjectURL(pv.src); pv.src = URL.createObjectURL(blob);
+    $('#aprev', f).hidden = false; $('#aup', f).hidden = true;
+  };
+  $('#aimg', f).onchange = e => { const file = e.target.files && e.target.files[0]; e.target.value = ''; if (!file) return; if (file.size > 15 * 1024 * 1024) return toast('حجم الصورة كبير جداً', 'err'); applyCrop(file); };
+  $('#arecrop', f).onclick = () => srcFile && applyCrop(srcFile);
+  $('#achange', f).onclick = () => $('#aimg', f).click();
   const loadCos = async () => { if (!session()) return; try { const l = (await myCompanies()).filter(c => c.status !== 'rejected'); $('#aco', f).innerHTML = l.length ? l.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('') : '<option value="">لا يوجد نشاط مسجّل</option>'; } catch (_) { } };
   function typeChanged() { const t = $('#atype .on', f).dataset.v; $('#asvcw', f).hidden = t !== 'category_banner'; $('#acow', f).hidden = t !== 'featured'; if (t === 'featured') loadCos(); }
   f.onsubmit = ev => {
     ev.preventDefault();
     const btn = $('button[type=submit]', f);
     busy(btn, async () => {
-      const name = $('#aname', f).value.trim(), phone = localPhone($('#aphone', f).value), type = $('#atype .on', f).dataset.v, file = $('#aimg', f).files[0];
+      const name = $('#aname', f).value.trim(), phone = localPhone($('#aphone', f).value), type = $('#atype .on', f).dataset.v, file = adBlob;
       if (name.length < 2) return toast('اكتب اسم المعلن', 'err');
       if (!phone) return toast('اكتب رقم هاتف صحيح من 8 أرقام', 'err');
       if (!file) return toast('اختر صورة الإعلان', 'err');
@@ -715,7 +726,7 @@ function bindAdvertise(el) {
       if (type === 'featured') { await loadCos(); if (!$('#aco', f).value) return toast('سجّل نشاطك أولاً من «انضم الآن»', 'err'); }
       try {
         const ses = session();
-        const url = await upload('ads', ses.uid + '/campaign-' + rnd() + '.jpg', await shrinkImage(file, 1400, .86));
+        const url = await upload('ads', ses.uid + '/campaign-' + rnd() + '.jpg', adBlob);
         const body = { owner_id: ses.uid, advertiser_name: name, advertiser_kind: $('#akind .on', f).dataset.v, phone, ad_type: type, image_url: url, title: $('#atitle', f).value.trim() || null, link_type: type === 'featured' ? 'company' : link, duration_days: +$('#adur .on', f).dataset.v, notes: $('#anotes', f).value.trim() || null };
         if (type === 'category_banner') body.service_id = $('#asvc', f).value;
         if (type === 'featured') body.company_id = +$('#aco', f).value;

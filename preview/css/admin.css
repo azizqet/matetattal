@@ -49,7 +49,7 @@ body.admin{background:var(--bg2)}
 .arow .top .t b{display:block;font-size:15.5px}
 .arow .top .t small{color:var(--mut);font-size:12.5px}
 .arow .btns{display:flex;gap:6px;flex-wrap:wrap}
-.arow .ad-img{width:100%;max-width:460px;aspect-ratio:2.35/1;object-fit:cover;border-radius:12px;background:var(--surface2)}
+.arow .ad-img{width:100%;max-width:460px;aspect-ratio:1200/510;object-fit:cover;border-radius:12px;background:var(--surface2)}
 .kvs{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--ink2)}
 .kvs span b{color:var(--mut);font-weight:700}
 .tbl{width:100%;border-collapse:collapse;font-size:14px}
