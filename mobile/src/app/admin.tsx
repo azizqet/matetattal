@@ -15,7 +15,7 @@ import type { Ad, AdStatus, Company, Plan, Profile, Promotion, Service, TermsKin
 import { AD_STATUS_AR, REQUEST_STATUS_AR, TICKET_STATUS_AR, addDaysISO, arabicError, hasLegalPlaceholders, COMPANY_STATUS_AR, formatKwd, isVisible, SUB_STATUS_AR, todayISO, whatsappUrl } from '@/lib/utils';
 
 type Tab = 'stats' | 'ads' | 'requests' | 'support' | 'join' | 'companies' | 'subs' | 'plans' | 'terms' | 'team' | 'settings';
-const TABS: [Tab, string][] = [['stats', 'نظرة عامة'], ['ads', 'الإعلانات'], ['requests', 'الطلبات'], ['support', 'الدعم الفني'], ['companies', 'الشركات'], ['subs', 'الاشتراكات'], ['join', 'طلبات الانضمام (أرشيف)'], ['plans', 'الخطط والعروض'], ['terms', 'الشروط'], ['team', 'المستخدمون والإدارة'], ['settings', 'الإعدادات']];
+const TABS: [Tab, string][] = [['stats', 'نظرة عامة'], ['ads', 'الإعلانات'], ['requests', 'الطلبات'], ['support', 'الدعم الفني'], ['companies', 'الشركات'], ['subs', 'الاشتراكات'], ['join', 'طلبات الانضمام'], ['plans', 'الخطط والعروض'], ['terms', 'الشروط'], ['team', 'المستخدمون والإدارة'], ['settings', 'الإعدادات']];
 
 export default function Admin() {
   const { profile, ready } = useSession();

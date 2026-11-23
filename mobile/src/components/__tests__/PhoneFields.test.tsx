@@ -9,7 +9,7 @@ jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn(), ca
 jest.mock('@/lib/session', () => ({
   useSession: () => ({ session: { user: { id: 'u1' } }, profile: { full_name: 'تجربة', phone: '96597706792' }, refreshProfile: jest.fn() }),
 }));
-jest.mock('@/lib/api', () => ({ updateMyProfile: jest.fn(async () => undefined) }));
+jest.mock('@/lib/api', () => ({ updateMyProfile: jest.fn(async () => undefined), loginPhoneOf: () => null }));
 
 // eslint-disable-next-line import/first
 import Profile from '../../app/profile';

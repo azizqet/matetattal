@@ -28,9 +28,11 @@ export default function ProfileScreen() {
 
   return (
     <Screen edges={['bottom']}>
-      <Text variant="muted">{session.user.email}</Text>
+      <Text variant="muted" style={{ textAlign: 'right' }}>
+        {api.loginPhoneOf(session.user.email) ? `رقم الدخول: ⁦+965 ${api.loginPhoneOf(session.user.email)}⁩ (لا يتغير)` : session.user.email}
+      </Text>
       <Field label="الاسم" value={name} onChangeText={setName} maxLength={80} />
-      <PhoneField label="رقم الجوال" value={phone} onChangeText={setPhone} testID="profile-phone" />
+      <PhoneField label="رقم التواصل" value={phone} onChangeText={setPhone} testID="profile-phone" />
       <Button title="حفظ" loading={busy} onPress={save} style={{ marginTop: 18 }} />
     </Screen>
   );

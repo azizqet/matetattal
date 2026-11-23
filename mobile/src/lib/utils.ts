@@ -186,7 +186,11 @@ export function arabicError(e: unknown): string {
   if (/Invalid login credentials/i.test(m)) return 'رقم التلفون أو كلمة المرور غير صحيحة';
   if (/Phone not confirmed/i.test(m)) return 'الحساب غير مفعّل بعد. أكمل التحقق برمز الرسالة';
   if (/Signups not allowed for otp|otp_disabled|user not found/i.test(m)) return 'ما لقينا حساب بهذا الرقم';
-  if (/Email not confirmed/i.test(m)) return 'فعّل حسابك من الرابط المرسل إلى بريدك أولاً';
+  if (/Email not confirmed/i.test(m)) return 'تعذّر تفعيل الحساب تلقائياً الآن. تواصل مع الدعم الفني';
+  if (/^weak password$/i.test(m)) return 'كلمة السر لازم تكون 8 أحرف على الأقل وفيها حروف وأرقام';
+  if (/too many attempts/i.test(m)) return 'محاولات كثيرة لهذا الرقم. حاول بعد ساعة';
+  if (/signup rate limit/i.test(m)) return 'إنشاء الحسابات مزدحم الآن، حاول بعد دقائق';
+  if (/login required/i.test(m)) return 'سجّل دخولك أولاً';
   if (/User already registered|phone_exists|already been registered/i.test(m)) return 'هذا الرقم مسجل عندنا، سجّل دخولك';
   if (/Password should be at least/i.test(m)) return 'كلمة السر لازم تكون 6 أحرف على الأقل';
   if (/too many requests for this phone/i.test(m)) return 'وصلنا أكثر من طلب لهذا الرقم اليوم. بنتواصل معك قريباً';

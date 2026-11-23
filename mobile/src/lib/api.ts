@@ -359,21 +359,49 @@ export async function adminSetTicketStatus(id: number, status: TicketStatus) {
   check(await supabase.from('support_tickets').update({ status }).eq('id', id));
 }
 
-// ===== الحساب: الدخول برقم الهاتف وحذف الحساب =====
-const kw = (local8: string) => '+965' + local8;
-
-/**
- * الدخول برقم التلفون: Supabase Auth يرسل رمز SMS حقيقي (عبر Send SMS Hook).
- * رقم جديد = حساب جديد بعد التحقق، ورقم مسجّل = دخول لنفس الحساب (نفس البيانات والصلاحيات).
- */
-export async function sendPhoneCode(local8: string) {
-  const { error } = await supabase.auth.signInWithOtp({ phone: kw(local8), options: { shouldCreateUser: true } });
-  if (error) throw error;
+// ===== الحساب: التسجيل والدخول برقم التلفون + كلمة السر =====
+// الحساب في Supabase Auth بمعرّف داخلي ثابت مبني على الرقم (نطاق .invalid لا يستقبل بريداً):
+// الرقم فريد تلقائياً، وكلمة السر يشفّرها الخادم بـ bcrypt. الصلاحيات من قاعدة البيانات فقط (profiles.role).
+const AUTH_DOMAIN = 'users.matattal.invalid';
+export const authIdForPhone = (local8: string) => `965${local8}@${AUTH_DOMAIN}`;
+/** رقم الدخول (8 أرقام) من حساب مبني على الرقم، أو null للحسابات القديمة بالبريد */
+export function loginPhoneOf(email?: string | null) {
+  const m = /^965([569]\d{7})@users\.matattal\.invalid$/i.exec(email ?? '');
+  return m ? m[1] : null;
 }
-export async function verifyPhoneCode(local8: string, code: string) {
-  const { data, error } = await supabase.auth.verifyOtp({ phone: kw(local8), token: code, type: 'sms' });
+
+export async function signUpWithPhonePassword(local8: string, password: string, fullName: string) {
+  const { data, error } = await supabase.auth.signUp({
+    email: authIdForPhone(local8), password,
+    options: { data: { full_name: fullName.trim().slice(0, 80) } },
+  });
+  if (error) throw error;
+  // Supabase يرجع مستخدماً بلا هويات إذا كان الرقم مسجلاً (حماية من كشف الحسابات)
+  if (data.user && (data.user.identities?.length ?? 0) === 0) throw new Error('User already registered');
+  if (!data.session) throw new Error('Email not confirmed');
+  return data.user;
+}
+export async function signInWithPhonePassword(local8: string, password: string) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email: authIdForPhone(local8), password });
   if (error) throw error;
   return data.user;
+}
+/** دخول الحسابات القديمة المسجلة بالبريد (حتى لا يفقد أحد حسابه) */
+export async function signInWithEmailPassword(email: string, password: string) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+  if (error) throw error;
+  return data.user;
+}
+/** يولّد رمز استعادة جديد (يلغي القديم). يُعرض مرة واحدة فقط ولا يُحفظ إلا مشفّراً في الخادم */
+export async function createRecoveryCode(): Promise<string> {
+  return check(await supabase.rpc('create_recovery_code')) as unknown as string;
+}
+export async function hasRecoveryCode(): Promise<boolean> {
+  return !!check(await supabase.rpc('has_recovery_code'));
+}
+/** تغيير كلمة السر بالرقم + رمز الاستعادة. false = بيانات غير صحيحة (بدون كشف هل الرقم مسجل) */
+export async function resetPasswordWithRecovery(local8: string, code: string, newPassword: string): Promise<boolean> {
+  return !!check(await supabase.rpc('reset_password_with_recovery', { p_phone: local8, p_code: code, p_new_password: newPassword }));
 }
 export async function deleteMyAccount() {
   check(await supabase.rpc('delete_my_account'));

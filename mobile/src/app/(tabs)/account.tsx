@@ -27,7 +27,7 @@ export default function Account() {
   const unread = notes.data?.filter((n) => !n.read_at).length ?? 0;
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const phone = localPhone(session?.user.phone) || profile?.phone || '';
+  const phone = api.loginPhoneOf(session?.user.email) || localPhone(session?.user.phone) || profile?.phone || '';
 
   async function deleteAccount() {
     setDeleting(true);
@@ -45,7 +45,7 @@ export default function Account() {
         <Card style={{ marginTop: 12 }}>
           <Row gap={12}>
             <LinearGradient colors={gradients.brand} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={st.avatar}>
-              <Text style={{ color: colors.white, fontFamily: fonts.heavy, fontSize: 22, lineHeight: 30 }}>{(profile?.full_name || session.user.email || 'م').trim()[0]?.toUpperCase()}</Text>
+              <Text style={{ color: colors.white, fontFamily: fonts.heavy, fontSize: 22, lineHeight: 30 }}>{(profile?.full_name || 'م').trim()[0]?.toUpperCase()}</Text>
             </LinearGradient>
             <View style={{ flex: 1 }}>
               <Text variant="title">{profile?.full_name || 'مستخدم ماتعطل'}</Text>
@@ -57,7 +57,7 @@ export default function Account() {
       ) : (
         <Card style={{ marginTop: 12 }}>
           <Text variant="title">أهلاً بك في ماتعطل</Text>
-          <Text variant="muted">سوّ حسابك برقم تلفونك لإضافة الإعلانات وطلب الخدمات ومتابعتها.</Text>
+          <Text variant="muted">سوّ حسابك برقم تلفونك وكلمة سر لإضافة الإعلانات وطلب الخدمات ومتابعتها.</Text>
           <Button title="سجّل دخولك أو سوّ حساب" style={{ marginTop: 12 }} onPress={() => router.push('/auth')} testID="login-btn" />
         </Card>
       )}
@@ -69,8 +69,10 @@ export default function Account() {
             <Item icon="clipboard-text-outline" label="طلباتي" onPress={() => router.push('/requests')} />
             <Item icon="heart-outline" label="المفضلة" onPress={() => router.push('/favorites')} />
             <Item icon="bell-outline" label="الإشعارات" badge={unread} onPress={() => router.push('/notifications')} />
+            <Item icon="key-chain-variant" label="رمز استعادة الحساب" onPress={() => router.push('/recovery-code')} testID="acc-recovery" />
           </>
         ) : null}
+        <Item icon="store-plus-outline" label="انضم كمقدم خدمة" onPress={() => router.push('/join')} testID="acc-join" />
         <Item icon="headset" label="الدعم الفني" onPress={() => router.push('/support')} testID="acc-support" />
         <Item icon="file-document-outline" label="الشروط والسياسات" onPress={() => router.push('/legal')} />
         {isAdmin(profile) ? <Item icon="shield-crown-outline" label="لوحة الإدارة" onPress={() => router.push('/admin')} /> : null}

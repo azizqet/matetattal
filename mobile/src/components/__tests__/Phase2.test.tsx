@@ -26,8 +26,12 @@ jest.mock('@/lib/api', () => ({
   getNotifications: jest.fn(async () => []),
   getMyCompanies: jest.fn(async () => []),
   createAd: jest.fn(async (a: object) => ({ id: 1, status: 'pending', ...a })),
-  sendPhoneCode: jest.fn(async () => {}),
-  verifyPhoneCode: jest.fn(async () => ({ id: 'u1' }) as unknown),
+  signUpWithPhonePassword: jest.fn(async () => ({ id: 'u-new' }) as unknown),
+  signInWithPhonePassword: jest.fn(async () => ({ id: 'u1' }) as unknown),
+  signInWithEmailPassword: jest.fn(async () => ({ id: 'u-old' }) as unknown),
+  createRecoveryCode: jest.fn(async () => 'A1B2C3-D4E5F6-0A1B2C' as unknown),
+  resetPasswordWithRecovery: jest.fn(async () => true as unknown),
+  loginPhoneOf: (e?: string | null) => /^965(\d{8})@users\.matattal\.invalid$/.exec(e ?? '')?.[1] ?? null,
   getMyProfile: jest.fn(async () => null as unknown),
   updateMyProfile: jest.fn(async () => {}),
   deleteMyAccount: jest.fn(async () => {}),
@@ -93,8 +97,10 @@ describe('حسابي', () => {
   });
 });
 
-describe('الدخول برقم التلفون (صفحة جديدة)', () => {
+describe('التسجيل والدخول برقم التلفون + كلمة السر', () => {
   beforeEach(() => { jest.clearAllMocks(); mockSession.current = null; });
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const router = () => (require('expo-router') as { router: { replace: jest.Mock } }).router;
 
   test('الرقم: +965 منفصل، لوحة أرقام، بدون maxLength، تنقية الكتابة واللصق والحذف', async () => {
     const user = userEvent.setup();
@@ -103,10 +109,9 @@ describe('الدخول برقم التلفون (صفحة جديدة)', () => {
     const ph = () => screen.getByTestId('phone');
     expect(ph().props.keyboardType).toBe('number-pad');
     expect(ph().props.maxLength).toBeUndefined();
-    expect(ph().props.editable).not.toBe(false);
     await user.type(ph(), '٩٩٩١');
     expect(ph().props.value).toBe('9991');
-    await user.type(ph(), '231399'); // الزائد يُتجاهل
+    await user.type(ph(), '231399');
     expect(ph().props.value).toBe('99912313');
     await user.type(ph(), '{Backspace}');
     expect(ph().props.value).toBe('9991231');
@@ -115,57 +120,110 @@ describe('الدخول برقم التلفون (صفحة جديدة)', () => {
     expect(ph().props.value).toBe('99912313');
   });
 
-  test('متابعة ← رمز SMS ← تحقق تلقائي عند 6 أرقام ← حساب جديد يطلب الاسم', async () => {
-    api.verifyPhoneCode.mockResolvedValueOnce({ id: 'u-new' });
-    api.getMyProfile.mockResolvedValueOnce({ id: 'u-new', role: 'customer', full_name: '' });
+  test('حقل كلمة السر: مخفي، قابل للكتابة، بدون newPassword (يمنع الكتابة على iOS)، وزر إظهار', async () => {
     const user = userEvent.setup();
     await render(wrap(<Auth />));
-    await user.type(screen.getByTestId('phone'), '1234567');
-    await user.press(screen.getByTestId('send'));
-    expect(api.sendPhoneCode).not.toHaveBeenCalled();
-    await user.clear(screen.getByTestId('phone'));
-    await user.type(screen.getByTestId('phone'), '99912313');
-    await user.press(screen.getByTestId('send'));
-    await waitFor(() => expect(api.sendPhoneCode).toHaveBeenCalledWith('99912313'));
-    const code = await screen.findByTestId('code');
-    expect(code.props.textContentType).toBe('oneTimeCode');
-    expect(code.props.autoComplete).toBe('sms-otp');
-    expect(code.props.maxLength).toBeUndefined();
-    expect(screen.getByText(/تقدر تطلب رمز جديد بعد/)).toBeTruthy();
-    await user.type(screen.getByTestId('code'), '12345');
-    expect(api.verifyPhoneCode).not.toHaveBeenCalled();
-    await user.type(screen.getByTestId('code'), '6');
-    await waitFor(() => expect(api.verifyPhoneCode).toHaveBeenCalledWith('99912313', '123456'));
-    expect(api.verifyPhoneCode).toHaveBeenCalledTimes(1);
-    const nameField = await screen.findByTestId('name');
-    await user.type(nameField, 'عزيز');
-    await user.press(screen.getByTestId('save-name'));
-    await waitFor(() => expect(api.updateMyProfile).toHaveBeenCalledWith('u-new', { full_name: 'عزيز' }));
+    const pw = () => screen.getByTestId('password');
+    expect(pw().props.secureTextEntry).toBe(true);
+    expect(pw().props.textContentType).not.toBe('newPassword');
+    expect(pw().props.maxLength).toBeUndefined();
+    await user.type(pw(), 'abc12345');
+    expect(pw().props.value).toBe('abc12345');
+    await user.press(screen.getByTestId('password-eye'));
+    expect(pw().props.secureTextEntry).toBe(false);
   });
 
-  test('لصق الرمز من الرسالة يُنقّى ويُتحقق منه', async () => {
-    api.verifyPhoneCode.mockResolvedValueOnce({ id: 'u1' });
+  test('دخول برقم + كلمة سر، ولا يُرسل برقم ناقص', async () => {
     api.getMyProfile.mockResolvedValueOnce({ id: 'u1', role: 'customer', full_name: 'عزيز' });
     const user = userEvent.setup();
     await render(wrap(<Auth />));
-    await user.type(screen.getByTestId('phone'), '99912313');
-    await user.press(screen.getByTestId('send'));
-    await screen.findByTestId('code');
-    await user.paste(screen.getByTestId('code'), 'رمزك: 654 321');
-    await waitFor(() => expect(api.verifyPhoneCode).toHaveBeenCalledWith('99912313', '654321'));
+    await user.type(screen.getByTestId('phone'), '9991231');
+    await user.type(screen.getByTestId('password'), 'abc12345');
+    await user.press(screen.getByTestId('login'));
+    expect(api.signInWithPhonePassword).not.toHaveBeenCalled();
+    await user.type(screen.getByTestId('phone'), '3');
+    await user.press(screen.getByTestId('login'));
+    await waitFor(() => expect(api.signInWithPhonePassword).toHaveBeenCalledWith('99912313', 'abc12345'));
+    await waitFor(() => expect(router().replace).toHaveBeenCalledWith('/'));
   });
 
-  test('المدير: بعد التحقق تفتح لوحة الإدارة تلقائياً (الصلاحية من قاعدة البيانات)', async () => {
-    api.verifyPhoneCode.mockResolvedValueOnce({ id: 'owner' });
+  test('المدير: بعد الدخول تفتح لوحة الإدارة (الصلاحية من قاعدة البيانات لا من الرقم)', async () => {
+    api.signInWithPhonePassword.mockResolvedValueOnce({ id: 'owner' });
     api.getMyProfile.mockResolvedValueOnce({ id: 'owner', role: 'admin', full_name: 'المالك' });
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { router } = require('expo-router') as { router: { replace: jest.Mock } };
     const user = userEvent.setup();
     await render(wrap(<Auth />));
     await user.type(screen.getByTestId('phone'), '99912313');
-    await user.press(screen.getByTestId('send'));
-    await screen.findByTestId('code');
-    await user.type(screen.getByTestId('code'), '111222');
-    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/admin'));
+    await user.type(screen.getByTestId('password'), 'secret123');
+    await user.press(screen.getByTestId('login'));
+    await waitFor(() => expect(router().replace).toHaveBeenCalledWith('/admin'));
+  });
+
+  test('نفس الرقم برقم 99912313 بدون دور admin في القاعدة لا يفتح لوحة الإدارة', async () => {
+    api.getMyProfile.mockResolvedValueOnce({ id: 'u1', role: 'customer', full_name: 'س' });
+    const user = userEvent.setup();
+    await render(wrap(<Auth />));
+    await user.type(screen.getByTestId('phone'), '99912313');
+    await user.type(screen.getByTestId('password'), 'secret123');
+    await user.press(screen.getByTestId('login'));
+    await waitFor(() => expect(router().replace).toHaveBeenCalledWith('/'));
+    expect(router().replace).not.toHaveBeenCalledWith('/admin');
+  });
+
+  test('حساب جديد: يرفض كلمة سر ضعيفة وعدم التطابق، ثم ينشئ الحساب ويعرض رمز الاستعادة مرة واحدة', async () => {
+    const user = userEvent.setup();
+    await render(wrap(<Auth />));
+    await user.press(screen.getByTestId('tab-signup'));
+    await user.type(screen.getByTestId('name'), 'عزيز');
+    await user.type(screen.getByTestId('phone'), '55512345');
+    await user.type(screen.getByTestId('password'), 'abcdefgh');
+    await user.type(screen.getByTestId('password2'), 'abcdefgh');
+    await user.press(screen.getByTestId('signup'));
+    expect(api.signUpWithPhonePassword).not.toHaveBeenCalled();
+    expect(await screen.findByText('كلمة السر لازم تحتوي حروفاً وأرقاماً')).toBeTruthy();
+    await user.clear(screen.getByTestId('password'));
+    await user.type(screen.getByTestId('password'), 'abcd1234');
+    await user.press(screen.getByTestId('signup'));
+    expect(api.signUpWithPhonePassword).not.toHaveBeenCalled();
+    await user.clear(screen.getByTestId('password2'));
+    await user.type(screen.getByTestId('password2'), 'abcd1234');
+    await user.press(screen.getByTestId('signup'));
+    await waitFor(() => expect(api.signUpWithPhonePassword).toHaveBeenCalledWith('55512345', 'abcd1234', 'عزيز'));
+    expect(await screen.findByTestId('recovery-code')).toBeTruthy();
+    expect(screen.getByText('A1B2C3-D4E5F6-0A1B2C')).toBeTruthy();
+    await user.press(screen.getByTestId('code-done'));
+    expect(router().replace).not.toHaveBeenCalled(); // لازم يؤكد أنه حفظ الرمز
+    await user.press(screen.getByTestId('saved-check'));
+    await user.press(screen.getByTestId('code-done'));
+    await waitFor(() => expect(router().replace).toHaveBeenCalledWith('/'));
+  });
+
+  test('نسيت كلمة السر: الرقم وحده لا يكفي، ويلزم رمز الاستعادة كاملاً', async () => {
+    const user = userEvent.setup();
+    await render(wrap(<Auth />));
+    await user.press(screen.getByTestId('to-forgot'));
+    await user.type(screen.getByTestId('phone'), '99912313');
+    await user.type(screen.getByTestId('password'), 'newpass12');
+    await user.type(screen.getByTestId('password2'), 'newpass12');
+    await user.press(screen.getByTestId('reset'));
+    expect(api.resetPasswordWithRecovery).not.toHaveBeenCalled();
+    await user.paste(screen.getByTestId('recovery'), 'a1b2c3 d4e5f6 0a1b2c');
+    expect(screen.getByTestId('recovery').props.value).toBe('A1B2C3-D4E5F6-0A1B2C');
+    api.resetPasswordWithRecovery.mockResolvedValueOnce(false);
+    await user.press(screen.getByTestId('reset'));
+    expect(await screen.findByText('رقم التلفون أو رمز الاستعادة غير صحيح')).toBeTruthy();
+    await user.press(screen.getByTestId('reset'));
+    await waitFor(() => expect(api.resetPasswordWithRecovery).toHaveBeenCalledTimes(2));
+    expect(await screen.findByTestId('login')).toBeTruthy(); // يرجع لشاشة الدخول
+  });
+
+  test('الحسابات القديمة بالبريد تقدر تدخل', async () => {
+    api.getMyProfile.mockResolvedValueOnce({ id: 'u-old', role: 'customer', full_name: 'قديم' });
+    const user = userEvent.setup();
+    await render(wrap(<Auth />));
+    await user.press(screen.getByTestId('to-email'));
+    await user.type(screen.getByTestId('email'), 'old@example.com');
+    await user.type(screen.getByTestId('password'), 'oldpass1');
+    await user.press(screen.getByTestId('login-email'));
+    await waitFor(() => expect(api.signInWithEmailPassword).toHaveBeenCalledWith('old@example.com', 'oldpass1'));
   });
 });

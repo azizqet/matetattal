@@ -64,6 +64,8 @@ export default function RootLayout() {
               <Stack.Screen name="notifications" options={{ title: 'الإشعارات' }} />
               <Stack.Screen name="favorites" options={{ title: 'المفضلة' }} />
               <Stack.Screen name="profile" options={{ title: 'بياناتي' }} />
+              <Stack.Screen name="join" options={{ title: 'انضم كمقدم خدمة' }} />
+              <Stack.Screen name="recovery-code" options={{ title: 'رمز استعادة الحساب' }} />
               <Stack.Screen name="my-ads" options={{ title: 'إعلاناتي' }} />
               <Stack.Screen name="ad/[id]" options={{ title: 'الإعلان' }} />
               <Stack.Screen name="support/index" options={{ title: 'الدعم الفني' }} />
