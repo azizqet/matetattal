@@ -14,7 +14,7 @@ export function AreaPill({ light }: { light?: boolean }) {
       <Pressable onPress={() => setOpen(true)} accessibilityRole="button" accessibilityLabel="اختيار المنطقة"
         style={[st.pill, light && { backgroundColor: 'rgba(255,255,255,0.16)', borderColor: 'rgba(255,255,255,0.35)' }]}>
         <Icon name="map-marker" size={16} color={light ? colors.accent : colors.primary} />
-        <Text style={{ fontFamily: fonts.medium, fontSize: 13.5, color: light ? '#fff' : colors.text }}>{area || 'كل الكويت'}</Text>
+        <Text style={{ fontFamily: fonts.medium, fontSize: 15, color: light ? '#fff' : colors.text }}>{area || 'كل الكويت'}</Text>
         <Icon name="chevron-down" size={16} color={light ? '#fff' : colors.muted} />
       </Pressable>
       <AreaSheet visible={open} onClose={() => setOpen(false)} />

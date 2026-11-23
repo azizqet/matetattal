@@ -62,7 +62,7 @@ const st = StyleSheet.create({
   nearbyBand: { height: 92, alignItems: 'center', justifyContent: 'center' },
   nearbyLogo: { position: 'absolute', top: 62, right: 14, borderRadius: 16, borderWidth: 3, borderColor: colors.card, backgroundColor: colors.card },
   distPill: { position: 'absolute', top: 10, right: 10, flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(0,0,0,0.28)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 },
-  distText: { color: '#fff', fontFamily: fonts.bold, fontSize: 12 },
+  distText: { color: "#fff", fontFamily: fonts.bold, fontSize: 13.5, lineHeight: 20 },
 });
 
 /** بطاقة فاخرة لقسم «قريب منك» في الرئيسية: الشعار، الخدمة، المسافة، التقييم (إن وُجد)، واتصال/واتساب مباشر */

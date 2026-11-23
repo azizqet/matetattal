@@ -4,6 +4,7 @@ import { Appearance } from 'react-native';
 
 const light = {
   primary: '#0A5BE0',
+  link: '#0A5BE0',            // لون الروابط والأزرار النصية (5.9:1)
   primaryDark: '#062E7A',
   primarySoft: '#EAF1FF',
   accent: '#F5B819',          // ذهبي
@@ -13,11 +14,11 @@ const light = {
   elevated: '#FFFFFF',
   input: '#FFFFFF',
   inputText: '#000000',
-  inputBorder: '#DCE3F0',
-  text: '#101B33',
-  heading: '#0B1A3D',
-  muted: '#67728A',
-  line: '#E4E9F2',
+  inputBorder: '#BFCADC',
+  text: '#0B1A3D',          // كحلي داكن (تباين ~16:1 على الأبيض)
+  heading: '#071331',
+  muted: '#3F4B66',          // ثانوي لكن واضح (~8.6:1)
+  line: '#D9E0EC',
   success: '#12A150',
   successSoft: '#E6F6EC',
   successText: '#0C6B37',
@@ -31,13 +32,14 @@ const light = {
   toast: '#111C33',
   shadow: '#0A2A66',
   tabBar: '#FFFFFF',
-  placeholder: '#98A3B8',
-  label: '#243D69',
+  placeholder: '#5E6B86',    // ~5.3:1 — يتجاوز WCAG AA
+  label: '#0B1A3D',
 };
 type Palette = typeof light;
 
 const dark: Palette = {
-  primary: '#3D82FF',
+  primary: '#2F6FE8',          // أبيض فوقه 4.6:1
+  link: '#6EA2FF',             // على الخلفيات الداكنة 6.8:1
   primaryDark: '#0A2A66',
   primarySoft: '#14264A',
   accent: '#F5B819',
@@ -47,10 +49,10 @@ const dark: Palette = {
   elevated: '#172136',
   input: '#0F1726',
   inputText: '#F3F6FD',
-  inputBorder: '#26324A',
-  text: '#E7ECF7',
+  inputBorder: '#34425F',
+  text: '#F0F4FC',
   heading: '#F3F6FD',
-  muted: '#93A0BA',
+  muted: '#C2CCE0',
   line: '#212C42',
   success: '#2CC46B',
   successSoft: '#10301F',
@@ -65,8 +67,8 @@ const dark: Palette = {
   toast: '#26324A',
   shadow: '#000000',
   tabBar: '#0F1726',
-  placeholder: '#5E6B85',
-  label: '#B8C4DC',
+  placeholder: '#9AA7C2',
+  label: '#E6ECF7',
 };
 
 export const isDark = Appearance.getColorScheme?.() === 'dark';

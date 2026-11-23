@@ -46,12 +46,12 @@ export function Button({ title, onPress, kind = 'primary', icon, loading, disabl
   style?: StyleProp<ViewStyle>; testID?: string;
 }) {
   const bg = { primary: colors.primary, soft: colors.primarySoft, whatsapp: colors.whatsapp, danger: colors.dangerSoft, ghost: 'transparent' }[kind];
-  const fg = { primary: colors.white, soft: colors.primary, whatsapp: colors.white, danger: colors.danger, ghost: colors.primary }[kind];
+  const fg = { primary: colors.white, soft: colors.link, whatsapp: colors.white, danger: colors.danger, ghost: colors.link }[kind];
   const scale = useScale();
   const content = loading ? <ActivityIndicator color={fg} /> : (
     <>
       {icon ? <Icon name={icon} size={small ? 18 : 20} color={fg} /> : null}
-      {title ? <RNText style={[t.base, s.btnText, small && { fontSize: 13 }, { color: fg }]}>{title}</RNText> : null}
+      {title ? <RNText style={[t.base, s.btnText, small && { fontSize: 14.5, lineHeight: 22 }, { color: fg }]}>{title}</RNText> : null}
     </>
   );
   return (
@@ -176,8 +176,8 @@ export function Chip({ label, active, onPress, icon }: { label: string; active?:
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: !!active }}
       style={[s.chip, active && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
-      {icon ? <Icon name={icon} size={16} color={active ? colors.white : colors.primary} /> : null}
-      <RNText style={[t.base, { fontSize: 13, fontFamily: fonts.medium, color: active ? colors.white : colors.text }]}>{label}</RNText>
+      {icon ? <Icon name={icon} size={16} color={active ? colors.white : colors.link} /> : null}
+      <RNText style={[t.base, { fontSize: 14.5, lineHeight: 22, fontFamily: fonts.bold, color: active ? colors.white : colors.text }]}>{label}</RNText>
     </Pressable>
   );
 }
@@ -191,7 +191,7 @@ export function Badge({ label, tone = 'blue' }: { label: string; tone?: 'blue' |
     blue: [colors.primarySoft, colors.primary], green: [colors.successSoft, colors.successText], yellow: [colors.warningBg, colors.warningText],
     red: [colors.dangerSoft, colors.danger], gray: [isDark ? '#1C2740' : '#EEF1F6', colors.muted],
   }[tone];
-  return <View style={[s.badge, { backgroundColor: m[0] }]}><RNText style={[t.base, { fontSize: 12, fontFamily: fonts.bold, color: m[1] }]}>{label}</RNText></View>;
+  return <View style={[s.badge, { backgroundColor: m[0] }]}><RNText style={[t.base, { fontSize: 13, lineHeight: 20, fontFamily: fonts.bold, color: m[1] }]}>{label}</RNText></View>;
 }
 
 export function Empty({ icon = 'magnify', title, subtitle, action }: { icon?: string; title: string; subtitle?: string; action?: ReactNode }) {
@@ -254,14 +254,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 export const useToast = () => useContext(ToastCtx);
 
 const t = StyleSheet.create({
+  // أحجام أكبر وأسطر بارتفاع كافٍ (≈1.5×) حتى لا يُقص أي حرف عربي
   base: { fontFamily: fonts.regular, color: colors.text, writingDirection: 'rtl' },
-  body: { fontSize: 15, lineHeight: 24 },
-  small: { fontSize: 12.5, lineHeight: 19, color: colors.muted },
-  muted: { fontSize: 14, lineHeight: 22, color: colors.muted },
-  label: { fontSize: 13, fontFamily: fonts.medium, color: colors.label, marginBottom: 6 },
-  title: { fontSize: 16, fontFamily: fonts.bold, color: colors.heading, lineHeight: 24 },
-  h2: { fontSize: 18, fontFamily: fonts.bold, color: colors.heading, lineHeight: 27 },
-  h1: { fontSize: 25, fontFamily: fonts.heavy, color: colors.heading, lineHeight: 36 },
+  body: { fontSize: 16, lineHeight: 26 },
+  small: { fontSize: 14, lineHeight: 22, color: colors.muted, fontFamily: fonts.medium },
+  muted: { fontSize: 15.5, lineHeight: 25, color: colors.muted },
+  label: { fontSize: 15, lineHeight: 23, fontFamily: fonts.bold, color: colors.label, marginBottom: 6 },
+  title: { fontSize: 17.5, fontFamily: fonts.bold, color: colors.heading, lineHeight: 27 },
+  h2: { fontSize: 20, fontFamily: fonts.bold, color: colors.heading, lineHeight: 31 },
+  h1: { fontSize: 27, fontFamily: fonts.heavy, color: colors.heading, lineHeight: 40 },
 });
 
 const s = StyleSheet.create({
@@ -269,12 +270,12 @@ const s = StyleSheet.create({
   content: { padding: 16, paddingBottom: 40, width: '100%', maxWidth: 640, alignSelf: 'center' },
   btn: { minHeight: 50, borderRadius: radius.md, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   btnSm: { minHeight: 40, paddingHorizontal: 12, borderRadius: radius.sm },
-  btnText: { fontFamily: fonts.bold, fontSize: 15 },
+  btnText: { fontFamily: fonts.bold, fontSize: 16.5, lineHeight: 26 },
   btnGlow: { shadowColor: colors.primary, shadowOpacity: isDark ? 0.5 : 0.3, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
   card: { backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: 14, ...shadow },
   input: {
     backgroundColor: colors.input, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radius.sm, paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, fontFamily: fonts.regular, color: colors.text, writingDirection: 'rtl',
+    fontSize: 16.5, fontFamily: fonts.medium, color: colors.inputText, writingDirection: 'rtl',
   },
   phoneInput: { color: colors.inputText, writingDirection: 'ltr', textAlign: 'left', fontSize: 17, letterSpacing: 1, minHeight: 50, includeFontPadding: false },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },

@@ -127,6 +127,23 @@ describe('التسجيل والدخول', () => {
     expect(api.verifyPhoneOtp).toHaveBeenCalledTimes(1);
   });
 
+  test('التبويبات منفصلة: حساب جديد بلا زر «سجّل دخولي»، وتسجيل الدخول بخانتين فقط، وزر إظهار كلمة المرور يعمل', async () => {
+    const user = userEvent.setup();
+    await render(wrap(<Auth />));
+    for (const id of ['reg-name', 'reg-phone', 'reg-email', 'reg-password', 'reg-submit']) expect(screen.getByTestId(id)).toBeTruthy();
+    expect(screen.queryByTestId('login-submit')).toBeNull();
+    expect(screen.queryByText('سجّل دخولي')).toBeNull();
+    expect(screen.queryByText(/حساب قديم|بالإيميل/)).toBeNull();
+    expect(screen.getByTestId('reg-password').props.secureTextEntry).toBe(true);
+    await user.press(screen.getByTestId('reg-password-eye'));
+    expect(screen.getByTestId('reg-password').props.secureTextEntry).toBe(false);
+    await user.press(screen.getByTestId('tab-login'));
+    expect(screen.getByTestId('login-id')).toBeTruthy();
+    expect(screen.getByTestId('login-password')).toBeTruthy();
+    for (const id of ['reg-name', 'reg-email', 'reg-submit']) expect(screen.queryByTestId(id)).toBeNull();
+    expect(screen.getByTestId('tab-login').props.accessibilityState).toMatchObject({ selected: true });
+  });
+
   test('عندك حساب؟ سجّل دخولك — بالتلفون، ويقبل البريد للحسابات القديمة بدون رابط منفصل', async () => {
     const user = userEvent.setup();
     await render(wrap(<Auth />));

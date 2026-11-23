@@ -74,7 +74,7 @@ export default function Home() {
           <PressableScale onPress={() => router.push('/search')} style={st.search} accessibilityLabel="ابحث عن خدمة أو شركة" testID="home-search">
             <Row style={{ flex: 1, paddingHorizontal: 16 }} gap={10}>
               <View style={st.searchIcon}><Icon name="magnify" color={colors.white} size={20} /></View>
-              <Text style={{ flex: 1, color: colors.muted, fontSize: 15 }}>ابحث عن سطحة، بنشر، مفاتيح…</Text>
+              <Text style={{ flex: 1, color: colors.muted, fontSize: 16, fontFamily: fonts.medium }}>ابحث عن سطحة، بنشر، مفاتيح…</Text>
               <Icon name="tune-variant" color={colors.muted} size={20} />
             </Row>
           </PressableScale>
@@ -153,22 +153,22 @@ const st = StyleSheet.create({
   // ارتفاع السطر أكبر من حجم الخط حتى لا يُقص أعلى الكلمة على iOS
   logo: { color: '#fff', fontFamily: fonts.heavy, fontSize: 28, lineHeight: 44, paddingTop: 2, includeFontPadding: false },
   logoDot: { color: colors.accent, fontSize: 30, lineHeight: 44 },
-  hello: { color: 'rgba(255,255,255,0.8)', fontFamily: fonts.medium, fontSize: 14, marginTop: 14 },
+  hello: { color: '#FFFFFF', opacity: 0.92, fontFamily: fonts.medium, fontSize: 15.5, lineHeight: 24, marginTop: 14 },
   headline: { color: '#fff', fontFamily: fonts.heavy, fontSize: 26, lineHeight: 40, marginTop: 2 },
   search: { marginTop: -28, height: 58, backgroundColor: colors.elevated, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, justifyContent: 'center', ...shadow },
   searchIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   sos: { marginTop: 14, borderRadius: radius.lg, overflow: 'hidden', ...shadow },
   sosInner: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
   sosIcon: { width: 46, height: 46, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.45)', alignItems: 'center', justifyContent: 'center' },
-  sosTitle: { fontFamily: fonts.heavy, fontSize: 16, color: '#3D2900', lineHeight: 24 },
-  sosSub: { fontFamily: fonts.medium, fontSize: 13, color: '#5A3D00', lineHeight: 20 },
+  sosTitle: { fontFamily: fonts.heavy, fontSize: 17.5, color: '#2E1F00', lineHeight: 27 },
+  sosSub: { fontFamily: fonts.medium, fontSize: 14.5, color: '#4A3200', lineHeight: 22 },
   sectionHead: { justifyContent: 'space-between', marginTop: 24, marginBottom: 12 },
-  sectionTitle: { fontFamily: fonts.heavy, fontSize: 19, color: colors.heading, lineHeight: 28 },
-  sectionAction: { fontFamily: fonts.bold, fontSize: 13, color: colors.primary },
+  sectionTitle: { fontFamily: fonts.heavy, fontSize: 21, color: colors.heading, lineHeight: 32 },
+  sectionAction: { fontFamily: fonts.bold, fontSize: 15, color: colors.link, lineHeight: 22 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 16 },
   tile: { width: '25%', alignItems: 'center' },
   tileIcon: { width: 60, height: 60, borderRadius: 20, alignItems: 'center', justifyContent: 'center', ...shadow },
-  tileText: { fontFamily: fonts.bold, fontSize: 12, textAlign: 'center', color: colors.text, lineHeight: 17, marginTop: 8, paddingHorizontal: 2 },
+  tileText: { fontFamily: fonts.bold, fontSize: 13.5, textAlign: 'center', color: colors.text, lineHeight: 20, marginTop: 8, paddingHorizontal: 2 },
   hList: { paddingHorizontal: 16, paddingBottom: 6 },
   skelCard: { width: 252, marginEnd: 12, backgroundColor: colors.card, borderRadius: radius.lg, overflow: 'hidden', borderWidth: 1, borderColor: colors.line },
 });

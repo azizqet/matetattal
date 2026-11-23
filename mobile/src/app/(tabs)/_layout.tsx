@@ -26,7 +26,7 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
-        tabBarLabelStyle: { fontFamily: fonts.medium, fontSize: 11 },
+        tabBarLabelStyle: { fontFamily: fonts.bold, fontSize: 12 },
         tabBarStyle: {
           backgroundColor: colors.tabBar, borderTopColor: colors.line, borderTopWidth: isDark ? 1 : 0,
           shadowColor: colors.shadow, shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: -4 }, elevation: 12,

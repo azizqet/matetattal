@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AuthField, AuthHero, AuthSwitch, FadeSlide, KuwaitPhoneField, OtpBoxes } from '@/components/AuthUI';
+import { AuthField, AuthHero, AuthTabs, FadeSlide, KuwaitPhoneField, OtpBoxes } from '@/components/AuthUI';
 import { ConsentCheckbox, rememberRegistrationConsent, useRequiredTerms } from '@/components/Consent';
 import { Button, Card, Icon, Row, Text, useToast } from '@/components/ui';
 import * as api from '@/lib/api';
@@ -125,24 +125,24 @@ export default function Auth() {
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + 28 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <AuthHero title={hero[0]} subtitle={hero[1]} topInset={insets.top + 38}>
+        <AuthHero title={hero[0]} subtitle={hero[1]} topInset={insets.top + 60}>
           {isCode ? <Text style={st.heroPhone}>{'⁦'}+965 {phone.slice(0, 4)} {phone.slice(4)}{'⁩'}</Text> : null}
         </AuthHero>
 
         <View style={st.body}>
           <Card style={st.card}>
             {step === 'register' || step === 'login' ? (
-              <AuthSwitch value={step} onChange={(v) => { setStep(v); setPassword(''); }} options={[['register', 'حساب جديد'], ['login', 'تسجيل دخول']]} />
+              <AuthTabs value={step} onChange={(v) => { setStep(v); setPassword(''); }} options={[['register', 'حساب جديد', 'account-plus-outline'], ['login', 'تسجيل دخول', 'login']]} />
             ) : null}
 
             <FadeSlide k={step}>
               {step === 'register' ? (
                 <>
+                  <AuthField icon="account-outline" label="الاسم" placeholder="اسمك الكامل" value={name} onChangeText={setName} autoComplete="name" textContentType="name" maxLength={80} testID="reg-name" />
                   <KuwaitPhoneField value={phone} onChangeText={setPhone} testID="reg-phone" />
-                  <AuthField icon="account-outline" label="الاسم" value={name} onChangeText={setName} autoComplete="name" textContentType="name" maxLength={80} testID="reg-name" />
-                  <AuthField icon="email-outline" label="البريد الإلكتروني" value={email} onChangeText={setEmail} ltr keyboardType="email-address" autoCapitalize="none"
+                  <AuthField icon="email-outline" label="البريد الإلكتروني" placeholder="name@example.com" value={email} onChangeText={setEmail} ltr keyboardType="email-address" autoCapitalize="none"
                     autoCorrect={false} autoComplete="email" textContentType="emailAddress" testID="reg-email" />
-                  <AuthField icon="lock-outline" label="كلمة المرور" value={password} onChangeText={setPassword} ltr secureToggle autoCapitalize="none"
+                  <AuthField icon="lock-outline" label="كلمة المرور" placeholder="8 خانات أو أكثر" value={password} onChangeText={setPassword} ltr secureToggle autoCapitalize="none"
                     autoComplete="new-password" textContentType="newPassword" testID="reg-password" />
                   <PasswordHint value={password} />
                   <ConsentCheckbox docs={terms.docs} checked={agreed} onChange={setAgreed} />
@@ -151,9 +151,10 @@ export default function Auth() {
                 </>
               ) : step === 'login' ? (
                 <>
-                  <AuthField icon="phone-outline" label="رقم التلفون" value={identifier} onChangeText={setIdentifier} ltr autoCapitalize="none" autoCorrect={false}
-                    keyboardType={identifier.includes('@') ? 'email-address' : 'default'} autoComplete="username" textContentType="username" testID="login-id" />
-                  <AuthField icon="lock-outline" label="كلمة المرور" value={password} onChangeText={setPassword} ltr secureToggle autoCapitalize="none"
+                  {/* الحسابات القديمة بالبريد تقدر تكتب بريدها هنا أيضاً (بدون رابط منفصل) */}
+                  <AuthField icon="phone-outline" label="رقم التلفون" placeholder="XXXX XXXX" value={identifier} onChangeText={setIdentifier} ltr autoCapitalize="none" autoCorrect={false}
+                    keyboardType={identifier.includes('@') ? 'email-address' : Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'} autoComplete="username" textContentType="username" testID="login-id" />
+                  <AuthField icon="lock-outline" label="كلمة المرور" placeholder="كلمة المرور" value={password} onChangeText={setPassword} ltr secureToggle autoCapitalize="none"
                     autoComplete="current-password" textContentType="password" testID="login-password" onSubmitEditing={login} />
                   <Button title="نسيت كلمة المرور؟" kind="ghost" small onPress={() => { setStep('forgot'); setPhone(/^\d{8}$/.test(identifier.trim()) ? identifier.trim() : ''); }}
                     style={{ alignSelf: 'flex-start', marginTop: 4 }} testID="login-forgot" />
@@ -167,7 +168,7 @@ export default function Auth() {
                   <Button title="تأكيد" icon="check" loading={busy} disabled={code.length !== CODE_LEN} onPress={() => verify(code)} style={{ marginTop: 18 }} testID="otp-submit" />
                   <Row style={{ justifyContent: 'center', marginTop: 12 }}>
                     {wait > 0 ? (
-                      <Text variant="muted">تقدر تطلب رمز جديد بعد <Text style={{ fontFamily: fonts.bold, color: colors.primary }}>{wait}</Text> ثانية</Text>
+                      <Text variant="muted">تقدر تطلب رمز جديد بعد <Text style={{ fontFamily: fonts.bold, color: colors.link }}>{wait}</Text> ثانية</Text>
                     ) : <Button title="أرسل الرمز مرة ثانية" kind="ghost" small icon="refresh" onPress={resend} testID="otp-resend" />}
                   </Row>
                   <Button title="تعديل رقم التلفون" kind="ghost" small onPress={() => { setStep(step === 'verify' ? 'register' : 'forgot'); setCode(''); }} />
@@ -180,7 +181,7 @@ export default function Auth() {
                 </>
               ) : (
                 <>
-                  <AuthField icon="lock-reset" label="كلمة المرور الجديدة" value={password} onChangeText={setPassword} ltr secureToggle autoCapitalize="none"
+                  <AuthField icon="lock-reset" label="كلمة المرور الجديدة" placeholder="8 خانات أو أكثر" value={password} onChangeText={setPassword} ltr secureToggle autoCapitalize="none"
                     autoComplete="new-password" textContentType="newPassword" testID="new-password" />
                   <PasswordHint value={password} />
                   <Button title="احفظ وكمّل" icon="check" loading={busy} onPress={saveNewPassword} style={{ marginTop: 18 }} testID="new-password-save" />
@@ -217,14 +218,14 @@ function PasswordHint({ value }: { value: string }) {
       <View style={{ flexDirection: 'row', gap: 6 }}>
         {[0, 1, 2].map((i) => <View key={i} style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: value && i < score ? color : colors.line }} />)}
       </View>
-      <Text variant="small" style={{ marginTop: 4 }}>8 خانات على الأقل، فيها حروف وأرقام</Text>
+      <Text variant="small" style={{ marginTop: 6 }}>8 خانات على الأقل، فيها حروف وأرقام</Text>
     </View>
   );
 }
 
 const st = StyleSheet.create({
   body: { paddingHorizontal: 16, width: '100%', maxWidth: 520, alignSelf: 'center' },
-  card: { marginTop: -40, padding: 18, borderRadius: radius.xl, ...shadow },
+  card: { marginTop: -34, padding: 18, borderRadius: radius.xl, ...shadow },
   heroPhone: { color: '#fff', fontFamily: fonts.bold, fontSize: 18, marginTop: 6, letterSpacing: 1, writingDirection: 'ltr', textAlign: 'right' },
   stepIcon: { alignSelf: 'center', width: 64, height: 64, borderRadius: 22, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   trust: { justifyContent: 'center', marginTop: 14 },
