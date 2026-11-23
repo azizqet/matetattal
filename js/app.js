@@ -6,7 +6,7 @@ import {
 } from './core.js';
 
 initSession('local');
-const VERSION = '4.1.1';
+const VERSION = '4.2.0';
 const COLS = 'id,service_id,name,phone,whatsapp,price_text,rating,rating_count,logo_url,cover_url,photos,description,address,lat,lng,is_24h,is_available,created_at,featured_until,is_sample,company_areas(areas(name_ar)),company_services(service_id)';
 
 /* ================= الحالة ================= */
@@ -501,6 +501,7 @@ function pgAccount() {
       ${menuItem('#/notifications', 'bell', 'الإشعارات', `<span class="cnt" id="ncnt" hidden></span>`)}
       ${menuItem('#/favorites', 'heart', 'المفضلة')}${menuItem('#/my-business', 'store', 'نشاطي التجاري')}${menuItem('#/my-ads', 'megaphone', 'إعلاناتي')}
       <button data-act="edit-name"><span class="ic">${icon('edit')}</span>تعديل الاسم${icon('chevL', 'chev')}</button>
+      <button data-act="change-pw"><span class="ic">${icon('lock')}</span>تغيير كلمة السر${icon('chevL', 'chev')}</button>
       <button data-act="recovery"><span class="ic">${icon('key2')}</span>رمز استرجاع كلمة السر${icon('chevL', 'chev')}</button></div>
     ${common}
     <div class="menu-title">الجلسة</div><div class="menu"><button data-act="logout"><span class="ic">${icon('logout')}</span>تسجيل الخروج</button><button data-act="delete-account" class="danger"><span class="ic">${icon('trash')}</span>حذف الحساب</button></div>
@@ -558,37 +559,34 @@ async function pgMyBusiness() {
 }
 async function pgJoin(_, q) {
   const ses = session();
-  const intro = `<div class="intro-card"><span class="k">لمقدمي خدمات السيارات</span><h2>انضم لماتعطل ووصل لعملاء أكثر</h2><p>سجّل نشاطك مجاناً، وبعد موافقة الإدارة وتفعيل الاشتراك يظهر للعملاء في قسمك ومنطقتك.</p>
-    <div class="steps"><div><span>1</span>أنشئ حساب برقم هاتفك وكلمة سر</div><div><span>2</span>عبّئ بيانات نشاطك</div><div><span>3</span>الإدارة تراجع وتتواصل معك للتفعيل</div></div><span class="art">${icon('store')}</span></div>`;
-  if (!ses) return {
-    tab: 'account',
-    html: `${topbar('انضم الآن')}${intro}<div class="pad" style="margin-top:16px;display:grid;gap:10px"><a class="btn primary block" href="#/auth?next=/join">ابدأ — إنشاء حساب أو دخول</a></div>`,
-  };
-  let mine = [];
-  try { mine = await myCompanies(); } catch (_) { }
-  if (mine.length && !q.get('new')) return {
-    tab: 'account',
-    html: `${topbar('انضم الآن')}<div class="pad" style="margin-top:12px"><div class="note y">${icon('info')}<div>عندك ${mine.length === 1 ? 'نشاط مسجّل' : mine.length + ' أنشطة مسجّلة'}. تابع حالته من «نشاطي التجاري».</div></div></div>
-      <div class="pad" style="margin-top:12px;display:grid;gap:10px"><a class="btn dark block" href="#/my-business">نشاطي التجاري</a><a class="btn line block" href="#/join?new=1">${icon('plus')}تسجيل نشاط آخر</a></div>`,
-  };
+  if (ses && !q.get('new')) {
+    let mine = [];
+    try { mine = await myCompanies(); } catch (_) { }
+    if (mine.length) return {
+      tab: 'account',
+      html: `${topbar('انضم الآن')}<div class="pad" style="margin-top:12px"><div class="note y">${icon('info')}<div>عندك ${mine.length === 1 ? 'نشاط مسجّل' : mine.length + ' أنشطة مسجّلة'}. تابع حالته من «طلباتي».</div></div></div>
+        <div class="pad" style="margin-top:12px;display:grid;gap:10px"><a class="btn primary block" href="#/requests?t=biz">طلباتي</a><a class="btn line block" href="#/join?new=1">${icon('plus')}تسجيل نشاط آخر</a></div>`,
+    };
+  }
   const prof = S.profile || {};
   return {
     tab: 'account',
     html: `${topbar('انضم الآن')}
-    <form class="form" id="joinf" novalidate style="margin-top:8px">
-      <div class="field"><label for="jn">اسم النشاط</label><input class="inp" id="jn" maxlength="100" placeholder="مثال: ونش السالمية السريع" required></div>
-      <div class="field"><label for="jsvc">نوع الخدمة</label><select class="inp" id="jsvc">${S.services.map(s => `<option value="${esc(s.id)}">${esc(s.name_ar)}</option>`).join('')}</select></div>
-      <div class="field"><label for="jar">المنطقة</label><select class="inp" id="jar">${S.areas.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('')}</select></div>
-      <div class="field"><label for="jp">رقم الهاتف (اتصال وواتساب)</label><div class="inp-wrap has-prefix"><span class="prefix">+965</span><input class="inp ltr" id="jp" inputmode="numeric" maxlength="12" value="${esc(prof.phone || '')}" placeholder="XXXXXXXX"></div></div>
-      <details class="more-opts"><summary>${icon('plus')}إضافات اختيارية <small>(شعار، وصف، أسعار، 24 ساعة، الموقع)</small></summary><div class="form" style="padding:12px 0 0">
-      <div class="field"><label for="jw">رقم الواتساب</label><div class="inp-wrap has-prefix"><span class="prefix">+965</span><input class="inp ltr" id="jw" inputmode="numeric" maxlength="12" placeholder="نفس رقم الاتصال إذا تركته فارغاً"></div></div>
-      <div class="field"><label for="jd">وصف النشاط</label><textarea class="inp" id="jd" maxlength="1500" placeholder="اكتب خدماتك، أوقات العمل، أي تفاصيل تهم العميل"></textarea></div>
-      <div class="field"><label for="jpr">الأسعار (اختياري)</label><input class="inp" id="jpr" maxlength="120" placeholder="مثال: يبدأ من 10 د.ك"></div>
-      <button type="button" class="switch" id="j24"><span><b>متاح 24 ساعة</b><small>يظهر شعار «24 ساعة» على بطاقتك</small></span><span class="tgl"></span></button>
-      <div class="field"><span class="lbl">الشعار أو صورة النشاط</span><label class="upload"><input type="file" id="jl" accept="image/jpeg,image/png,image/webp"><span class="pv" id="jlp">${icon('image')}</span><span><b>اختر صورة</b><small>JPG أو PNG — يتم ضغطها تلقائياً</small></span></label></div>
-      <div class="field"><span class="lbl">موقع النشاط على الخريطة (اختياري)</span><button type="button" class="btn line block" id="jmap">${icon('map')}<span>تحديد الموقع</span></button><span class="hint">يساعد العملاء القريبين يوصلون لك.</span></div></div></details>
-      <div class="note">${icon('shieldc')}<div>يظهر نشاطك للعملاء بعد موافقة الإدارة.</div></div>
-      <button class="btn primary block" type="submit">إرسال طلب الانضمام</button>
+    <div class="join-hero"><span class="ic">${icon('store')}</span><div><b>سجّل نشاطك في دقيقة</b><small>مجاناً — يظهر للعملاء بعد موافقة الإدارة</small></div></div>
+    <form class="form" id="joinf" novalidate style="margin-top:14px">
+      <div class="field"><label for="jn">اسم النشاط</label><input class="inp" id="jn" maxlength="100" placeholder="مثال: ونش السالمية" autocomplete="organization"></div>
+      <div class="field"><label for="jsvc">الخدمة</label><select class="inp" id="jsvc">${S.services.map(s => `<option value="${esc(s.id)}">${esc(s.name_ar)}</option>`).join('')}</select></div>
+      <div class="field"><label for="jp">رقم الهاتف</label><div class="inp-wrap has-prefix"><span class="prefix">+965</span><input class="inp ltr" id="jp" inputmode="numeric" maxlength="12" value="${esc(prof.phone || '')}" placeholder="XXXXXXXX" autocomplete="tel-national"></div></div>
+      ${ses ? '' : `<div class="field"><label for="jpw">كلمة سر لحسابك</label><div class="inp-wrap"><input class="inp" id="jpw" type="password" autocomplete="new-password" maxlength="72" placeholder="8 خانات أو أكثر (أرقام وحروف)"><button type="button" class="suffix" data-act="showpw" aria-label="إظهار">${icon('eye')}</button></div><span class="hint">عندك حساب؟ اكتب كلمة السر نفسها وبندخلك تلقائياً.</span></div>`}
+      <button class="btn primary block" type="submit">إرسال الطلب</button>
+      <details class="more-opts"><summary>${icon('plus')}تفاصيل إضافية <small>(اختياري)</small></summary><div class="form" style="padding:12px 0 0">
+        <div class="field"><label for="jar">المنطقة</label><select class="inp" id="jar"><option value="">كل الكويت</option>${S.areas.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('')}</select></div>
+        <div class="field"><label for="jw">رقم واتساب مختلف</label><div class="inp-wrap has-prefix"><span class="prefix">+965</span><input class="inp ltr" id="jw" inputmode="numeric" maxlength="12" placeholder="اتركه فارغاً إذا نفس الرقم"></div></div>
+        <div class="field"><label for="jd">وصف أو أسعار</label><textarea class="inp" id="jd" maxlength="1500" placeholder="خدماتك، أوقاتك، أسعارك"></textarea></div>
+        <button type="button" class="switch" id="j24"><span><b>متاح 24 ساعة</b></span><span class="tgl"></span></button>
+        <div class="field"><span class="lbl">الشعار</span><label class="upload"><input type="file" id="jl" accept="image/jpeg,image/png,image/webp"><span class="pv" id="jlp">${icon('image')}</span><span><b>اختر صورة</b><small>اختياري</small></span></label></div>
+        <button type="button" class="btn line block" id="jmap">${icon('map')}<span>موقعك على الخريطة</span></button>
+      </div></details>
     </form>`,
     after: el => bindJoin(el),
   };
@@ -601,26 +599,38 @@ function bindJoin(el) {
   f.onsubmit = ev => {
     ev.preventDefault();
     busy($('button[type=submit]', f), async () => {
-      const name = $('#jn', f).value.trim(), sv = $('#jsvc', f).value, areas = [$('#jar', f).value].filter(Boolean);
+      const name = $('#jn', f).value.trim(), sv = $('#jsvc', f).value, area = $('#jar', f).value;
       const ph = localPhone($('#jp', f).value), wa = $('#jw', f).value.trim() ? localPhone($('#jw', f).value) : ph;
       if (name.length < 2) return toast('اكتب اسم النشاط', 'err');
-      if (!sv) return toast('اختر نوع الخدمة', 'err');
-      if (!areas.length) return toast('اختر منطقة واحدة على الأقل', 'err');
-      if (!ph) return toast('اكتب هاتف اتصال صحيح من 8 أرقام', 'err');
+      if (!ph) return toast('اكتب رقم هاتف صحيح من 8 أرقام', 'err');
       if (!wa) return toast('رقم الواتساب غير صحيح', 'err');
       try {
+        if (!session()) {
+          const pw = $('#jpw', f).value;
+          if (pw.length < 8 || !/\d/.test(pw) || !/\D/.test(pw)) return toast(errText('weak password'), 'err');
+          if (/^2/.test(ph)) return toast('للتسجيل استخدم رقم موبايل', 'err');
+          try { await register(ph, pw, name); }
+          catch (e) {
+            if (!/already registered/.test(e.message)) throw e;
+            try { await login(ph, pw); } catch (_) { return toast('هذا الرقم مسجّل. اكتب كلمة السر الصحيحة لحسابك.', 'err'); }
+          }
+          await loadMe();
+        }
         const ses = session(); if (!ses) throw new Error('session');
         let logo = null; const file = $('#jl', f).files[0];
         if (file) logo = await upload('company-media', ses.uid + '/logo-' + rnd() + '.jpg', await shrinkImage(file, 800));
-        const body = { owner_id: ses.uid, name, service_id: sv, phone: ph, whatsapp: wa, description: $('#jd', f).value.trim() || null, price_text: $('#jpr', f).value.trim() || null, is_24h: h24, status: 'pending', is_active: false, logo_url: logo };
+        const desc = $('#jd', f).value.trim() || null;
+        const body = { owner_id: ses.uid, name, service_id: sv, phone: ph, whatsapp: wa, description: desc, is_24h: h24, status: 'pending', is_active: false, logo_url: logo };
         if (pos) { body.lat = pos.lat; body.lng = pos.lng; }
         const r = await rest('companies', { method: 'POST', body, prefer: 'return=representation' });
         const cid = r && r[0] && r[0].id; if (!cid) throw new Error('no id');
-        const areaRows = await rest('areas?select=id,name_ar', { anon: true });
-        const ids = (areaRows || []).filter(a => areas.includes(a.name_ar)).map(a => ({ company_id: cid, area_id: a.id }));
-        if (ids.length) await rest('company_areas', { method: 'POST', body: ids, prefer: 'return=minimal' });
-        $('#view').innerHTML = `${topbar('انضم الآن')}<div class="success"><div class="ok">${icon('check')}</div><h2>وصلنا طلبك</h2><p>طلب انضمام «${esc(name)}» قيد المراجعة. بنبلغك هنا بعد موافقة الإدارة، وممكن تتواصل معنا لتسريع التفعيل.</p>
-          <a class="btn wa block" target="_blank" rel="noopener" href="${waHref(supportWa(), 'السلام عليكم، سجلت نشاط «' + name + '» في ماتعطل (#' + cid + ') وأبي تفعيل الاشتراك')}">${icon('wa')}تواصل مع الإدارة للتفعيل</a><a class="btn ghost block" href="#/my-business">نشاطي التجاري</a></div>`;
+        if (area) {
+          const areaRows = await rest('areas?select=id,name_ar', { anon: true });
+          const ids = (areaRows || []).filter(a => a.name_ar === area).map(a => ({ company_id: cid, area_id: a.id }));
+          if (ids.length) await rest('company_areas', { method: 'POST', body: ids, prefer: 'return=minimal' });
+        }
+        $('#view').innerHTML = `${topbar('انضم الآن')}<div class="success"><div class="ok">${icon('check')}</div><h2>وصلنا طلبك</h2><p>«${esc(name)}» قيد المراجعة. بنبلغك بعد موافقة الإدارة.</p>
+          <a class="btn wa block" target="_blank" rel="noopener" href="${waHref(supportWa(), 'السلام عليكم، سجلت نشاط «' + name + '» في ماتعطل (#' + cid + ') وأبي تفعيل الاشتراك')}">${icon('wa')}تواصل لتسريع التفعيل</a><a class="btn ghost block" href="#/requests?t=biz">متابعة الطلب</a></div>`;
       } catch (err) { toast(errText(err), 'err'); }
     }, 'جاري الإرسال...');
   };
@@ -858,6 +868,19 @@ const ACT = {
       onOpen: sh => $('#rcgo', sh).onclick = e => busy(e.currentTarget, async () => {
         try { const code = await rpc('create_recovery_code'); $('#rcout', sh).innerHTML = `<div class="kv"><div class="r"><span style="flex:1"><b>رمزك (انسخه الآن)</b><div dir="ltr" style="font-size:20px;font-weight:800;letter-spacing:1px;text-align:center;user-select:all">${esc(code)}</div></span></div></div>`; e.currentTarget && (e.currentTarget.hidden = true); try { await navigator.clipboard.writeText(code); toast('تم نسخ الرمز'); } catch (_) { } }
         catch (err) { toast(errText(err), 'err'); }
+      })
+    });
+  },
+  'change-pw': () => {
+    sheet(`<div class="sheet-h"><h3>تغيير كلمة السر</h3><button class="icon-btn clear" data-close>${icon('close')}</button></div><div class="sheet-body">
+      <div class="field"><label>كلمة السر الجديدة</label><input class="inp" id="np1" type="password" autocomplete="new-password" maxlength="72" placeholder="8 خانات أو أكثر (أرقام وحروف)"></div>
+      <div class="field"><label>تأكيد كلمة السر</label><input class="inp" id="np2" type="password" autocomplete="new-password" maxlength="72"></div>
+      <button class="btn primary block" id="npgo">حفظ</button></div>`, {
+      onOpen: sh => $('#npgo', sh).onclick = e => busy(e.currentTarget, async () => {
+        const a = $('#np1', sh).value, b = $('#np2', sh).value;
+        if (a.length < 8 || !/\d/.test(a) || !/\D/.test(a)) return toast(errText('weak password'), 'err');
+        if (a !== b) return toast('كلمتا السر غير متطابقتين', 'err');
+        try { await api('/auth/v1/user', { method: 'PUT', body: { password: a } }); closeSheet(); toast('تم تغيير كلمة السر', 'ok'); } catch (err) { toast(errText(err), 'err'); }
       })
     });
   },
