@@ -2,7 +2,7 @@
 // كل العناصر داخل حدود الشاشة (لا عناصر مطلقة خارج الإطار)، أسماء الخانات ظاهرة دائماً فوقها،
 // ونصوص كحلية عالية التباين (WCAG AA) في الوضعين الفاتح والداكن.
 import { LinearGradient } from 'expo-linear-gradient';
-import { forwardRef, useEffect, useRef, useState, type ComponentRef, type ReactNode } from 'react';
+import { forwardRef, memo, useEffect, useImperativeHandle, useRef, useState, type ComponentRef, type ReactNode } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, TextInput, useWindowDimensions, View, type TextInputProps } from 'react-native';
 import { colors, fonts, gradients, isDark, radius } from '@/lib/theme';
 import { Icon, Text } from './ui';
@@ -56,91 +56,126 @@ export function AuthTabs<T extends string>({ value, options, onChange }: { value
   );
 }
 
-/** خانة باسم ظاهر دائماً فوقها، أيقونة، توهج عند الكتابة، وزر إظهار/إخفاء كلمة المرور */
-export const AuthField = forwardRef<ComponentRef<typeof TextInput>, TextInputProps & { icon: string; label: string; ltr?: boolean; secureToggle?: boolean; hint?: string }>(
-  function AuthField({ icon, label, ltr, secureToggle, hint, style, ...p }, ref) {
+// ===== نظام الإدخال الموحّد =====
+// قواعد ثابتة لكل الخانات حتى لا يُصلَح حقل ويخرب غيره:
+//  1) TextInput لا يُغلَّف أبداً بعنصر قابل للضغط (Pressable) — الأيقونة وحدها قابلة للضغط وتنقل التركيز للحقل،
+//     فلا يتنافس عنصر آخر على لمسات الكتابة/اللصق/التحديد.
+//  2) لا maxLength على الحقول المنسّقة (التلفون/الرمز): iOS يقص النص الملصوق أو المعبّأ تلقائياً قبل وصوله
+//     (مثل «‎+965 9770 6792» → «‎+965 977») أو يرفضه كاملاً. التنقية والحد يتمّان في onChangeText.
+//  3) المكوّنات معرّفة خارج الشاشة، بمفاتيح ثابتة، ومعزولة بـ memo — لا إعادة إنشاء ولا فقدان تركيز مع كل حرف.
+//  4) لا عناصر شفافة فوق الحقول (الطبقة المخفية الوحيدة لمربعات الرمز تحت مكوّنها فقط).
+
+/** أرقام عربية/فارسية → إنجليزية */
+export const toLatin = toLatinDigits;
+
+/** رقم تلفون كويتي محلي (8 أرقام) من أي إدخال: كتابة، لصق «‎+965 9770 6792»، «00965…»، أو تعبئة تلقائية */
+export function sanitizeKwPhone(input: string): string {
+  let d = toLatinDigits(input).replace(/\D/g, '');
+  if (d.length > 8 && d.startsWith('00965')) d = d.slice(5);
+  else if (d.length > 8 && d.startsWith('965')) d = d.slice(3);
+  return d.slice(0, 8);
+}
+
+/** إطار الخانة: الاسم فوقها دائماً، أيقونة تنقل التركيز، وتوهج عند الكتابة */
+function FieldShell({ label, icon, focused, onIconPress, children, trailing, hint, ltrRow }: {
+  label: string; icon?: ReactNode | string; focused: boolean; onIconPress: () => void; children: ReactNode; trailing?: ReactNode; hint?: string; ltrRow?: boolean;
+}) {
+  return (
+    <View style={f.group}>
+      <Text style={f.label}>{label}</Text>
+      <View style={[f.box, ltrRow && f.ltrRow, focused && f.boxFocus]}>
+        {icon ? (
+          <Pressable onPress={onIconPress} hitSlop={8} accessible={false}>
+            {typeof icon === 'string' ? <Icon name={icon} size={22} color={focused ? colors.link : colors.muted} /> : icon}
+          </Pressable>
+        ) : null}
+        {children}
+        {trailing}
+      </View>
+      {hint ? <Text style={f.hint}>{hint}</Text> : null}
+    </View>
+  );
+}
+
+type FieldProps = TextInputProps & { icon: string; label: string; ltr?: boolean; secureToggle?: boolean; hint?: string };
+
+/** خانة نصية عامة (الاسم، البريد، كلمة المرور…) */
+export const AuthField = memo(forwardRef<ComponentRef<typeof TextInput>, FieldProps>(
+  function AuthField({ icon, label, ltr, secureToggle, hint, style, onChangeText, onFocus, onBlur, ...p }, ref) {
     const [focus, setFocus] = useState(false);
     const [hidden, setHidden] = useState(!!secureToggle);
-    // مرجع داخلي + المرجع الممرَّر من الخارج: الضغط على أي جزء من الخانة (الأيقونة/الإطار) يفتح الكتابة
     const inner = useRef<ComponentRef<typeof TextInput>>(null);
-    const setRefs = (node: ComponentRef<typeof TextInput> | null) => {
-      inner.current = node;
-      if (typeof ref === 'function') ref(node); else if (ref) ref.current = node;
-    };
-    // iOS يمسح محتوى الحقل السري عند أول حرف بعد إعادة الإخفاء — نحفظ النص ونكمل عليه بدل مسحه
+    useImperativeHandle(ref, () => inner.current as ComponentRef<typeof TextInput>, []);
+    // iOS يمسح الحقل السري عند أول حرف بعد إعادة إخفائه — نُكمل على النص بدل مسحه
     const reHidden = useRef(false);
     const toggle = () => {
       if (!hidden) reHidden.current = true;
       setHidden(!hidden);
-      // نُبقي التركيز ولوحة المفاتيح على الحقل بعد الضغط على العين
-      setTimeout(() => inner.current?.focus(), 0);
+      setTimeout(() => inner.current?.focus(), 0); // يبقى التركيز ولوحة المفاتيح على الحقل
     };
-    const onChangeText = (t: string) => {
+    const change = (t: string) => {
       const prev = typeof p.value === 'string' ? p.value : '';
-      if (reHidden.current && Platform.OS === 'ios' && prev.length > 1 && t.length === 1) { reHidden.current = false; p.onChangeText?.(prev + t); return; }
+      if (reHidden.current && Platform.OS === 'ios' && prev.length > 1 && t.length === 1) { reHidden.current = false; onChangeText?.(prev + t); return; }
       reHidden.current = false;
-      p.onChangeText?.(t);
+      onChangeText?.(t);
     };
     return (
-      <View style={f.group}>
-        <Text style={f.label}>{label}</Text>
-        <Pressable onPress={() => inner.current?.focus()} style={[f.box, focus && f.boxFocus]} accessible={false}>
-          <Icon name={icon} size={22} color={focus ? colors.link : colors.muted} />
-          <TextInput
-            ref={setRefs}
-            placeholderTextColor={colors.placeholder}
-            accessibilityLabel={label}
-            {...p}
-            onChangeText={onChangeText}
-            editable={p.editable ?? true}
-            secureTextEntry={secureToggle ? hidden : p.secureTextEntry}
-            onFocus={(e) => { setFocus(true); p.onFocus?.(e); }}
-            onBlur={(e) => { setFocus(false); p.onBlur?.(e); }}
-            style={[f.input, ltr && f.ltr, style]}
-          />
-          {secureToggle ? (
-            // الضغط على العين لا يسحب التركيز من الحقل ولا يغلق لوحة المفاتيح
-            <Pressable onPress={toggle} hitSlop={12} accessibilityRole="button" accessibilityLabel={hidden ? 'إظهار كلمة المرور' : 'إخفاء كلمة المرور'} testID={`${p.testID ?? 'pw'}-eye`}>
-              <Icon name={hidden ? 'eye-outline' : 'eye-off-outline'} size={23} color={colors.text} />
-            </Pressable>
-          ) : null}
-        </Pressable>
-        {hint ? <Text style={f.hint}>{hint}</Text> : null}
-      </View>
+      <FieldShell label={label} icon={icon} focused={focus} onIconPress={() => inner.current?.focus()} hint={hint}
+        trailing={secureToggle ? (
+          <Pressable onPress={toggle} hitSlop={12} accessibilityRole="button" accessibilityLabel={hidden ? 'إظهار كلمة المرور' : 'إخفاء كلمة المرور'} testID={`${p.testID ?? 'pw'}-eye`}>
+            <Icon name={hidden ? 'eye-outline' : 'eye-off-outline'} size={23} color={colors.text} />
+          </Pressable>
+        ) : null}>
+        <TextInput
+          ref={inner}
+          placeholderTextColor={colors.placeholder}
+          accessibilityLabel={label}
+          editable
+          {...p}
+          onChangeText={change}
+          secureTextEntry={secureToggle ? hidden : p.secureTextEntry}
+          onFocus={(e) => { setFocus(true); onFocus?.(e); }}
+          onBlur={(e) => { setFocus(false); onBlur?.(e); }}
+          style={[f.input, ltr && f.ltr, style]}
+        />
+      </FieldShell>
     );
   },
-);
+));
 
-/** خانة التلفون الكويتي: علم + ‎+965 ثابت، 8 أرقام من اليسار لليمين */
-export function KuwaitPhoneField({ label = 'رقم التلفون', value, onChangeText, testID, autoFocus, onSubmitEditing }: {
+/** خانة التلفون الكويتي: العلم و‎+965 ثابتان ومنفصلان عن الرقم، 8 أرقام فقط، ولوحة أرقام */
+export const KuwaitPhoneField = memo(function KuwaitPhoneField({ label = 'رقم التلفون', value, onChangeText, testID, autoFocus, onSubmitEditing }: {
   label?: string; value: string; onChangeText: (v: string) => void; testID?: string; autoFocus?: boolean; onSubmitEditing?: () => void;
 }) {
   const [focus, setFocus] = useState(false);
-  return (
-    <View style={f.group}>
-      <Text style={f.label}>{label}</Text>
-      <View style={[f.box, f.phoneBox, focus && f.boxFocus]}>
-        <View style={f.cc}>
-          <View style={f.flag}>
-            <View style={{ flex: 1, backgroundColor: '#007A3D' }} /><View style={{ flex: 1, backgroundColor: '#FFFFFF' }} /><View style={{ flex: 1, backgroundColor: '#CE1126' }} />
-            <View style={f.flagBlack} />
-          </View>
-          <Text style={f.ccText}>+965</Text>
-        </View>
-        <View style={f.sep} />
-        <TextInput
-          value={value}
-          onChangeText={(v) => onChangeText(toLatinDigits(v).replace(/\D/g, '').slice(0, 8))}
-          keyboardType="number-pad" inputMode="numeric" textContentType="telephoneNumber" autoComplete="tel" maxLength={8}
-          placeholder="XXXX XXXX" placeholderTextColor={colors.placeholder} accessibilityLabel={label}
-          autoFocus={autoFocus} onSubmitEditing={onSubmitEditing} returnKeyType="next"
-          onFocus={() => setFocus(true)} onBlur={() => setFocus(false)}
-          testID={testID} style={[f.input, f.phoneInput]}
-        />
+  const input = useRef<ComponentRef<typeof TextInput>>(null);
+  const change = (t: string) => onChangeText(sanitizeKwPhone(t));
+  const prefix = (
+    <View style={f.cc} accessibilityLabel="مفتاح الكويت +965">
+      <View style={f.flag}>
+        <View style={{ flex: 1, backgroundColor: '#007A3D' }} /><View style={{ flex: 1, backgroundColor: '#FFFFFF' }} /><View style={{ flex: 1, backgroundColor: '#CE1126' }} />
+        <View style={f.flagBlack} pointerEvents="none" />
       </View>
+      <Text style={f.ccText}>+965</Text>
+      <View style={f.sep} />
     </View>
   );
-}
+  return (
+    <FieldShell label={label} icon={prefix} focused={focus} onIconPress={() => input.current?.focus()} ltrRow>
+      <TextInput
+        ref={input}
+        value={value}
+        onChangeText={change}
+        editable
+        keyboardType="number-pad" inputMode="numeric" textContentType="telephoneNumber" autoComplete="tel"
+        placeholder="XXXX XXXX" placeholderTextColor={colors.placeholder} accessibilityLabel={label}
+        autoFocus={autoFocus} onSubmitEditing={onSubmitEditing} returnKeyType="next" autoCorrect={false} spellCheck={false}
+        onFocus={() => setFocus(true)} onBlur={() => setFocus(false)}
+        testID={testID} style={[f.input, f.phoneInput]}
+      />
+    </FieldShell>
+  );
+});
 
 /** مربعات رمز التحقق (6) فوق حقل واحد يدعم التعبئة التلقائية من الرسائل */
 export const OtpBoxes = forwardRef<ComponentRef<typeof TextInput>, { value: string; onChange: (v: string) => void; length?: number; testID?: string; error?: boolean }>(
@@ -158,7 +193,7 @@ export const OtpBoxes = forwardRef<ComponentRef<typeof TextInput>, { value: stri
           })}
         </View>
         <TextInput
-          ref={ref} value={value} maxLength={length}
+          ref={ref} value={value}
           onChangeText={(v) => onChange(toLatinDigits(v).replace(/\D/g, '').slice(0, length))}
           keyboardType="number-pad" inputMode="numeric" textContentType="oneTimeCode" autoComplete="sms-otp" importantForAutofill="yes"
           caretHidden accessibilityLabel="رمز التحقق" testID={testID} style={o.hidden}
@@ -202,12 +237,12 @@ const f = StyleSheet.create({
   boxFocus: { borderColor: colors.primary, borderWidth: 2, shadowColor: colors.primary, shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
   input: { flex: 1, minWidth: 0, minHeight: 56, paddingVertical: 0, fontFamily: fonts.bold, fontSize: 17, color: colors.inputText, writingDirection: 'rtl', textAlign: 'right' },
   ltr: { writingDirection: 'ltr', textAlign: 'left' },
-  phoneBox: { direction: 'ltr' },
-  cc: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  ltrRow: { direction: 'ltr' },
+  cc: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
   flag: { width: 26, height: 18, borderRadius: 4, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
   flagBlack: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 9, backgroundColor: '#000' },
   ccText: { fontFamily: fonts.bold, fontSize: 18, lineHeight: 26, color: colors.inputText, writingDirection: 'ltr' },
-  sep: { width: 1.5, height: 28, backgroundColor: colors.inputBorder },
+  sep: { width: 1.5, height: 28, backgroundColor: colors.inputBorder, marginStart: 4 },
   phoneInput: { writingDirection: 'ltr', textAlign: 'left', fontSize: 19, letterSpacing: 2 },
 });
 const o = StyleSheet.create({

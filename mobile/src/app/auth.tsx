@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AuthField, AuthHero, AuthTabs, FadeSlide, KuwaitPhoneField, OtpBoxes } from '@/components/AuthUI';
+import { AuthField, AuthHero, AuthTabs, FadeSlide, KuwaitPhoneField, OtpBoxes, sanitizeKwPhone } from '@/components/AuthUI';
 import { ConsentCheckbox, rememberRegistrationConsent, useRequiredTerms } from '@/components/Consent';
 import { Button, Card, Icon, Row, Text, useToast } from '@/components/ui';
 import * as api from '@/lib/api';
@@ -92,8 +92,10 @@ export default function Auth() {
 
   // ===== تسجيل الدخول =====
   const login = () => run(async () => {
-    const id = identifier.trim();
-    const isEmail = id.includes('@');
+    const raw = identifier.trim();
+    const isEmail = raw.includes('@');
+    // رقم ملصوق بصيغة «‎+965 9770 6792» أو «00965…» يُنقّى إلى 8 أرقام
+    const id = isEmail ? raw : sanitizeKwPhone(raw);
     if (isEmail ? !EMAIL.test(id) : !isKuwaitMobile(id)) { toast('اكتب رقم التلفون (8 أرقام) أو البريد الإلكتروني'); return; }
     if (!password) { toast('اكتب كلمة المرور'); return; }
     await api.signInWithPassword(id, password);
