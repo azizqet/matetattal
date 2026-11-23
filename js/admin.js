@@ -8,8 +8,8 @@ initSession('session'); // جلسة الإدارة تنتهي بإغلاق ال�
 const A = { me: null, tab: 'overview', services: [], areas: [], cache: {} };
 const TABS = [
   ['overview', 'نظرة عامة', 'chart'], ['companies', 'مقدمو الخدمات', 'store'], ['join', 'طلبات الانضمام', 'users'],
-  ['ads', 'الإعلانات', 'megaphone'], ['subs', 'الاشتراكات والمدفوعات', 'card'], ['catalog', 'الأقسام والمناطق', 'grid'],
-  ['content', 'البنرات والمحتوى', 'layers'], ['users', 'المستخدمون', 'user'],
+  ['subs', 'الاشتراكات والمدفوعات', 'card'], ['catalog', 'الأقسام والمناطق', 'grid'],
+  ['content', 'المحتوى والإعدادات', 'layers'], ['users', 'المستخدمون', 'user'],
 ];
 const svcName = id => (A.services.find(s => s.id === id) || {}).name_ar || id || '—';
 const root = () => $('#adm');
@@ -61,7 +61,7 @@ async function refreshCounts() {
     const [pc, jr, ad] = await Promise.all([
       rest('companies?select=id&status=eq.pending'), rest('join_requests?select=id&status=eq.new'), rest('ad_campaigns?select=id&status=eq.pending')]);
     const set = (k, n) => $$(`[data-cnt="${k}"]`).forEach(x => { x.hidden = !n; x.textContent = n; });
-    set('join', (pc || []).length + (jr || []).length); set('ads', (ad || []).length);
+    set('join', (pc || []).length + (jr || []).length);
   } catch (_) { }
 }
 addEventListener('hashchange', () => { const t = location.hash.replace('#', ''); if (TABS.some(x => x[0] === t)) { A.tab = t; show(); } });
@@ -92,7 +92,7 @@ async function vOverview(m) {
   m.innerHTML = head('نظرة عامة') + `
     <div class="kpis">${k('مقدمو خدمة ظاهرون', fmtNum(st.companies_visible), 1)}${k('بانتظار الموافقة', fmtNum(st.companies_pending + st.join_requests_new))}${k('تنتهي خلال 7 أيام', fmtNum(st.expiring_7d))}${k('إجمالي مقدمي الخدمة', fmtNum(st.companies_total))}
     ${k('زيارات (30 يوم)', fmtNum(sum(visits)))}${k('اتصال + واتساب (30 يوم)', fmtNum(sum(contacts)))}${k('مشاهدات مقدمي الخدمة', fmtNum(st.visits))}${k('نقرات اتصال/واتساب (الإجمالي)', fmtNum(st.calls + st.wa_taps))}
-    ${k('إعلانات منشورة الآن', fmtNum(live.length))}${k('إعلانات بانتظار المراجعة', fmtNum((ads || []).filter(a => a.status === 'pending').length))}${k('إيراد الإعلانات المؤكد', fmtNum(adRev) + ' د.ك')}${k('إيراد الاشتراكات الفعّالة', fmtNum(st.revenue_active_kwd) + ' د.ك')}</div>
+    ${k('إيراد الاشتراكات الفعّالة', fmtNum(st.revenue_active_kwd) + ' د.ك')}</div>
     <div class="panel"><h3>الزيارات والتواصل — آخر 30 يوم<span class="legend"><span><i></i>زوار فريدون</span><span><i class="y"></i>اتصال/واتساب</span></span></h3>
       <div class="bars">${days.map((d, i) => `<div class="b" title="${d}: ${visits[i]} زيارة / ${contacts[i]} تواصل"><span style="height:${visits[i] / max * 100}%"></span><span class="y" style="height:${contacts[i] / max * 100}%"></span>${i % 5 === 0 ? `<em>${d.slice(5)}</em>` : '<em>&nbsp;</em>'}</div>`).join('')}</div>
       <p style="color:var(--mut);font-size:12.5px;margin:10px 0 0">الأرقام فعلية من الخادم. الزائر يُحسب مرة واحدة يومياً لكل عنوان شبكة (بدون تخزين العنوان نفسه). تبدأ الإحصائيات من تاريخ تشغيل الواجهة الجديدة.</p></div>
@@ -123,7 +123,6 @@ function coRow(c) {
       ${c.status !== 'approved' ? `<button class="btn xs primary" data-act="co-approve" data-id="${c.id}">${icon('check')}موافقة ونشر 30 يوم</button>` : ''}
       ${c.status === 'pending' ? `<button class="btn xs danger-soft" data-act="co-reject" data-id="${c.id}">رفض</button>` : ''}
       ${c.status === 'approved' ? `<button class="btn xs ghost" data-act="co-toggle" data-id="${c.id}">${c.is_active ? icon('pause') + 'إيقاف' : icon('play') + 'تفعيل'}</button><button class="btn xs ghost" data-act="co-extend" data-id="${c.id}">+30 يوم</button>` : ''}
-      <button class="btn xs ghost" data-act="co-feature" data-id="${c.id}">${icon('star')}${feat ? 'إدارة التمييز' : 'تمييز'}</button>
       <button class="btn xs ghost" data-act="co-edit" data-id="${c.id}">${icon('edit')}تعديل</button>
       <button class="btn xs danger-soft" data-act="co-del" data-id="${c.id}">${icon('trash')}</button></div></div>`;
 }
@@ -245,8 +244,8 @@ async function vSubs(m) {
     <p style="color:var(--mut);font-size:12.5px;margin:8px 0 0">تظهر هذه الأسعار للمعلن في صفحة «أعلن معنا»، وتُعبّأ تلقائياً عند تأكيد الدفع.</p></div>`;
   const st = { pending: ['warn', 'بانتظار الدفع'], active: ['ok', 'فعّال'], expired: ['', 'منتهي'], cancelled: ['bad', 'ملغي'] };
   m.innerHTML = head('الاشتراكات والمدفوعات', `<button class="btn sm primary" data-act="sub-new">${icon('plus')}اشتراك جديد</button>`) +
-    priceTable + `<div class="panel"><h3>باقات اشتراك مقدمي الخدمة <button class="btn xs ghost" data-act="plan-new">${icon('plus')}باقة</button></h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>الباقة</th><th>المدة</th><th>السعر</th><th>الحالة</th><th></th></tr></thead><tbody>
-      ${(plans || []).map(p => `<tr><td>${esc(p.name_ar)}</td><td>${p.months} شهر</td><td>${fmtNum(p.price_kwd)} د.ك</td><td>${p.is_active ? '<span class="tg ok">فعّالة</span>' : '<span class="tg">متوقفة</span>'}</td><td><button class="btn xs ghost" data-act="plan-edit" data-id="${esc(p.id)}">${icon('edit')}</button></td></tr>`).join('')}</tbody></table></div></div>
+    `<div class="panel"><h3>اشتراك مقدمي الخدمة (باقة واحدة)</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>الباقة</th><th>المدة</th><th>السعر</th><th>الحالة</th><th></th></tr></thead><tbody>
+      ${(plans || []).filter(p => p.is_active).map(p => `<tr><td>${esc(p.name_ar)}</td><td>${p.months} شهر</td><td>${fmtNum(p.price_kwd)} د.ك</td><td>${p.is_active ? '<span class="tg ok">فعّالة</span>' : '<span class="tg">متوقفة</span>'}</td><td><button class="btn xs ghost" data-act="plan-edit" data-id="${esc(p.id)}">${icon('edit')}</button></td></tr>`).join('')}</tbody></table></div></div>
     <div class="panel"><h3>الاشتراكات (${(subs || []).length})</h3>${(subs || []).length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>#</th><th>مقدم الخدمة</th><th>المبلغ</th><th>من</th><th>إلى</th><th>الحالة</th><th></th></tr></thead><tbody>
       ${subs.map(s => `<tr><td>${s.id}</td><td>${esc((s.companies && s.companies.name) || '#' + s.company_id)}</td><td>${fmtNum(s.amount_kwd)} د.ك</td><td>${fmtDate(s.starts_on)}</td><td>${fmtDate(s.ends_on)}</td><td><span class="tg ${(st[s.status] || [])[0]}">${(st[s.status] || [, s.status])[1]}</span></td><td>${s.status === 'pending' ? `<button class="btn xs primary" data-act="sub-activate" data-id="${s.id}">تأكيد الدفع والتفعيل</button> <button class="btn xs ghost" data-act="sub-cancel" data-id="${s.id}">إلغاء</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p style="color:var(--mut);margin:0">لا توجد اشتراكات مسجّلة بعد. التمديد السريع (+30 يوم) من صفحة مقدمي الخدمات لا يُنشئ سجل دفع؛ استخدم «اشتراك جديد» لتوثيق المدفوعات.</p>'}</div>
     <div class="panel"><h3>المدفوعات (${(pays || []).length})</h3>${(pays || []).length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>#</th><th>اشتراك</th><th>المبلغ</th><th>الطريقة</th><th>المرجع</th><th>الحالة</th><th>التاريخ</th></tr></thead><tbody>
@@ -285,10 +284,7 @@ async function vContent(m) {
   const [bn, set] = await Promise.all([rest('banners?select=*&order=sort.asc'), rest('app_settings?select=key,value,is_public&key=in.(support_whatsapp,maintenance_message)')]);
   A.cache.banners = bn || [];
   const sv = k => ((set || []).find(x => x.key === k) || {}).value;
-  m.innerHTML = head('البنرات والمحتوى', `<button class="btn sm primary" data-act="bn-new">${icon('plus')}بانر</button>`) + `
-    <div class="panel"><h3>بنرات الإدارة (تظهر في الصفحة الرئيسية)</h3><div class="rows">${(bn || []).map(b => `<div class="arow">${safeImg(b.image_url) ? `<img class="ad-img" src="${esc(safeImg(b.image_url))}" alt="">` : ''}<div class="top"><div class="t"><b>${esc(b.title)}</b><small>${esc(b.subtitle || '')} · ترتيب ${b.sort}${b.company_id ? ' · يفتح مقدم #' + b.company_id : ''}</small></div>${b.is_active ? '<span class="tg ok">فعّال</span>' : '<span class="tg">متوقف</span>'}</div>
-      <div class="kvs"><span><b>من</b> ${fmtDate(b.starts_at)} <b>إلى</b> ${b.ends_at ? fmtDate(b.ends_at) : 'مفتوح'}</span></div>
-      <div class="btns"><button class="btn xs ghost" data-act="bn-edit" data-id="${b.id}">${icon('edit')}تعديل</button><button class="btn xs ghost" data-act="bn-toggle" data-id="${b.id}">${b.is_active ? 'إيقاف' : 'تفعيل'}</button><button class="btn xs danger-soft" data-act="bn-del" data-id="${b.id}">${icon('trash')}</button></div></div>`).join('') || '<p style="color:var(--mut);margin:0">لا توجد بنرات. عند عدم وجود بنرات أو إعلانات، يعرض التطبيق بطاقات ماتعطل التعريفية (أعلن معنا / انضم الآن).</p>'}</div></div>
+  m.innerHTML = head('المحتوى والإعدادات') + `
     <div class="panel"><h3>إعدادات المحتوى</h3><div class="form" style="padding:0">
       <div class="field"><label>رقم واتساب الدعم</label><input class="inp ltr" id="swa" value="${esc(digits(sv('support_whatsapp')))}"></div>
       <div class="field"><label>رسالة تنبيه أعلى الصفحة الرئيسية (اتركها فارغة للإخفاء)</label><input class="inp" id="smm" maxlength="200" value="${esc(sv('maintenance_message') || '')}"></div>
@@ -365,7 +361,7 @@ const ACT = {
       ${rows.length ? `<table class="tbl"><thead><tr><th>اليوم</th><th>مشاهدات</th><th>نقرات</th></tr></thead><tbody>${rows.map(r => `<tr><td>${fmtDate(r.day)}</td><td>${fmtNum(r.views)}</td><td>${fmtNum(r.clicks)}</td></tr>`).join('')}</tbody></table>` : '<p style="color:var(--mut)">لا توجد بيانات بعد — تبدأ عند نشر الإعلان.</p>'}</div>`);
   },
   'sub-new': () => promptSheet('اشتراك جديد', `<div class="field"><label>مقدم الخدمة</label><select class="inp" id="sc">${A.cache.allCos.map(c => `<option value="${c.id}">${esc(c.name)} (#${c.id})</option>`).join('')}</select></div>
-    <div class="field"><label>الباقة</label><select class="inp" id="sp">${A.cache.plans.map(p => `<option value="${esc(p.id)}" data-m="${p.months}" data-p="${p.price_kwd}">${esc(p.name_ar)} — ${fmtNum(p.price_kwd)} د.ك</option>`).join('')}</select></div>
+    <div class="field"><label>الباقة</label><select class="inp" id="sp">${A.cache.plans.filter(p => p.is_active).map(p => `<option value="${esc(p.id)}" data-m="${p.months}" data-p="${p.price_kwd}">${esc(p.name_ar)} — ${fmtNum(p.price_kwd)} د.ك</option>`).join('')}</select></div>
     <div class="grid2"><div class="field"><label>المبلغ (د.ك)</label><input class="inp" id="sa" type="number" step="0.001" value="${(A.cache.plans[0] || {}).price_kwd ?? ''}"></div><div class="field"><label>يبدأ</label><input class="inp" id="ss" type="date" value="${todayISO()}"></div></div>
     <button type="button" class="switch" id="spaid"><span><b>تم استلام الدفع</b><small>يُفعّل الاشتراك ويُظهر مقدم الخدمة مباشرة</small></span><span class="tgl"></span></button>
     <div class="field"><label>مرجع الدفع (اختياري)</label><input class="inp" id="sr" maxlength="120"></div>`, (sh, b) => {

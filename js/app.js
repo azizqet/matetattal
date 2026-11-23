@@ -6,7 +6,7 @@ import {
 } from './core.js';
 
 initSession('local');
-const VERSION = '4.5.0';
+const VERSION = '4.7.0';
 const COLS = 'id,service_id,name,phone,whatsapp,price_text,rating,rating_count,logo_url,cover_url,photos,description,address,lat,lng,is_24h,is_available,created_at,featured_until,is_sample,company_areas(areas(name_ar)),company_services(service_id)';
 
 /* ================= الحالة ================= */
@@ -29,7 +29,7 @@ function mapCo(r) {
     price: r.price_text || '', rating: Number(r.rating) || 0, rc: r.rating_count || 0, logo: safeImg(r.logo_url), cover: safeImg(r.cover_url),
     photos: (r.photos || []).map(safeImg).filter(Boolean), desc: r.description || '', addr: r.address || '',
     lat: r.lat, lng: r.lng, h24: !!r.is_24h, avail: r.is_available !== false, created: r.created_at,
-    feat: !!(r.featured_until && r.featured_until >= todayISO()),
+    feat: false, // ميزة «المميز» ملغاة بطلب المالك
     areas: (r.company_areas || []).map(x => x.areas && x.areas.name_ar).filter(Boolean),
   };
 }
@@ -53,8 +53,8 @@ async function loadPublic(force) {
       rest('services?select=id,name_ar,sort,icon,is_active&order=sort.asc', { anon: true }),
       rest('areas?select=id,name_ar&order=id.asc', { anon: true }),
       rest(`companies?select=${COLS}&is_active=eq.true&status=eq.approved&sub_end=gte.${t}&order=created_at.desc&limit=1000`, { anon: true }),
-      rest('banners?select=id,title,subtitle,image_url,company_id,sort&is_active=eq.true&order=sort.asc', { anon: true }).catch(() => []),
-      rpc('live_ads', {}, { anon: true }).catch(() => []),
+      Promise.resolve([]), // البنرات ملغاة بطلب المالك
+      Promise.resolve([]), // الإعلانات ملغاة بطلب المالك
       rest('app_settings?select=key,value&is_public=eq.true', { anon: true }).catch(() => []),
       rest('subscription_plans?select=id,name_ar,months,price_kwd,sort&is_active=eq.true&order=sort.asc', { anon: true }).catch(() => []),
     ]);
@@ -223,11 +223,11 @@ function pgHome() {
     ${installCard()}
     ${maint ? `<div class="pad" style="margin-top:12px"><div class="note y">${icon('info')}<div>${esc(maint)}</div></div></div>` : ''}
     ${S.err && !S.loaded ? errBox() : ''}
-    ${homeAds.length || S.banners.length ? `<section class="sec">${carousel(items.slice(0, homeAds.length + S.banners.length))}</section>` : ''}
+
     <section class="sec"><div class="sec-h"><h2>الخدمات</h2><a class="more" href="#/categories">الكل${icon('chevL')}</a></div><div class="cats">${cats || '<div class="sk" style="grid-column:1/-1;height:180px"></div>'}</div></section>
     <section class="sec"><div class="sec-h"><h2>قريب منك</h2>${S.area !== 'all' || S.pos ? `<a class="more" href="#/s/${esc((S.services[0] || {}).id || 'tow')}?sort=near">عرض الكل${icon('chevL')}</a>` : ''}</div>${nearby}</section>
     ${featured}
-    ${!homeAds.length && !S.banners.length ? `<section class="sec">${carousel(promos())}</section>` : ''}
+
     <section class="sec"><div class="sec-h"><h2>أحدث مقدمي الخدمات</h2></div>${latest}</section>
     <div class="footer-note">ماتعطل · منصة خدمات السيارات في الكويت<br>التواصل والدفع يتم مباشرة بينك وبين مقدم الخدمة.</div>`,
     after: el => { initCarousel(el); },
@@ -236,7 +236,7 @@ function pgHome() {
 function installCard() {
   const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
   if (standalone || store.get('installDismiss')) return '';
-  return `<div class="install-card"><img class="app-ic" src="icons/icon-192.png" alt="أيقونة ماتعطل" width="52" height="52"><div style="flex:1"><b>حمّل تطبيق ماتعطل</b><small>أيقونة على شاشتك الرئيسية — يفتح مثل التطبيق</small></div><button class="btn sm primary" data-act="install">${icon('download')}تحميل</button><button class="icon-btn clear" data-act="install-hide" aria-label="إخفاء" style="width:32px;height:32px">${icon('close')}</button></div>`;
+  return `<div class="install-card"><img class="app-ic" src="icons/icon-192.png" alt="أيقونة ماتعطل" width="52" height="52"><div style="flex:1"><b>حمّل تطبيق ماتعطل</b><small>أيقونة على شاشتك الرئيسية</small></div><button class="btn sm primary" data-act="install">${icon('download')}تحميل</button><button class="icon-btn clear" data-act="install-hide" aria-label="إخفاء" style="width:32px;height:32px">${icon('close')}</button></div>`;
 }
 function initCarousel(root) {
   const c = $('[data-carousel]', root); if (!c) return;
@@ -480,7 +480,7 @@ function pgAccount() {
   const ses = session(), p = S.profile;
   const menuItem = (href, ic, t, extra = '') => `<a href="${href}"><span class="ic">${icon(ic)}</span>${esc(t)}${extra || icon('chevL', 'chev')}</a>`;
   const common = `<div class="menu-title">ماتعطل</div><div class="menu">
-      ${menuItem('#/advertise', 'megaphone', 'أعلن معنا')}${menuItem('#/join', 'store', 'انضم كمقدم خدمة')}
+      ${menuItem('#/join', 'store', 'انضم كمقدم خدمة')}
       <a href="${waHref(supportWa(), 'السلام عليكم، عندي استفسار بخصوص ماتعطل')}" target="_blank" rel="noopener"><span class="ic">${icon('wa')}</span>تواصل مع الدعم${icon('chevL', 'chev')}</a>
       ${menuItem('#/about', 'info', 'عن ماتعطل والخصوصية')}
       <button data-act="install"><span class="ic">${icon('download')}</span>تثبيت التطبيق${icon('chevL', 'chev')}</button>
@@ -500,7 +500,7 @@ function pgAccount() {
     ${S.isAdmin ? `<div class="pad" style="margin-top:12px"><a class="btn dark block" href="admin.html">${icon('chart')}لوحة الإدارة</a></div>` : ''}
     <div class="menu-title">حسابي</div><div class="menu">
       ${menuItem('#/notifications', 'bell', 'الإشعارات', `<span class="cnt" id="ncnt" hidden></span>`)}
-      ${menuItem('#/favorites', 'heart', 'المفضلة')}${menuItem('#/my-business', 'store', 'نشاطي التجاري')}${menuItem('#/my-ads', 'megaphone', 'إعلاناتي')}
+      ${menuItem('#/favorites', 'heart', 'المفضلة')}${menuItem('#/my-business', 'store', 'نشاطي التجاري')}
       <button data-act="edit-name"><span class="ic">${icon('edit')}</span>تعديل الاسم${icon('chevL', 'chev')}</button>
       <button data-act="change-pw"><span class="ic">${icon('lock')}</span>تغيير كلمة السر${icon('chevL', 'chev')}</button>
       <button data-act="recovery"><span class="ic">${icon('key2')}</span>رمز استرجاع كلمة السر${icon('chevL', 'chev')}</button></div>
@@ -564,17 +564,17 @@ async function pgJoin(_, q) {
     let mine = [];
     try { mine = await myCompanies(); } catch (_) { }
     if (mine.length) return {
-      tab: 'account',
+      tab: 'join',
       html: `${topbar('انضم الآن')}<div class="pad" style="margin-top:12px"><div class="note y">${icon('info')}<div>عندك ${mine.length === 1 ? 'نشاط مسجّل' : mine.length + ' أنشطة مسجّلة'}. تابع حالته من «طلباتي».</div></div></div>
         <div class="pad" style="margin-top:12px;display:grid;gap:10px"><a class="btn primary block" href="#/requests?t=biz">طلباتي</a><a class="btn line block" href="#/join?new=1">${icon('plus')}تسجيل نشاط آخر</a></div>`,
     };
   }
   const prof = S.profile || {};
   return {
-    tab: 'account',
+    tab: 'join',
     html: `${topbar('انضم الآن')}
     <div class="join-hero"><span class="ic">${icon('store')}</span><div><b>سجّل نشاطك في دقيقة</b><small>التسجيل مجاني${monthlyPrice() != null ? ' — الاشتراك ' + kwd(monthlyPrice()) + ' شهرياً بعد الموافقة' : ''}</small></div></div>
-    <div class="pad" style="margin-top:12px">${plansHtml()}</div>
+
     <form class="form" id="joinf" novalidate style="margin-top:14px">
       <div class="field"><label for="jn">اسم النشاط</label><input class="inp" id="jn" maxlength="100" placeholder="مثال: ونش السالمية" autocomplete="organization"></div>
       <div class="field"><label for="jsvc">الخدمة</label><select class="inp" id="jsvc">${S.services.map(s => `<option value="${esc(s.id)}">${esc(s.name_ar)}</option>`).join('')}</select></div>
@@ -764,14 +764,11 @@ async function pgMyAds() {
   };
 }
 async function pgRequests(_, q) {
-  const t = q.get('t') === 'biz' ? 'biz' : 'ads';
-  const inner = await (t === 'ads' ? pgMyAds() : pgMyBusiness());
+  const inner = await pgMyBusiness();
   const body = (inner.html || '').replace(/^\s*<header[\s\S]*?<\/header>/, '');
   return {
     tab: 'req',
-    html: `<header class="topbar"><h1 style="font-size:24px">طلباتي</h1></header>
-      <div class="seg req-seg"><a href="#/requests?t=ads" class="${t === 'ads' ? 'on' : ''}" style="flex:1;height:44px;border-radius:11px;display:grid;place-items:center;font-weight:800;${t === 'ads' ? 'background:var(--surface);color:var(--brand);box-shadow:var(--sh-1)' : 'color:var(--mut)'}">إعلاناتي</a><a href="#/requests?t=biz" style="flex:1;height:44px;border-radius:11px;display:grid;place-items:center;font-weight:800;${t === 'biz' ? 'background:var(--surface);color:var(--brand);box-shadow:var(--sh-1)' : 'color:var(--mut)'}">طلب الانضمام</a></div>
-      ${body}`,
+    html: `<header class="topbar"><h1 style="font-size:24px">طلباتي</h1></header>${body}`,
   };
 }
 function pgAbout() {
@@ -781,7 +778,6 @@ function pgAbout() {
       <div class="logo" style="font-size:30px"><span class="mark">م</span>ماتعطل</div>
       <p style="margin:0">ماتعطل منصة كويتية تجمع مقدمي خدمات السيارات: الونشات وسحب السيارات، البنشر المتنقل، مفاتيح وبرمجة السيارات، الغسيل المتنقل، الحماية والتظليل، البطاريات وغيرها.</p>
       <div class="kv"><div class="r">${icon('shieldc')}<span><b>مقدمو الخدمة</b><div>لا يظهر أي مقدم خدمة للعامة إلا بعد موافقة الإدارة واشتراك فعّال.</div></span></div>
-      <div class="r">${icon('megaphone')}<span><b>الإعلانات</b><div>لا يظهر أي إعلان إلا بعد موافقة الإدارة وتأكيد الدفع، ويتوقف تلقائياً بانتهاء مدته.</div></span></div>
       <div class="r">${icon('lock')}<span><b>الخصوصية</b><div>التصفح بدون حساب. لا نخزّن بيانات حساسة على جهازك غير جلسة الدخول. موقعك يُحفظ على جهازك فقط ويُرسل لمقدم الخدمة فقط عند ضغطك على واتساب.</div></span></div>
       <div class="r">${icon('phone')}<span><b>أرقام الهواتف</b><div>التسجيل برقم الهاتف بدون رسائل تحقق، لذلك الرقم لا يُعتبر إثباتاً لملكيته.</div></span></div></div>
       <a class="btn wa block" target="_blank" rel="noopener" href="${waHref(supportWa(), 'السلام عليكم')}">${icon('wa')}تواصل مع ماتعطل</a>
@@ -813,8 +809,8 @@ function setPos(p, quiet) {
 /* ================= التوجيه ================= */
 const ROUTES = [
   [/^\/?$/, pgHome], [/^\/categories$/, pgCategories], [/^\/s\/([\w-]+)$/, pgService], [/^\/search$/, pgSearch], [/^\/c\/(\d+)$/, pgCompany],
-  [/^\/advertise$/, pgAdvertise], [/^\/join$/, pgJoin], [/^\/account$/, pgAccount], [/^\/auth$/, pgAuth], [/^\/favorites$/, pgFavorites],
-  [/^\/my-ads$/, pgMyAds], [/^\/requests$/, pgRequests], [/^\/my-business$/, pgMyBusiness], [/^\/notifications$/, pgNotifications], [/^\/about$/, pgAbout],
+  [/^\/advertise$/, pgJoin], [/^\/join$/, pgJoin], [/^\/account$/, pgAccount], [/^\/auth$/, pgAuth], [/^\/favorites$/, pgFavorites],
+  [/^\/my-ads$/, pgRequests], [/^\/requests$/, pgRequests], [/^\/my-business$/, pgMyBusiness], [/^\/notifications$/, pgNotifications], [/^\/about$/, pgAbout],
 ];
 const parse = () => { const h = location.hash.replace(/^#/, '') || '/'; const [p, qs] = h.split('?'); return { p: p || '/', q: new URLSearchParams(qs || '') }; };
 export function go(path, replace) { const h = '#' + (path.startsWith('/') ? path : '/' + path); if (replace) { history.replaceState(null, '', h); render(); } else location.hash = h; }
