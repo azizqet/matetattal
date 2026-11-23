@@ -44,12 +44,14 @@ describe('رسائل الأخطاء الجديدة', () => {
   });
 });
 
-describe('رسائل أخطاء الدخول بالإيميل', () => {
+describe('رسائل أخطاء الدخول (الرقم والحسابات القديمة)', () => {
   test('رسائل واضحة بدل الإنجليزية', () => {
     expect(arabicError(new Error('Invalid login credentials'))).toBe('البريد الإلكتروني أو كلمة المرور غير صحيحة');
     expect(arabicError(new Error('User already registered'))).toBe('هذا البريد مسجل عندنا، سجّل دخولك');
     expect(arabicError(new Error('Email not confirmed'))).toBe('فعّل حسابك من الرابط المرسل إلى بريدك أولاً');
     expect(arabicError(new Error('Email link is invalid or has expired'))).toBe('الرابط غير صالح أو انتهت صلاحيته. اطلب رابطاً جديداً');
-    expect(arabicError(new Error('For security purposes, you can only request this after 30 seconds'))).toBe('طلبات كثيرة، انتظر قليلاً ثم حاول مرة أخرى');
+    expect(arabicError(new Error('Phone signups are disabled'))).toBe('التسجيل برقم التلفون غير مفعّل حالياً. تواصل مع الدعم الفني');
+    expect(arabicError(new Error('Error sending sms OTP to user'))).toBe('تعذّر إرسال رسالة التحقق الآن. حاول لاحقاً أو تواصل مع الدعم');
+    expect(arabicError(new Error('Token has expired or is invalid'))).toBe('رمز التحقق غير صحيح أو انتهت صلاحيته');
   });
 });

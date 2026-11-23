@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { I18nManager, Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ConsentGate } from '@/components/Consent';
+import { PhoneGate } from '@/components/PhoneGate';
 import { ToastProvider } from '@/components/ui';
 import { SessionProvider } from '@/lib/session';
 import { colors, fonts, isDark } from '@/lib/theme';
@@ -74,6 +75,7 @@ export default function RootLayout() {
               <Stack.Screen name="legal/[id]" options={{ title: 'الشروط والسياسات' }} />
             </Stack>
             <ConsentGate />
+            <PhoneGate />
             </View>
           </ToastProvider>
         </SessionProvider>

@@ -132,7 +132,7 @@ function Companies() {
   async function linkOwner(c: Company) {
     try {
       const u = await api.adminFindUser(email);
-      if (!u) return toast('ما لقينا مستخدم بهذا الإيميل. خله يسجل في التطبيق أولاً');
+      if (!u) return toast('ما لقينا حساب بهذا الرقم أو الإيميل. خله يسجل في التطبيق أولاً');
       upd.mutate({ id: c.id, c: { owner_id: u.id } });
       setLinkFor(null); setEmail('');
     } catch (e) { toast(arabicError(e)); }
@@ -171,7 +171,7 @@ function Companies() {
           ) : null}
           {linkFor === c.id ? (
             <View>
-              <Field label="إيميل صاحب الشركة (مسجل في التطبيق)" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+              <Field label="رقم تلفون صاحب الشركة أو إيميله (مسجل في التطبيق)" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
               <Button small title="ربط" style={{ marginTop: 8 }} onPress={() => linkOwner(c)} />
             </View>
           ) : null}
@@ -560,12 +560,12 @@ function Team() {
   const me = session?.user.id;
 
   async function find() {
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return toast('اكتب إيميل صحيح');
+    if (!/^\S+@\S+\.\S+$/.test(email.trim()) && localPhone(email).length !== 8) return toast('اكتب رقم تلفون من 8 أرقام أو إيميل صحيح');
     setBusy(true);
     try {
       const u = await api.adminFindUser(email);
       setFound(u);
-      if (!u) toast('لا يوجد حساب بهذا الإيميل. يجب أن يسجّل الشخص في التطبيق أولاً');
+      if (!u) toast('لا يوجد حساب بهذا الرقم أو الإيميل. يجب أن يسجّل الشخص في التطبيق أولاً');
     } catch (e) { toast(arabicError(e)); } finally { setBusy(false); }
   }
   function change(id: string, role: Profile['role']) {
@@ -598,8 +598,8 @@ function Team() {
       ))}
       <SectionTitle title="إضافة عضو" />
       <Card>
-        <Text variant="small">يسجّل الشخص حساباً في التطبيق أولاً، ثم ابحث عنه بالإيميل.</Text>
-        <Field label="إيميل الحساب" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+        <Text variant="small">يسجّل الشخص حساباً في التطبيق أولاً، ثم ابحث عنه برقم تلفونه (أو إيميله للحسابات القديمة).</Text>
+        <Field label="رقم التلفون أو الإيميل" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
         <Button small title="بحث" icon="magnify" style={{ marginTop: 8 }} loading={busy} onPress={find} />
         {found ? (
           <View style={{ marginTop: 10 }}>

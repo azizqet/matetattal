@@ -1,5 +1,4 @@
 // طبقة الوصول للبيانات. كل الصلاحيات مفروضة في قاعدة البيانات (RLS)، والتطبيق مجرد واجهة.
-import * as Linking from 'expo-linking';
 import { supabase, SUPABASE_URL } from './supabase';
 import type {
   Ad, AdInput, AdStatus, SupportMessage, SupportTicket, TicketStatus,
@@ -360,30 +359,40 @@ export async function adminSetTicketStatus(id: number, status: TicketStatus) {
   check(await supabase.from('support_tickets').update({ status }).eq('id', id));
 }
 
-// ===== الحساب: الدخول بالبريد الإلكتروني وكلمة المرور، وحذف الحساب =====
-// لا يوجد دخول برقم الهاتف ولا رسائل SMS. روابط التفعيل واستعادة كلمة المرور تصل بالبريد من Supabase Auth (مجاناً)
-// وتفتح صفحة auth-callback داخل التطبيق.
-const authRedirect = () => Linking.createURL('auth-callback');
+// ===== الحساب: الدخول برقم الهاتف الكويتي (OTP حقيقي عبر SMS) =====
+// Supabase Auth يولّد الرمز ويتحقق منه، ودالة send-sms (Send SMS Hook) ترسله عبر kwtSMS. لا رموز ثابتة أو وهمية.
+// رقم جديد = حساب جديد بعد التحقق، ورقم مسجّل = دخول لنفس الحساب (نفس البيانات والصلاحيات).
+const kw = (local8: string) => '+965' + local8;
 
-export async function signInWithEmail(email: string, password: string) {
+export async function sendPhoneCode(local8: string) {
+  const { error } = await supabase.auth.signInWithOtp({ phone: kw(local8), options: { shouldCreateUser: true } });
+  if (error) throw error;
+}
+export async function verifyPhoneCode(local8: string, code: string) {
+  const { data, error } = await supabase.auth.verifyOtp({ phone: kw(local8), token: code, type: 'sms' });
+  if (error) throw error;
+  return data.user;
+}
+
+// ===== الحسابات القديمة المسجّلة بالإيميل: دخول لمرة واحدة ثم ربط رقم الهاتف =====
+// الرقم يُضاف لنفس الحساب (نفس المعرّف = نفس البيانات) بعد إدخال رمز SMS المرسل له، وبعدها يكون الدخول بالرقم.
+export async function signInLegacyEmail(email: string, password: string) {
   const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
   if (error) throw error;
   return data.user;
 }
-/** حساب جديد. يرجع needsConfirm=true إذا كان «تأكيد البريد» مفعّلاً في Supabase، و exists=true إذا كان البريد مسجلاً */
-export async function signUpWithEmail(email: string, password: string, fullName: string) {
-  const { data, error } = await supabase.auth.signUp({
-    email: email.trim().toLowerCase(), password,
-    options: { data: { full_name: fullName.trim().slice(0, 80) }, emailRedirectTo: authRedirect() },
-  });
+export async function sendLinkPhoneCode(local8: string) {
+  const { error } = await supabase.auth.updateUser({ phone: kw(local8) });
   if (error) throw error;
-  // Supabase لا يكشف وجود البريد: يرجع مستخدماً بلا هويات إذا كان مسجلاً مسبقاً
-  const exists = !!data.user && (data.user.identities?.length ?? 0) === 0;
-  return { user: data.user, exists, needsConfirm: !data.session && !exists };
 }
-export async function sendPasswordReset(email: string) {
-  const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: authRedirect() });
+export async function verifyLinkPhoneCode(local8: string, code: string) {
+  const { data, error } = await supabase.auth.verifyOtp({ phone: kw(local8), token: code, type: 'phone_change' });
   if (error) throw error;
+  return data.user;
+}
+/** رقم الحساب مؤكَّد برمز SMS؟ (الشرط لاستخدام التطبيق بعد اعتماد الدخول بالرقم) */
+export function hasConfirmedPhone(user: { phone?: string | null; phone_confirmed_at?: string | null } | null | undefined) {
+  return !!user?.phone && !!user.phone_confirmed_at;
 }
 export async function deleteMyAccount() {
   check(await supabase.rpc('delete_my_account'));

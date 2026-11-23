@@ -210,6 +210,14 @@ export const SUB_STATUS_AR: Record<string, string> = {
 export function arabicError(e: unknown): string {
   const m = (e as { message?: string })?.message ?? String(e ?? '');
   if (/Invalid login credentials/i.test(m)) return 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+  if (/Phone not confirmed/i.test(m)) return 'الحساب غير مفعّل بعد. أكمل التحقق برمز الرسالة';
+  if (/Signups not allowed for otp|otp_disabled|user not found/i.test(m)) return 'ما لقينا حساب بهذا الرقم';
+  if (/phone_exists|Phone number already|A user with this phone/i.test(m)) return 'هذا الرقم مربوط بحساب ثاني. ادخل برقمك مباشرة أو تواصل مع الدعم';
+  if (/Phone signups are disabled|phone_provider_disabled|Unsupported phone provider|phone.*(not enabled)/i.test(m)) return 'التسجيل برقم التلفون غير مفعّل حالياً. تواصل مع الدعم الفني';
+  if (/sms_send_failed|Error sending sms|sms provider error|sms hook not configured|hook/i.test(m)) return 'تعذّر إرسال رسالة التحقق الآن. حاول لاحقاً أو تواصل مع الدعم';
+  if (/over_sms_send_rate_limit|sms.*rate limit|you can only request this after/i.test(m)) return 'انتظر قليلاً قبل طلب رمز جديد';
+  if (/only Kuwaiti mobile numbers/i.test(m)) return 'الرقم لازم يكون جوال كويتي';
+  if (/Token has expired or is invalid|otp_expired|invalid.*otp/i.test(m)) return 'رمز التحقق غير صحيح أو انتهت صلاحيته';
   if (/Email not confirmed/i.test(m)) return 'فعّل حسابك من الرابط المرسل إلى بريدك أولاً';
   if (/User already registered|phone_exists|already been registered/i.test(m)) return 'هذا البريد مسجل عندنا، سجّل دخولك';
   if (/Password should be at least/i.test(m)) return 'كلمة المرور قصيرة. اكتب 8 خانات على الأقل';

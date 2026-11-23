@@ -26,9 +26,12 @@ jest.mock('@/lib/api', () => ({
   getNotifications: jest.fn(async () => []),
   getMyCompanies: jest.fn(async () => []),
   createAd: jest.fn(async (a: object) => ({ id: 1, status: 'pending', ...a })),
-  signInWithEmail: jest.fn(async () => ({ id: 'u1' }) as unknown),
-  signUpWithEmail: jest.fn(async () => ({ user: { id: 'u-new' }, exists: false, needsConfirm: true }) as unknown),
-  sendPasswordReset: jest.fn(async () => {}),
+  sendPhoneCode: jest.fn(async () => {}),
+  verifyPhoneCode: jest.fn(async () => ({ id: 'u1' }) as unknown),
+  signInLegacyEmail: jest.fn(async () => ({ id: 'old', phone: '', phone_confirmed_at: null }) as unknown),
+  sendLinkPhoneCode: jest.fn(async () => {}),
+  verifyLinkPhoneCode: jest.fn(async () => ({ id: 'old' }) as unknown),
+  hasConfirmedPhone: (u: { phone?: string; phone_confirmed_at?: string | null } | null) => !!u?.phone && !!u?.phone_confirmed_at,
   getMyProfile: jest.fn(async () => null as unknown),
   updateMyProfile: jest.fn(async () => {}),
   deleteMyAccount: jest.fn(async () => {}),
@@ -116,73 +119,97 @@ describe('حسابي', () => {
   });
 });
 
-describe('الدخول بالإيميل وكلمة المرور (بدون رقم هاتف أو SMS)', () => {
+describe('الدخول برقم التلفون (صفحة جديدة)', () => {
   beforeEach(() => { jest.clearAllMocks(); mockSession.current = null; });
 
-  test('لا يوجد حقل رقم هاتف ولا رمز تحقق', async () => {
+  test('الرقم: +965 منفصل، لوحة أرقام، بدون maxLength، تنقية الكتابة واللصق والحذف', async () => {
+    const user = userEvent.setup();
     await render(wrap(<Auth />));
-    expect(screen.queryByTestId('phone')).toBeNull();
-    expect(screen.queryByTestId('code')).toBeNull();
-    expect(screen.queryByText(/\+965|رمز/)).toBeNull();
-    expect(screen.getByTestId('email').props.keyboardType).toBe('email-address');
-    expect(screen.getByTestId('password').props.secureTextEntry).toBe(true);
+    expect(screen.getByText(/\+965/)).toBeTruthy();
+    const ph = () => screen.getByTestId('phone');
+    expect(ph().props.keyboardType).toBe('number-pad');
+    expect(ph().props.maxLength).toBeUndefined();
+    expect(ph().props.editable).not.toBe(false);
+    await user.type(ph(), '٩٩٩١');
+    expect(ph().props.value).toBe('9991');
+    await user.type(ph(), '231399'); // الزائد يُتجاهل
+    expect(ph().props.value).toBe('99912313');
+    await user.type(ph(), '{Backspace}');
+    expect(ph().props.value).toBe('9991231');
+    await user.clear(ph());
+    await user.paste(ph(), '+965 9991 2313');
+    expect(ph().props.value).toBe('99912313');
   });
 
-  test('تسجيل الدخول: يتحقق من الإيميل ثم يدخل', async () => {
+  test('متابعة ← رمز SMS ← تحقق تلقائي عند 6 أرقام ← حساب جديد يطلب الاسم', async () => {
+    api.verifyPhoneCode.mockResolvedValueOnce({ id: 'u-new' });
+    api.getMyProfile.mockResolvedValueOnce({ id: 'u-new', role: 'customer', full_name: '' });
+    const user = userEvent.setup();
+    await render(wrap(<Auth />));
+    await user.type(screen.getByTestId('phone'), '1234567');
+    await user.press(screen.getByTestId('send'));
+    expect(api.sendPhoneCode).not.toHaveBeenCalled();
+    await user.clear(screen.getByTestId('phone'));
+    await user.type(screen.getByTestId('phone'), '99912313');
+    await user.press(screen.getByTestId('send'));
+    await waitFor(() => expect(api.sendPhoneCode).toHaveBeenCalledWith('99912313'));
+    const code = await screen.findByTestId('code');
+    expect(code.props.textContentType).toBe('oneTimeCode');
+    expect(code.props.autoComplete).toBe('sms-otp');
+    expect(code.props.maxLength).toBeUndefined();
+    expect(screen.getByText(/تقدر تطلب رمز جديد بعد/)).toBeTruthy();
+    await user.type(screen.getByTestId('code'), '12345');
+    expect(api.verifyPhoneCode).not.toHaveBeenCalled();
+    await user.type(screen.getByTestId('code'), '6');
+    await waitFor(() => expect(api.verifyPhoneCode).toHaveBeenCalledWith('99912313', '123456'));
+    expect(api.verifyPhoneCode).toHaveBeenCalledTimes(1);
+    const nameField = await screen.findByTestId('name');
+    await user.type(nameField, 'عزيز');
+    await user.press(screen.getByTestId('save-name'));
+    await waitFor(() => expect(api.updateMyProfile).toHaveBeenCalledWith('u-new', { full_name: 'عزيز' }));
+  });
+
+  test('لصق الرمز من الرسالة يُنقّى ويُتحقق منه', async () => {
+    api.verifyPhoneCode.mockResolvedValueOnce({ id: 'u1' });
     api.getMyProfile.mockResolvedValueOnce({ id: 'u1', role: 'customer', full_name: 'عزيز' });
     const user = userEvent.setup();
     await render(wrap(<Auth />));
-    await user.type(screen.getByTestId('email'), 'غلط');
-    await user.type(screen.getByTestId('password'), 'abc12345');
-    await user.press(screen.getByTestId('submit'));
-    expect(api.signInWithEmail).not.toHaveBeenCalled();
-    await user.clear(screen.getByTestId('email'));
-    await user.type(screen.getByTestId('email'), ' A@B.co ');
-    await user.press(screen.getByTestId('submit'));
-    await waitFor(() => expect(api.signInWithEmail).toHaveBeenCalledWith('a@b.co', 'abc12345'));
+    await user.type(screen.getByTestId('phone'), '99912313');
+    await user.press(screen.getByTestId('send'));
+    await screen.findByTestId('code');
+    await user.paste(screen.getByTestId('code'), 'رمزك: 654 321');
+    await waitFor(() => expect(api.verifyPhoneCode).toHaveBeenCalledWith('99912313', '654321'));
   });
 
-  test('المدير: لوحة الإدارة تفتح تلقائياً (الصلاحية من قاعدة البيانات)', async () => {
-    api.signInWithEmail.mockResolvedValueOnce({ id: 'owner' });
+  test('المدير: بعد التحقق تفتح لوحة الإدارة تلقائياً (الصلاحية من قاعدة البيانات)', async () => {
+    api.verifyPhoneCode.mockResolvedValueOnce({ id: 'owner' });
     api.getMyProfile.mockResolvedValueOnce({ id: 'owner', role: 'admin', full_name: 'المالك' });
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { router } = require('expo-router') as { router: { replace: jest.Mock } };
     const user = userEvent.setup();
     await render(wrap(<Auth />));
-    await user.type(screen.getByTestId('email'), 'owner@x.com');
-    await user.type(screen.getByTestId('password'), 'secret123');
-    await user.press(screen.getByTestId('submit'));
+    await user.type(screen.getByTestId('phone'), '99912313');
+    await user.press(screen.getByTestId('send'));
+    await screen.findByTestId('code');
+    await user.type(screen.getByTestId('code'), '111222');
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/admin'));
   });
 
-  test('حساب جديد: كلمة مرور قوية ومتطابقة، ثم رسالة التفعيل', async () => {
+  test('حساب قديم بالإيميل: دخول مرة واحدة ثم ربط الرقم برمز SMS (نفس الحساب)', async () => {
+    api.getMyProfile.mockResolvedValueOnce({ id: 'old', role: 'customer', full_name: 'عميل قديم' });
     const user = userEvent.setup();
     await render(wrap(<Auth />));
-    await user.press(screen.getByTestId('tab-register'));
-    await user.type(screen.getByTestId('name'), 'شركة النجاح');
-    await user.type(screen.getByTestId('email'), 'co@x.com');
-    await user.type(screen.getByTestId('password'), 'abcdefgh'); // بدون أرقام
-    await user.type(screen.getByTestId('confirm'), 'abcdefgh');
-    await user.press(screen.getByTestId('submit'));
-    expect(api.signUpWithEmail).not.toHaveBeenCalled();
-    await user.clear(screen.getByTestId('password')); await user.clear(screen.getByTestId('confirm'));
-    await user.type(screen.getByTestId('password'), 'abcd1234');
-    await user.type(screen.getByTestId('confirm'), 'abcd1235');
-    await user.press(screen.getByTestId('submit'));
-    expect(api.signUpWithEmail).not.toHaveBeenCalled();
-    await user.clear(screen.getByTestId('confirm'));
-    await user.type(screen.getByTestId('confirm'), 'abcd1234');
-    await user.press(screen.getByTestId('submit'));
-    await waitFor(() => expect(api.signUpWithEmail).toHaveBeenCalledWith('co@x.com', 'abcd1234', 'شركة النجاح'));
-    expect(await screen.findByTestId('auth-notice')).toBeTruthy();
-  });
-
-  test('نسيت كلمة المرور: يرسل رابط على الإيميل', async () => {
-    const user = userEvent.setup();
-    await render(wrap(<Auth />));
-    await user.press(screen.getByTestId('forgot'));
-    await user.type(screen.getByTestId('email'), 'a@b.co');
-    await user.press(screen.getByTestId('submit'));
-    await waitFor(() => expect(api.sendPasswordReset).toHaveBeenCalledWith('a@b.co'));
+    await user.press(screen.getByTestId('legacy-link'));
+    await user.type(screen.getByTestId('legacy-email'), 'old@x.com');
+    await user.type(screen.getByTestId('legacy-password'), 'pass1234');
+    await user.press(screen.getByTestId('legacy-login'));
+    await waitFor(() => expect(api.signInLegacyEmail).toHaveBeenCalledWith('old@x.com', 'pass1234'));
+    await user.type(await screen.findByTestId('phone'), '55512345');
+    await user.press(screen.getByTestId('send'));
+    await waitFor(() => expect(api.sendLinkPhoneCode).toHaveBeenCalledWith('55512345'));
+    expect(api.sendPhoneCode).not.toHaveBeenCalled(); // لا حساب جديد
+    await user.type(await screen.findByTestId('code'), '246810');
+    await waitFor(() => expect(api.verifyLinkPhoneCode).toHaveBeenCalledWith('55512345', '246810'));
+    expect(api.verifyPhoneCode).not.toHaveBeenCalled();
   });
 });
