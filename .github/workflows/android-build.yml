@@ -1,0 +1,99 @@
+# بناء Android عبر EAS (لا يرفع لـ Google Play ولا ينشر)
+# أول تشغيل ينشئ مفتاح التوقيع (Keystore) تلقائياً على خوادم Expo ويحفظه في حسابك.
+#
+# التشغيل من Pull Request: أضف أحد الوسوم التالية:
+#   eas-build / eas-build-android / android-build            → ملف preview (APK للتجربة)
+#   eas-build-android:production / android-build:production → ملف production (AAB لـ Google Play)
+# ما دام الوسم موجوداً، كل push جديد على الـ PR يعيد البناء.
+# أو: Run workflow يدوياً (يظهر الزر بعد الدمج في main).
+# المتطلب: سر EXPO_TOKEN في إعدادات المستودع.
+name: Android Build (EAS)
+
+on:
+  pull_request:
+    types: [labeled, synchronize, reopened]
+    paths: ['mobile/**']
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'EAS build profile'
+        type: choice
+        options: [preview, production]
+        default: preview
+
+concurrency:
+  group: android-build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # يعمل يدوياً، أو عندما يحمل الـ PR وسماً يحتوي "eas-build" أو "android-build" (عدا وسوم iOS فقط)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        (contains(join(github.event.pull_request.labels.*.name, ','), 'eas-build') ||
+         contains(join(github.event.pull_request.labels.*.name, ','), 'android-build')) &&
+        !contains(join(github.event.pull_request.labels.*.name, ','), 'eas-build-ios')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Require EXPO_TOKEN
+        working-directory: .
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::أضف سر EXPO_TOKEN في Settings → Secrets → Actions ثم أعد التشغيل."
+            exit 1
+          fi
+          echo "EXPO_TOKEN موجود (القيمة مخفية)."
+
+      - name: Choose build profile
+        id: profile
+        working-directory: .
+        env:
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          INPUT_PROFILE: ${{ inputs.profile }}
+        run: |
+          if [ -n "$INPUT_PROFILE" ]; then P="$INPUT_PROFILE";
+          elif echo "$LABELS" | grep -q ':production'; then P=production;
+          else P=preview; fi
+          echo "name=$P" >> "$GITHUB_OUTPUT"
+          echo "Build profile: $P"
+
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci
+
+      - name: Link Expo project
+        run: eas init --non-interactive --force
+
+      - name: EAS build (Android) — waits for the result
+        run: |
+          set -o pipefail
+          eas build --platform android --profile "${{ steps.profile.outputs.name }}" \
+            --non-interactive --wait --json | tee build.json
+          node -e '
+            const b=[].concat(require("./build.json"))[0];
+            const p=b.app||b.project||{};const url=`https://expo.dev/accounts/${(p.ownerAccount||{}).name}/projects/${p.slug}/builds/${b.id}`;
+            const art=(b.artifacts&&(b.artifacts.applicationArchiveUrl||b.artifacts.buildUrl))||"";
+            const ok=b.status==="FINISHED";
+            const lines=[ok?"### ✅ بناء Android نجح":"### ❌ بناء Android لم ينجح", `- الحالة: ${b.status}`, `- الملف: ${b.buildProfile} / ${b.distribution}`, `- صفحة البناء: ${url}`];
+            if(art) lines.push(`- تحميل الملف: ${art}`);
+            require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n")+"\n");
+            console.log(lines.join("\n"));
+            if(!ok) process.exit(1);'
