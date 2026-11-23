@@ -60,7 +60,6 @@ export default function RootLayout() {
               <Stack.Screen name="service/[id]" options={{ title: 'الخدمة' }} />
               <Stack.Screen name="auth" options={{ headerShown: false }} />
               <Stack.Screen name="auth-callback" options={{ title: 'ماتعطل' }} />
-              <Stack.Screen name="input-test" options={{ title: 'اختبار الخانات' }} />
               <Stack.Screen name="admin" options={{ title: 'لوحة الإدارة' }} />
               <Stack.Screen name="notifications" options={{ title: 'الإشعارات' }} />
               <Stack.Screen name="favorites" options={{ title: 'المفضلة' }} />

@@ -92,8 +92,6 @@ export default function Account() {
           </Row>
         </Card>
       ) : null}
-      {/* مؤقت للتشخيص — يُزال بعد حل مشكلة الكتابة */}
-      <Button title="اختبار خانات الإدخال (تشخيص)" kind="ghost" small icon="keyboard-outline" style={{ marginTop: 16 }} onPress={() => router.push('/input-test')} testID="acc-input-test" />
       <Text variant="small" style={{ textAlign: 'center', marginTop: 20 }}>ماتعطل · الإصدار 1.0.0</Text>
     </Screen>
   );

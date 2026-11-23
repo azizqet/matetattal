@@ -363,44 +363,17 @@ export async function adminSetTicketStatus(id: number, status: TicketStatus) {
 const kw = (local8: string) => '+965' + local8;
 
 /**
- * إنشاء حساب: التلفون + كلمة المرور في Supabase Auth، والاسم والبريد في بيانات المستخدم.
- * Supabase يرسل رمز SMS حقيقي (عبر Send SMS Hook) ولا يُفعَّل الحساب قبل التحقق من الرمز.
+ * الدخول برقم التلفون: Supabase Auth يرسل رمز SMS حقيقي (عبر Send SMS Hook).
+ * رقم جديد = حساب جديد بعد التحقق، ورقم مسجّل = دخول لنفس الحساب (نفس البيانات والصلاحيات).
  */
-export async function signUpWithPhone(p: { phone: string; password: string; name: string; email: string }) {
-  const { data, error } = await supabase.auth.signUp({
-    phone: kw(p.phone), password: p.password,
-    options: { data: { full_name: p.name.trim().slice(0, 80), contact_email: p.email.trim().toLowerCase() } },
-  });
-  if (error) throw error;
-  return data;
-}
-/** التحقق من رمز SMS (لتفعيل حساب جديد أو لاستعادة كلمة المرور) → جلسة دخول */
-export async function verifyPhoneOtp(local8: string, token: string) {
-  const { data, error } = await supabase.auth.verifyOtp({ phone: kw(local8), token, type: 'sms' });
-  if (error) throw error;
-  return data.session;
-}
-/** إعادة إرسال رمز التفعيل لحساب جديد لم يُفعَّل */
-export async function resendSignupOtp(local8: string) {
-  const { error } = await supabase.auth.resend({ type: 'sms', phone: kw(local8) });
+export async function sendPhoneCode(local8: string) {
+  const { error } = await supabase.auth.signInWithOtp({ phone: kw(local8), options: { shouldCreateUser: true } });
   if (error) throw error;
 }
-/** رمز دخول لمرة واحدة لحساب موجود (نسيت كلمة المرور) — لا ينشئ حساباً جديداً */
-export async function sendLoginOtp(local8: string) {
-  const { error } = await supabase.auth.signInWithOtp({ phone: kw(local8), options: { shouldCreateUser: false } });
-  if (error) throw error;
-}
-/** الدخول بالتلفون أو بالبريد (للحسابات القديمة) مع كلمة المرور */
-export async function signInWithPassword(identifier: string, password: string) {
-  const id = identifier.trim();
-  const creds = id.includes('@') ? { email: id.toLowerCase(), password } : { phone: kw(id), password };
-  const { data, error } = await supabase.auth.signInWithPassword(creds);
+export async function verifyPhoneCode(local8: string, code: string) {
+  const { data, error } = await supabase.auth.verifyOtp({ phone: kw(local8), token: code, type: 'sms' });
   if (error) throw error;
   return data.user;
-}
-export async function setNewPassword(password: string) {
-  const { error } = await supabase.auth.updateUser({ password });
-  if (error) throw error;
 }
 export async function deleteMyAccount() {
   check(await supabase.rpc('delete_my_account'));
