@@ -145,11 +145,13 @@ describe('التسجيل والدخول', () => {
     expect(screen.getByTestId('tab-login').props.accessibilityState).toMatchObject({ selected: true });
   });
 
-  test('شاشة الدخول: زر رجوع خاص داخل المنطقة الآمنة، والمحتوى يتحرك مع لوحة المفاتيح', async () => {
+  test('شاشة الدخول: زر رجوع خاص، ولوحة المفاتيح لا تُغلق تلقائياً عند الانتقال لخانة التلفون', async () => {
     await render(wrap(<Auth />));
     expect(screen.getByTestId('auth-back')).toBeTruthy();
     const scroll = screen.getByTestId('auth-scroll');
-    expect(scroll.props.automaticallyAdjustKeyboardInsets).toBe(true);
+    // يمنع رجوع سبب خلل خانة التلفون: لا إغلاق تفاعلي للوحة المفاتيح ولا إعادة حساب تلقائي للهوامش
+    expect(scroll.props.keyboardDismissMode).toBe('none');
+    expect(scroll.props.automaticallyAdjustKeyboardInsets).toBeFalsy();
     expect(scroll.props.keyboardShouldPersistTaps).toBe('handled');
   });
 

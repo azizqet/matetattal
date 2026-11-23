@@ -128,13 +128,16 @@ export default function Auth() {
     'new-password': ['كلمة مرور جديدة', 'اختر كلمة مرور قوية وسهلة عليك.'],
   }[step];
 
+  // إعداد لوحة المفاتيح المجرّب سابقاً (كانت خانة التلفون تعمل به): KeyboardAvoidingView بـ padding على iOS.
+  // لا automaticallyAdjustKeyboardInsets ولا keyboardDismissMode="interactive": عند الانتقال لخانة التلفون يتغيّر
+  // ارتفاع لوحة المفاتيح (لوحة أرقام)، فيعيد iOS حساب الهوامش ويمرّر الصفحة، والوضع التفاعلي يعتبر ذلك سحباً
+  // فيُغلق لوحة المفاتيح فوراً — تبدو الخانة مستجيبة لكن لا تقبل الكتابة.
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={undefined}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <StatusBar style="light" />
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + 28 }}
-        keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive"
-        automaticallyAdjustKeyboardInsets
+        keyboardShouldPersistTaps="handled" keyboardDismissMode="none"
         testID="auth-scroll"
         showsVerticalScrollIndicator={false}
       >
