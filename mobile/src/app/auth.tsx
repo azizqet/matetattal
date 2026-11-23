@@ -123,8 +123,13 @@ export default function Auth() {
   }[step];
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + 28 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={undefined}>
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + 28 }}
+        keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
+        showsVerticalScrollIndicator={false}
+      >
         <AuthHero title={hero[0]} subtitle={hero[1]} topInset={insets.top + 60}>
           {isCode ? <Text style={st.heroPhone}>{'⁦'}+965 {phone.slice(0, 4)} {phone.slice(4)}{'⁩'}</Text> : null}
         </AuthHero>
@@ -143,7 +148,7 @@ export default function Auth() {
                   <AuthField icon="email-outline" label="البريد الإلكتروني" placeholder="name@example.com" value={email} onChangeText={setEmail} ltr keyboardType="email-address" autoCapitalize="none"
                     autoCorrect={false} autoComplete="email" textContentType="emailAddress" testID="reg-email" />
                   <AuthField icon="lock-outline" label="كلمة المرور" placeholder="8 خانات أو أكثر" value={password} onChangeText={setPassword} ltr secureToggle autoCapitalize="none"
-                    autoComplete="new-password" textContentType="newPassword" testID="reg-password" />
+                    autoComplete="password" textContentType="password" testID="reg-password" />
                   <PasswordHint value={password} />
                   <ConsentCheckbox docs={terms.docs} checked={agreed} onChange={setAgreed} />
                   <Button title="سوّ حسابي" icon="arrow-left" loading={busy} onPress={register} style={{ marginTop: 18 }} testID="reg-submit" />
@@ -182,7 +187,7 @@ export default function Auth() {
               ) : (
                 <>
                   <AuthField icon="lock-reset" label="كلمة المرور الجديدة" placeholder="8 خانات أو أكثر" value={password} onChangeText={setPassword} ltr secureToggle autoCapitalize="none"
-                    autoComplete="new-password" textContentType="newPassword" testID="new-password" />
+                    autoComplete="password" textContentType="password" testID="new-password" />
                   <PasswordHint value={password} />
                   <Button title="احفظ وكمّل" icon="check" loading={busy} onPress={saveNewPassword} style={{ marginTop: 18 }} testID="new-password-save" />
                 </>

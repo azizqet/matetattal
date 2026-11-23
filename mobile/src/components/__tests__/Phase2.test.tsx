@@ -144,6 +144,36 @@ describe('التسجيل والدخول', () => {
     expect(screen.getByTestId('tab-login').props.accessibilityState).toMatchObject({ selected: true });
   });
 
+  test('كلمة المرور: قابلة للكتابة والحذف واللصق، بدون «كلمة سر قوية» في iOS، والعين لا تمسح النص', async () => {
+    const user = userEvent.setup();
+    await render(wrap(<Auth />));
+    const pw = () => screen.getByTestId('reg-password');
+    expect(pw().props.editable).toBe(true);
+    expect(pw().props.textContentType).toBe('password'); // ليس newPassword (كان يغطي الحقل ويمنع الكتابة)
+    await user.type(pw(), 'abc12345');
+    expect(pw().props.value).toBe('abc12345');
+    await user.type(pw(), '{Backspace}{Backspace}');
+    expect(pw().props.value).toBe('abc123');
+    await user.clear(pw());
+    await user.paste(pw(), 'Pasted99');
+    expect(pw().props.value).toBe('Pasted99');
+    await user.press(screen.getByTestId('reg-password-eye')); // إظهار
+    expect(pw().props.secureTextEntry).toBe(false);
+    expect(pw().props.value).toBe('Pasted99');
+    await user.press(screen.getByTestId('reg-password-eye')); // إخفاء
+    expect(pw().props.secureTextEntry).toBe(true);
+    // سلوك iOS: أول حرف بعد إعادة الإخفاء يمسح المحتوى — يجب أن يُكمَل بدل المسح
+    await act(async () => { fireEvent.changeText(pw(), 'x'); });
+    expect(pw().props.value).toBe('Pasted99x');
+    // كل خانات التسجيل قابلة للكتابة
+    await user.type(screen.getByTestId('reg-name'), 'عزيز');
+    await user.type(screen.getByTestId('reg-email'), 'a@b.co');
+    await user.type(screen.getByTestId('reg-phone'), '97706792');
+    expect(screen.getByTestId('reg-name').props.value).toBe('عزيز');
+    expect(screen.getByTestId('reg-email').props.value).toBe('a@b.co');
+    expect(screen.getByTestId('reg-phone').props.value).toBe('97706792');
+  });
+
   test('عندك حساب؟ سجّل دخولك — بالتلفون، ويقبل البريد للحسابات القديمة بدون رابط منفصل', async () => {
     const user = userEvent.setup();
     await render(wrap(<Auth />));

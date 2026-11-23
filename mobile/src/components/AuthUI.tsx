@@ -2,7 +2,7 @@
 // كل العناصر داخل حدود الشاشة (لا عناصر مطلقة خارج الإطار)، أسماء الخانات ظاهرة دائماً فوقها،
 // ونصوص كحلية عالية التباين (WCAG AA) في الوضعين الفاتح والداكن.
 import { LinearGradient } from 'expo-linear-gradient';
-import { forwardRef, useEffect, useState, type ComponentRef, type ReactNode } from 'react';
+import { forwardRef, useEffect, useRef, useState, type ComponentRef, type ReactNode } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, TextInput, useWindowDimensions, View, type TextInputProps } from 'react-native';
 import { colors, fonts, gradients, isDark, radius } from '@/lib/theme';
 import { Icon, Text } from './ui';
@@ -61,27 +61,50 @@ export const AuthField = forwardRef<ComponentRef<typeof TextInput>, TextInputPro
   function AuthField({ icon, label, ltr, secureToggle, hint, style, ...p }, ref) {
     const [focus, setFocus] = useState(false);
     const [hidden, setHidden] = useState(!!secureToggle);
+    // مرجع داخلي + المرجع الممرَّر من الخارج: الضغط على أي جزء من الخانة (الأيقونة/الإطار) يفتح الكتابة
+    const inner = useRef<ComponentRef<typeof TextInput>>(null);
+    const setRefs = (node: ComponentRef<typeof TextInput> | null) => {
+      inner.current = node;
+      if (typeof ref === 'function') ref(node); else if (ref) ref.current = node;
+    };
+    // iOS يمسح محتوى الحقل السري عند أول حرف بعد إعادة الإخفاء — نحفظ النص ونكمل عليه بدل مسحه
+    const reHidden = useRef(false);
+    const toggle = () => {
+      if (!hidden) reHidden.current = true;
+      setHidden(!hidden);
+      // نُبقي التركيز ولوحة المفاتيح على الحقل بعد الضغط على العين
+      setTimeout(() => inner.current?.focus(), 0);
+    };
+    const onChangeText = (t: string) => {
+      const prev = typeof p.value === 'string' ? p.value : '';
+      if (reHidden.current && Platform.OS === 'ios' && prev.length > 1 && t.length === 1) { reHidden.current = false; p.onChangeText?.(prev + t); return; }
+      reHidden.current = false;
+      p.onChangeText?.(t);
+    };
     return (
       <View style={f.group}>
         <Text style={f.label}>{label}</Text>
-        <View style={[f.box, focus && f.boxFocus]}>
+        <Pressable onPress={() => inner.current?.focus()} style={[f.box, focus && f.boxFocus]} accessible={false}>
           <Icon name={icon} size={22} color={focus ? colors.link : colors.muted} />
           <TextInput
-            ref={ref}
+            ref={setRefs}
             placeholderTextColor={colors.placeholder}
             accessibilityLabel={label}
             {...p}
+            onChangeText={onChangeText}
+            editable={p.editable ?? true}
             secureTextEntry={secureToggle ? hidden : p.secureTextEntry}
             onFocus={(e) => { setFocus(true); p.onFocus?.(e); }}
             onBlur={(e) => { setFocus(false); p.onBlur?.(e); }}
             style={[f.input, ltr && f.ltr, style]}
           />
           {secureToggle ? (
-            <Pressable onPress={() => setHidden(!hidden)} hitSlop={12} accessibilityRole="button" accessibilityLabel={hidden ? 'إظهار كلمة المرور' : 'إخفاء كلمة المرور'} testID={`${p.testID ?? 'pw'}-eye`}>
+            // الضغط على العين لا يسحب التركيز من الحقل ولا يغلق لوحة المفاتيح
+            <Pressable onPress={toggle} hitSlop={12} accessibilityRole="button" accessibilityLabel={hidden ? 'إظهار كلمة المرور' : 'إخفاء كلمة المرور'} testID={`${p.testID ?? 'pw'}-eye`}>
               <Icon name={hidden ? 'eye-outline' : 'eye-off-outline'} size={23} color={colors.text} />
             </Pressable>
           ) : null}
-        </View>
+        </Pressable>
         {hint ? <Text style={f.hint}>{hint}</Text> : null}
       </View>
     );
