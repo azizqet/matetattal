@@ -1,335 +1,52 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta name="google-site-verification" content="K77Qb1cRL7navRYJjR9pzyf-4qNpGMxpl51iQdoOXzE" />
 <meta charset="utf-8">
+<meta name="google-site-verification" content="K77Qb1cRL7navRYJjR9pzyf-4qNpGMxpl51iQdoOXzE" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://xpnwhvbxordtsmnegvri.supabase.co https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://unpkg.com; connect-src 'self' https://xpnwhvbxordtsmnegvri.supabase.co; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <title>ماتعطل | خدمات السيارات بالكويت</title>
-<meta name="theme-color" content="#0757db"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="ماتعطل"><link rel="apple-touch-icon" href="icon-180.png"><link rel="manifest" href="manifest.webmanifest">
+<meta name="description" content="ماتعطل — ونشات وسحب سيارات، بنشر متنقل، مفاتيح وبرمجة، غسيل متنقل، حماية وتظليل وبطاريات في الكويت. تواصل مباشرة بالاتصال أو واتساب.">
+<meta name="theme-color" content="#0757DB" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#00369C" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ماتعطل">
+<meta property="og:title" content="ماتعطل | خدمات السيارات بالكويت">
+<meta property="og:description" content="كل خدمات سيارتك في مكان واحد — تواصل مباشر بالاتصال أو واتساب.">
+<meta property="og:image" content="icons/og.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="icons/splash-1290x2796.png">
+<link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="icons/splash-1179x2556.png">
+<link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="icons/splash-1170x2532.png">
+<link rel="apple-touch-startup-image" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)" href="icons/splash-1284x2778.png">
+<link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" href="icons/splash-828x1792.png">
+<link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="icons/splash-750x1334.png">
+<link rel="preconnect" href="https://xpnwhvbxordtsmnegvri.supabase.co" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<style>
-#mapov{position:fixed;inset:0;background:#fff;z-index:20;display:flex;flex-direction:column}#mapov #mp{flex:1;min-height:0}#mapov .bar{padding:12px;display:flex;gap:8px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}
-:root{--red:#C8102E;--bg:#FFFFFF;--card:#F7F7F7;--tx:#202020;--mut:#6E6E6E;--line:#ECECEC;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px)}
-*,*::before,*::after{box-sizing:inherit}
-html,body{margin:0;background:var(--bg);color:var(--tx);font-family:'Tajawal',system-ui,-apple-system,'Segoe UI',Tahoma,sans-serif;-webkit-tap-highlight-color:transparent}
-body{max-width:480px;margin:0 auto;min-height:100vh;padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
-button,input,select{font:inherit;color:inherit}
-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 6px}
-.logo{font-weight:800;font-size:26px;color:var(--red);letter-spacing:-.5px}
-.pill{display:flex;align-items:center;gap:6px;background:var(--card);border:0;border-radius:20px;padding:8px 14px;font-size:14px;font-weight:500}
-main{padding:8px 18px 20px;animation:in .22s ease}
-@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){main{animation:none}}
-h1{font-size:22px;margin:10px 0 4px;font-weight:800}
-h2{font-size:17px;margin:18px 0 10px;font-weight:700}
-p.s{color:var(--mut);margin:0 0 14px;font-size:14px;line-height:1.7}
-.card{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
-.svc{display:flex;align-items:center;gap:14px;padding:14px;margin-bottom:10px;width:100%;text-align:right;cursor:pointer}
-.ic{flex:none;width:46px;height:46px;border-radius:14px;background:#FCEBEE;display:grid;place-items:center}
-.ic svg{width:24px;height:24px;stroke:var(--red);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.svc b{display:block;font-size:16px}.svc span{font-size:13px;color:var(--mut)}
-.svc .ch{margin-inline-start:auto;color:#bbb;font-size:20px}
-.btn{border:0;border-radius:14px;padding:13px 16px;font-weight:700;font-size:15px;cursor:pointer;background:var(--red);color:#fff;text-align:center;text-decoration:none;display:inline-block}
-.btn.g{background:var(--card);color:var(--tx)}.btn.w{background:#1FA855}.btn.sm{padding:9px 12px;font-size:13px;border-radius:11px}
-.btn.full{width:100%}
-.row{display:flex;gap:8px}.row>*{flex:1}
-.co{padding:14px;margin-bottom:12px;cursor:pointer}
-.co h3{margin:0 0 2px;font-size:16px}
-.meta{font-size:13px;color:var(--mut);margin-bottom:10px}
-.logo-c{width:48px;height:48px;border-radius:14px;background:var(--red);color:#fff;display:grid;place-items:center;font-weight:800;font-size:20px;flex:none}
-.tag{display:inline-block;background:var(--card);border-radius:8px;padding:3px 9px;font-size:12px;margin:0 0 0 6px;color:var(--mut)}
-.tag.red{background:#FCEBEE;color:var(--red)}
-.back{background:none;border:0;color:var(--red);font-weight:700;font-size:15px;padding:6px 0;cursor:pointer}
-label{display:block;font-size:13px;color:var(--mut);margin:12px 0 5px}
-input,select{width:100%;background:var(--card);border:1px solid transparent;border-radius:12px;padding:12px;font-size:15px}
-input:focus,select:focus{outline:2px solid var(--red);background:#fff}
-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;border-top:1px solid var(--line);display:flex;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px))}
-nav button{flex:1;background:none;border:0;display:grid;justify-items:center;gap:3px;font-size:12px;color:#9a9a9a;padding:4px;cursor:pointer}
-nav button.on{color:var(--red);font-weight:700}
-nav svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.stat{display:flex;gap:14px;font-size:13px;color:var(--mut);margin-top:8px}
-.note{background:#FFF6E5;border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.7;margin-bottom:12px}
-.empty{text-align:center;color:var(--mut);padding:36px 10px;line-height:1.8}
-.toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:#202020;color:#fff;padding:11px 16px;border-radius:12px;font-size:14px;max-width:88%;text-align:center;z-index:9}
-.ad{padding:12px;margin-bottom:10px}.ad .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.mini{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
-
-/* Matetattal premium dark redesign — presentation only; existing JS flows preserved */
-:root{--red:#E32636;--bg:#090A0D;--card:#17191F;--tx:#F8F8FA;--mut:#B3B5BF;--line:#30323A;color-scheme:dark}
-html,body{background:var(--bg);color:var(--tx)}
-body{background:linear-gradient(165deg,#16171d 0,#090a0d 420px);max-width:520px}
-header{padding:20px 20px 12px;background:rgba(10,11,15,.92);border-bottom:1px solid #262832}
-.logo{font-size:31px;letter-spacing:-1.2px;color:#fff;text-shadow:0 0 22px rgba(227,38,54,.18)}
-.logo::after{content:'•';color:var(--red);margin-right:5px}
-.pill{background:#22242b;color:#fff;border:1px solid #373943}
-main{padding:18px 18px 28px}
-h1{font-size:27px;line-height:1.3;margin:12px 0 8px}h2{font-size:19px;margin-top:24px}
-p.s{font-size:14px;color:#b5b7c0}
-.card{background:#17191e;border:1px solid #343640;border-radius:20px;box-shadow:0 12px 28px rgba(0,0,0,.2)}
-.svc{position:relative;overflow:hidden;min-height:126px;padding:20px 16px;isolation:isolate;background-color:#1c1e24;background-size:cover;background-position:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05),0 12px 25px rgba(0,0,0,.25)}
-.svc::before{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(270deg,rgba(9,10,14,.96) 0%,rgba(9,10,14,.84) 48%,rgba(9,10,14,.27) 100%)}
- .svc-keys{background-image:url('https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?auto=format&fit=crop&w=900&q=82')}
-.svc-tow{background-image:url('https://images.unsplash.com/photo-1485291571150-772bcfc10da5?auto=format&fit=crop&w=900&q=82')}
-.svc-wash{background-image:url('https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=82')}
-.svc-shield{background-image:url('https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=900&q=82')}
-.svc-bat{background-image:url('https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=900&q=82')}
-.svc b{font-size:18px;color:#fff}.svc span{color:#d5d5dc}.svc .ch{color:#fff}
-.ic{background:rgba(227,38,54,.18);border:1px solid rgba(227,38,54,.45);backdrop-filter:blur(7px);width:50px;height:50px}
-.ic svg{stroke:#ff4659}
-.btn{background:linear-gradient(125deg,#e82b3f,#ad1026);box-shadow:0 7px 20px rgba(227,38,54,.15)}
-.btn.g{background:#24262e;color:#fff;border:1px solid #3b3e48;box-shadow:none}.btn.w{background:#16894b}
-.co{background:linear-gradient(135deg,#20222a,#13151b);padding:18px}.co h3{color:#fff}
-.logo-c{background:linear-gradient(135deg,#f04456,#941123)}
-.tag{background:#282b33;color:#c4c5cc}.tag.red{background:#431b25;color:#ff7482}
-input,select{background:#22242c;color:#fff;border:1px solid #393c46}input:focus,select:focus{background:#252730}
-nav{max-width:520px;background:#121318;border-color:#30323b;box-shadow:0 -12px 30px rgba(0,0,0,.35)}nav button{color:#9d9fa9}nav button.on{color:#ff485b}
-.note{background:#3a2a1b;color:#ffe1ad}.empty{background:#16181e;border-radius:18px;border:1px dashed #353741}
-#mapov{background:#0e0f13;color:#fff}#mapov .bar{background:#14161c}
-.hero{position:relative;min-height:225px;border-radius:24px;padding:25px 22px;margin-bottom:22px;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;background:#181b21 url('https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=1100&q=85') center/cover;box-shadow:0 15px 35px rgba(0,0,0,.3)}
-.hero:before{content:'';position:absolute;inset:0;background:linear-gradient(0deg,rgba(4,5,9,.98),rgba(4,5,9,.48) 62%,rgba(4,5,9,.12))}
-.hero>*{position:relative}.hero .eyebrow{color:#ff5667;font-size:13px;font-weight:800;letter-spacing:.2px}.hero h1{font-size:31px;color:#fff;margin:8px 0}.hero p{font-size:14px;color:#e2e2e6;margin:0;line-height:1.65}
-.section-kicker{font-size:13px;color:#ff6574;font-weight:800;margin:18px 2px 12px}
-@media(min-width:600px){body{border-left:1px solid #292b34;border-right:1px solid #292b34}}
-
-
-/* MATETATTAL BLUE PREMIUM */
-:root{--red:#0757db;--bg:#f5f8ff;--card:#fff;--tx:#15233f;--mut:#66748e;--line:#e1e9f7;color-scheme:light}
-html,body{background:#f5f8ff;color:var(--tx)}body{background:#f5f8ff;max-width:520px}
-header{background:linear-gradient(125deg,#00369c,#075be3);padding:21px 18px;border:0;box-shadow:0 8px 22px #0757db22}
-.logo{color:#fff!important;text-shadow:none!important}.logo::after{color:#ffc400!important}.pill{background:#ffffff22!important;color:#fff!important;border:1px solid #ffffff55!important}
-main{padding:18px 15px 28px}h1,h2{color:#122d66}p.s{color:#66748e}
-.card{background:#fff!important;border:1px solid #e2eaf8!important;box-shadow:0 5px 17px #0c3d8c12!important;color:#172746!important}
-.svc{min-height:104px!important;padding:12px!important;display:flex!important;align-items:center!important;background:#fff!important;gap:13px!important;border-radius:19px!important}
-.svc:before{display:none!important}.svc b{color:#173777!important;font-size:17px!important}.svc span{color:#697996!important}.svc .ch{color:#0757db!important}
-.svc-photo{width:108px;height:84px;flex:none;object-fit:cover;border-radius:14px;background:#e9f0ff}.svc .ic{display:none}
-.hero{background:linear-gradient(120deg,#0040ae,#0870f4)!important;min-height:185px!important;box-shadow:0 10px 24px #0757db33!important}.hero:before{background:none!important}.hero h1,.hero p{color:#fff!important}.hero .eyebrow{color:#ffd23e!important}
-.btn{background:#0757db!important;color:white!important;border-color:#0757db!important}.btn.g{background:#edf3ff!important;color:#0757db!important;border-color:#d9e6ff!important}.btn.w{background:#13a857!important;color:white!important;border-color:#13a857!important}
-.co{padding:12px!important}.co .logo-c{width:104px!important;max-width:104px!important;height:104px!important;border-radius:15px!important}.co h3{color:#173777!important}.meta{color:#66748e!important}
-nav{background:#fff!important;border-color:#e4ebf7!important;box-shadow:0 -5px 22px #0b4d9a10!important}nav button{color:#63748d!important}nav button.on{color:#0757db!important}
-input,select{background:#fff!important;color:#15233f!important;border:1px solid #dce5f5!important}label{color:#243d69!important}
-.note{background:#fff6dd!important;color:#775900!important}.empty{background:#fff!important;color:#687895!important}
-#mapov{background:#fff!important;color:#172746!important}#mapov .bar{background:#fff!important}
-.section-kicker{color:#0757db!important}.tag.red{color:#0757db!important;background:#edf3ff!important}
-@media(min-width:600px){body{border-color:#dce5f5!important}}
-</style>
+<link rel="stylesheet" href="css/app.css?v=4.1.0">
+<link rel="modulepreload" href="js/core.js">
 </head>
 <body>
-<header><div class="logo">ماتعطل</div><button class="pill" id="areaBtn" onclick="pickArea()"></button></header>
-<main id="app"></main>
-<nav id="nav"></nav>
-<script>
-const I={
-keys:'<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3M14 9l2 2"/>',
-tow:'<path d="M3 17V9h9l3 4h6v4M3 17h18"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>',
-wash:'<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
-shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',
-bat:'<rect x="3" y="7" width="16" height="10" rx="2"/><path d="M21 11v2M7 12h4M9 10v4"/>',
-home:'<path d="M4 11l8-7 8 7v9H4z"/>',join:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>',
-admin:'<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 15v-3M12 15V8M16 15v-5"/>',
-pin:'<path d="M12 21s7-6 7-11a7 7 0 0 0-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>'};
-const svg=k=>`<svg viewBox="0 0 24 24">${I[k]}</svg>`;
-const SV=[{id:'keys',n:'مفاتيح السيارات',d:'فتح قفل وبرمجة مفاتيح',i:'keys'},{id:'tow',n:'سطحات وونشات',d:'سحب ونقل السيارات',i:'tow'},{id:'wash',n:'غسيل سيارات متنقل',d:'يوصلك وين ما كنت',i:'wash'},{id:'shield',n:'حماية وعزل حراري',d:'حماية الطلاء وتظليل',i:'shield'},{id:'bat',n:'بطاريات',d:'تبديل وتركيب في مكانك',i:'bat'}];
-const PHOTOS={keys:'https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?w=400&q=75',tow:'https://images.unsplash.com/photo-1485291571150-772bcfc10da5?w=400&q=75',wash:'https://images.unsplash.com/photo-1607860108855-64acf2078ed9?w=400&q=75',shield:'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=400&q=75',bat:'https://images.unsplash.com/photo-1517524206127-48bbd363f3d7?w=400&q=75'};
-const AR={all:[0,0],'العاصمة':[29.37,47.98],'حولي':[29.33,48.03],'السالمية':[29.34,48.07],'الفروانية':[29.28,47.96],'الجهراء':[29.35,47.67],'الأحمدي':[29.08,48.08],'الفحيحيل':[29.08,48.13],'مبارك الكبير':[29.21,48.06]};
-const AN=Object.keys(AR).filter(a=>a!=='all');
-const KEY='matetattal_v3';
-// ===== Supabase: المفتاح العام (publishable) فقط. لا تضع service_role أو secret هنا أبداً =====
-const SUPABASE_URL='https://xpnwhvbxordtsmnegvri.supabase.co';
-const SUPABASE_KEY='sb_publishable_n7zs9ZZSp98MURnnpu3UAw_-OhKNHH9';
-const day=n=>new Date(Date.now()+n*864e5).toISOString().slice(0,10);
-const today=()=>day(0);
-let area='all';try{area=localStorage.getItem(KEY+'a')||'all'}catch(_){}
-const saveArea=()=>{try{localStorage.setItem(KEY+'a',area)}catch(_){}};
-let POS=null;try{const q=localStorage.getItem(KEY+'p');if(q){const[a,b]=q.split(',').map(Number);if(isFinite(a)&&isFinite(b))POS={lat:a,lng:b}}}catch(_){}
-const savePos=()=>{try{localStorage.setItem(KEY+'p',POS.lat+','+POS.lng)}catch(_){}};
-const nearestArea=(la,ln)=>{let b=null,bd=1e9;AN.forEach(a=>{const d=(AR[a][0]-la)**2+(AR[a][1]-ln)**2;if(d<bd){bd=d;b=a}});return b};
-let V={v:'home'},C=[],LOAD={s:'loading',m:''},AREAS={},busy=false,sending=false;
-let SES=null;try{SES=JSON.parse(sessionStorage.getItem(KEY+'s'))}catch(_){}
-let ADM={req:[],cos:[],loaded:false,loading:false,err:''};
-const e=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const vis=c=>c.on&&c.end>=today();
-const inArea=c=>area==='all'||c.ar.includes(area);
-const svcName=id=>(SV.find(s=>s.id===id)||{}).n||'';
-const intl=p=>{p=String(p||'').replace(/\D/g,'');return p.length===8?'965'+p:p};
-function toast(t){const o=document.createElement('div');o.className='toast';o.textContent=t;document.body.appendChild(o);setTimeout(()=>o.remove(),3200)}
-
-async function sb(path,o={}){
-const h={apikey:SUPABASE_KEY};
-if(o.token)h.Authorization='Bearer '+o.token;else if(!path.startsWith('/auth/'))h.Authorization='Bearer '+SUPABASE_KEY;
-if(o.body!==undefined)h['Content-Type']='application/json';
-if(o.prefer)h.Prefer=o.prefer;
-let r;
-try{r=await fetch(SUPABASE_URL+path,{method:o.method||'GET',headers:h,body:o.body===undefined?undefined:JSON.stringify(o.body)})}
-catch(_){const x=new Error('تعذر الاتصال. تأكد من الإنترنت');x.net=true;throw x}
-const t=await r.text();let j=null;try{j=t?JSON.parse(t):null}catch(_){}
-if(!r.ok){const m=(j&&(j.message||j.error_description||j.msg||j.hint))||t||'';const x=new Error('HTTP '+r.status+(m?' - '+m:''));x.status=r.status;throw x}
-return j}
-
-const SEL0='id,service_id,name,phone,whatsapp,price_text,rating,sub_end,is_active,is_sample,company_areas(areas(name_ar))';let SEL=SEL0.replace('is_sample,','is_sample,logo_url,');
-// الصفحات العامة تقرأ من active_companies (الشركات الفعّالة فقط). لوحة الإدارة تقرأ من companies بتوكن المدير.
-const cosQ=async(o,tb='companies')=>{try{return await sb('/rest/v1/'+tb+'?select='+SEL+'&order=id.desc',o)}catch(x){if(SEL!==SEL0&&/logo_url/.test(x.message||'')){SEL=SEL0;return sb('/rest/v1/'+tb+'?select='+SEL+'&order=id.desc',o)}throw x}};
-function shrink(file,max=600){return new Promise((res,rej)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*k));c.height=Math.max(1,Math.round(im.height*k));const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?res(b):rej(new Error('تعذر تجهيز الصورة')),'image/jpeg',0.85)};im.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('هذا الملف مو صورة صالحة'))};im.src=u})}
-async function upLogo(blob,path,token){const h={apikey:SUPABASE_KEY,'Content-Type':'image/jpeg','cache-control':'max-age=31536000'};if(token)h.Authorization='Bearer '+token;
-let r;try{r=await fetch(SUPABASE_URL+'/storage/v1/object/logos/'+path,{method:'POST',headers:h,body:blob})}catch(_){throw new Error('تعذر الاتصال. تأكد من الإنترنت')}
-if(!r.ok){let m='';try{const j=await r.json();m=j.message||j.error||''}catch(_){}throw new Error('HTTP '+r.status+(m?' - '+m:''))}
-return SUPABASE_URL+'/storage/v1/object/public/logos/'+path}
-const rnd=()=>Date.now()+'-'+Math.random().toString(36).slice(2,8);
-function prevLogo(i,id){const d=document.getElementById(id);if(!d)return;const f=i.files&&i.files[0];d.innerHTML='';if(!f)return;const im=document.createElement('img');im.src=URL.createObjectURL(f);im.style.cssText='width:64px;height:64px;border-radius:14px;object-fit:cover;margin-top:8px';d.appendChild(im)}
-const av=(c,st)=>c.lg?`<img class="logo-c" alt="" src="${e(c.lg)}" style="object-fit:cover;${st||'flex:none;max-width:48px'}">`:`<div class="logo-c" style="${st||'flex:none;max-width:48px'}">${e(c.n[0])}</div>`;
-const mapCo=r=>({id:r.id,s:r.service_id,n:r.name,p:r.price_text||'اتصل للسعر',ar:(r.company_areas||[]).map(x=>x.areas&&x.areas.name_ar).filter(Boolean),call:r.phone||r.whatsapp,ph:r.whatsapp||r.phone,r:Number(r.rating)||0,end:r.sub_end,on:r.is_active,smp:r.is_sample,lg:r.logo_url||''});
-async function loadPublic(){
-LOAD={s:'loading',m:''};if(['home','list','co'].includes(V.v))render();
-try{const [cs,ars]=await Promise.all([cosQ(undefined,'active_companies'),sb('/rest/v1/areas?select=id,name_ar')]);
-C=(cs||[]).map(mapCo);AREAS={};(ars||[]).forEach(a=>{AREAS[a.name_ar]=a.id});LOAD={s:'ok',m:''}}
-catch(err){console.error(err);LOAD={s:'err',m:err.message}}
-if(['home','list','co'].includes(V.v))render()}
-
-function setSes(s){SES=s;try{s?sessionStorage.setItem(KEY+'s',JSON.stringify(s)):sessionStorage.removeItem(KEY+'s')}catch(_){}}
-const mkSes=j=>({at:j.access_token,rt:j.refresh_token,exp:Date.now()+(j.expires_in||3600)*1000,email:(j.user&&j.user.email)||''});
-async function login(){
-const em=le.value.trim(),pw=lp.value;if(!em||!pw)return toast('اكتب الإيميل وكلمة السر');
-const b=document.getElementById('lb');b.disabled=true;b.textContent='جاري الدخول...';
-try{const j=await sb('/auth/v1/token?grant_type=password',{method:'POST',body:{email:em,password:pw}});setSes(mkSes(j));ADM={req:[],cos:[],loaded:false,loading:false,err:''};render();await loadAdmin()}
-catch(err){toast(err.status===400?'الإيميل أو كلمة السر غير صحيحة':'ما تم الدخول: '+err.message);b.disabled=false;b.textContent='دخول'}}
-async function token(){
-if(!SES)throw new Error('سجّل الدخول أولاً');
-if(Date.now()>SES.exp-60000){try{const j=await sb('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:{refresh_token:SES.rt}});setSes(mkSes(j))}
-catch(_){setSes(null);ADM={req:[],cos:[],loaded:false,loading:false,err:''};render();throw new Error('انتهت الجلسة. سجّل الدخول من جديد')}}
-return SES.at}
-function logout(){setSes(null);ADM={req:[],cos:[],loaded:false,loading:false,err:''};toast('تم تسجيل الخروج');render()}
-
-async function loadAdmin(){
-ADM.loading=true;ADM.err='';if(V.v==='admin')render();
-try{const t=await token();
-const [rq,cs,ars]=await Promise.all([sb('/rest/v1/join_requests?select=*&order=created_at.desc',{token:t}),cosQ({token:t}),sb('/rest/v1/areas?select=id,name_ar')]);
-AREAS={};(ars||[]).forEach(a=>{AREAS[a.name_ar]=a.id});
-ADM.req=(rq||[]).filter(x=>x.status==='new');ADM.cos=(cs||[]).map(mapCo);ADM.loaded=true}
-catch(err){console.error(err);ADM.err=err.message}
-ADM.loading=false;if(V.v==='admin')render()}
-
-async function run(fn,ok){
-if(busy)return;busy=true;
-try{const t=await token();await fn(t);toast(ok);await loadAdmin();loadPublic()}
-catch(err){console.error(err);toast('ما تم: '+err.message)}
-busy=false}
-const needRows=r=>{if(!r||!r.length)throw new Error('ما تغيّر شي. تأكد إنك داخل بحساب المالك')};
-async function insertCo(t,f){
-const p=intl(f.phone);
-const r=await sb('/rest/v1/companies',{method:'POST',token:t,prefer:'return=representation',body:Object.assign({service_id:f.service,name:f.name,phone:p,whatsapp:p,price_text:f.price||null,is_active:true,is_sample:false,sub_start:today(),sub_end:day(30)},f.logo?{logo_url:f.logo}:{})});
-const id=r&&r[0]&&r[0].id;if(!id)throw new Error('ما رجع رقم الشركة من القاعدة');
-const aid=AREAS[f.area];
-if(aid)await sb('/rest/v1/company_areas',{method:'POST',token:t,prefer:'return=minimal',body:{company_id:id,area_id:aid}})}
-const patch=(t,table,id,body)=>sb('/rest/v1/'+table+'?id=eq.'+id,{method:'PATCH',token:t,prefer:'return=representation',body}).then(needRows);
-const accept=id=>run(async t=>{const q=ADM.req.find(x=>x.id===id);if(!q)throw new Error('الطلب غير موجود');
-await insertCo(t,{name:q.company_name,service:q.service_id,phone:q.phone,price:'',area:q.area_name,logo:q.logo_url||''});
-await patch(t,'join_requests',id,{status:'accepted'})},'تمت إضافة الشركة باشتراك 30 يوم');
-const saveEdit=id=>run(async t=>{const n=edn.value.trim(),ph=intl(edph.value);if(n.length<2)throw new Error('اكتب اسم الشركة');if(ph.length<8)throw new Error('اكتب رقم هاتف صحيح');
-const b={service_id:eds.value,name:n,price_text:edp.value.trim()||null,phone:ph,whatsapp:ph};const f=edl.files&&edl.files[0];
-if(f)b.logo_url=await upLogo(await shrink(f),'companies/'+id+'-'+rnd()+'.jpg',t);
-await patch(t,'companies',id,b);ADM.edit=null},'تم حفظ التعديل');
-const rejReq=id=>run(t=>patch(t,'join_requests',id,{status:'rejected'}),'تم رفض الطلب');
-const tog=id=>run(t=>{const c=ADM.cos.find(x=>x.id===id);return patch(t,'companies',id,{is_active:!c.on})},'تم التحديث');
-const ext=id=>run(t=>{const c=ADM.cos.find(x=>x.id===id);const b=c.end<today()?today():c.end;
-return patch(t,'companies',id,{sub_end:new Date(new Date(b).getTime()+30*864e5).toISOString().slice(0,10)})},'تم تمديد الاشتراك 30 يوم');
-const del=id=>{if(confirm('تأكد من حذف الشركة؟'))run(async t=>needRows(await sb('/rest/v1/companies?id=eq.'+id,{method:'DELETE',token:t,prefer:'return=representation'})),'تم حذف الشركة')};
-function addCo(){const n=an.value.trim(),p=ap.value.replace(/\D/g,'');
-if(n.length<2)return toast('اكتب اسم الشركة');if(p.length<8)return toast('اكتب رقم هاتف صحيح');
-run(t=>insertCo(t,{name:n,service:as.value,phone:p,price:apr.value.trim(),area:aa.value}),'تمت إضافة الشركة باشتراك 30 يوم')}
-
-function go(v,x){V=Object.assign({v},x||{});render();scrollTo(0,0);if(v==='admin'&&SES&&!ADM.loaded&&!ADM.loading)loadAdmin()}
-function pickArea(){V.sel=!V.sel;render()}
-function setArea(a){area=a;V.sel=false;saveArea();render()}
-function openMap(){
-if(typeof L==='undefined')return toast('الخريطة ما تحمّلت. تأكد من الإنترنت وحاول مرة ثانية');
-V.sel=false;const o=document.createElement('div');o.id='mapov';o.dir='ltr';
-o.innerHTML='<div style="padding:12px 14px;font-weight:700;direction:rtl;text-align:right">اضغط على الخريطة أو اسحب الدبوس لمكانك</div><div id="mp"></div><div class="bar"><button class="btn g" style="flex:1" id="mcan">إلغاء</button><button class="btn g" style="flex:1" id="mgps">موقعي</button><button class="btn" style="flex:2" id="mok">تأكيد</button></div>';
-document.body.appendChild(o);
-const c0=POS?[POS.lat,POS.lng]:[29.3759,47.9774];
-const m=L.map('mp').setView(c0,POS?16:11);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(m);
-let mk=POS?L.marker(c0,{draggable:true}).addTo(m):null;
-const put=ll=>{if(mk)mk.setLatLng(ll);else mk=L.marker(ll,{draggable:true}).addTo(m)};
-m.on('click',ev=>put(ev.latlng));
-setTimeout(()=>m.invalidateSize(),60);
-document.getElementById('mcan').onclick=()=>{m.remove();o.remove()};
-document.getElementById('mgps').onclick=()=>{if(!navigator.geolocation)return toast('جهازك ما يدعم تحديد الموقع');navigator.geolocation.getCurrentPosition(p=>{const ll=L.latLng(p.coords.latitude,p.coords.longitude);put(ll);m.setView(ll,17)},()=>toast('ما قدرنا نحدد موقعك. اضغط على الخريطة يدوياً'),{timeout:8000})};
-document.getElementById('mok').onclick=()=>{if(!mk)return toast('اضغط على الخريطة أولاً لتحديد مكانك');const ll=mk.getLatLng();POS={lat:ll.lat,lng:ll.lng};savePos();m.remove();o.remove();const b=nearestArea(POS.lat,POS.lng);setArea(b);toast('تم حفظ موقعك. أقرب منطقة: '+b)}}
-function locate(q){if(!navigator.geolocation)return q||toast('جهازك ما يدعم تحديد الموقع');
-navigator.geolocation.getCurrentPosition(p=>{POS={lat:p.coords.latitude,lng:p.coords.longitude};savePos();const b=nearestArea(POS.lat,POS.lng);setArea(b);toast('تم تحديد منطقتك: '+b)},()=>{if(!q)toast('ما قدرنا نحدد موقعك. فعّل الموقع للمتصفح أو اختر منطقتك يدوياً')},{timeout:8000})}
-function act(id,t){const c=C.find(x=>x.id===id);if(!c)return;
-if(c.smp)return toast('هذي بيانات تجريبية. الاتصال يشتغل مع الشركات الحقيقية');
-trackContact(id,t);location.href=t==='c'?'tel:+'+intl(c.call):'https://wa.me/'+intl(c.ph)+(POS?'?text='+encodeURIComponent('السلام عليكم، أحتاج خدمة. موقعي: https://maps.google.com/?q='+POS.lat.toFixed(6)+','+POS.lng.toFixed(6)):'')}
-async function trackContact(id,t){try{await sb('/rest/v1/contact_events',{method:'POST',prefer:'return=minimal',body:{company_id:id,channel:t==='c'?'call':'whatsapp'}})}catch(err){console.warn('Tracking requires contact_events table and RLS',err)}}
-const rate=c=>c.r>0?'★ '+c.r.toFixed(1):'جديد';
-function companyCard(c){return `<div class="card co" onclick="go('co',{id:${c.id}})"><div class="row" style="align-items:center;gap:12px">${av(c)}<div style="flex:1"><h3>${e(c.n)}</h3><div class="meta">${rate(c)} <span class="tag red">${e(c.p)}</span></div></div></div>${c.smp?'<span class="tag">بيانات تجريبية</span>':''}
-<div class="row" style="margin-top:10px" onclick="event.stopPropagation()"><button class="btn sm" onclick="act(${c.id},'c')">اتصال</button><button class="btn sm w" onclick="act(${c.id},'w')">واتساب</button></div></div>`}
-function home(){return `<section class="hero"><div class="eyebrow">خدمات السيارات في الكويت</div><h1>سيارتك تعطلت؟<br>ماتعطل.</h1><p>من الونش للمفاتيح والغسيل والحماية — تواصل مع الشركة مباشرة، بدون تسجيل.</p></section><div class="section-kicker">حدد مكانك واختر الخدمة</div>
-<button class="btn g full" style="margin-bottom:14px" onclick="locate()">حدد موقعي</button>
-<button class="btn g full" style="margin-bottom:14px" onclick="openMap()">حدد موقعك بالضبط على الخريطة</button>
-${SV.map(s=>`<button class="card svc svc-${s.id}" onclick="go('list',{svc:'${s.id}'})"><img class="svc-photo" src="${PHOTOS[s.id]}" alt="${e(s.n)}" loading="lazy"><span><b>${s.n}</b><span>${s.d}</span></span><span class="ch">‹</span></button>`).join('')}`}
-function list(){
-let body;
-if(LOAD.s==='loading')body='<div class="empty">جاري التحميل...</div>';
-else if(LOAD.s==='err')body=`<div class="empty">ما قدرنا نجيب الشركات.<br>${e(LOAD.m)}<br><br><button class="btn" onclick="loadPublic()">إعادة المحاولة</button></div>`;
-else{const all=C.filter(c=>c.s===V.svc&&vis(c)),near=all.filter(inArea),far=area==='all'?[]:all.filter(c=>!inArea(c));
-body=near.map(companyCard).join('');
-if(!near.length&&area!=='all')body='<div class="empty">ما فيه شركات بمنطقتك ('+area+') حالياً.</div>';
-if(far.length)body+='<h2 style="margin:16px 0 8px">شركات في مناطق ثانية</h2>'+far.map(companyCard).join('');
-if(!all.length)body='<div class="empty">ما فيه شركات في هالخدمة حالياً.</div>'}
-return `<button class="back" onclick="go('home')">› رجوع</button><h1>${svcName(V.svc)}</h1><p class="s">${area==='all'?'كل مناطق الكويت':'منطقة '+area}</p><button class="btn g full" style="margin-bottom:14px" onclick="locate()">حدد موقعي (الأقرب لك)</button><button class="btn g full" style="margin-bottom:14px" onclick="openMap()">حدد موقعك بالضبط على الخريطة</button>${body}`}
-function co(){const c=C.find(x=>x.id===V.id);
-if(!c)return `<button class="back" onclick="go('home')">› رجوع</button><div class="empty">ما لقينا هالشركة.</div>`;
-return `<button class="back" onclick="go('list',{svc:'${c.s}'})">› رجوع</button>
-<div class="card" style="padding:18px;text-align:center">${av(c,'margin:0 auto 10px;width:64px;height:64px;font-size:28px')}<h1 style="margin:0">${e(c.n)}</h1><div class="meta">${rate(c)} · ${svcName(c.s)}</div>${c.smp?'<span class="tag">بيانات تجريبية</span>':''}</div>
-<h2>الأسعار</h2><div class="card" style="padding:14px">${e(c.p)}</div>
-<h2>المناطق</h2><div>${c.ar.map(a=>`<span class="tag red" style="margin-bottom:6px">${e(a)}</span>`).join('')}</div>
-<h2>الصور</h2><div class="row"><div style="height:90px;border-radius:14px;background:var(--card)"></div><div style="height:90px;border-radius:14px;background:var(--card)"></div></div>
-<p class="s" style="margin-top:6px">الدفع يكون مباشرة بينك وبين الشركة.</p>
-<div class="row" style="margin-top:10px"><button class="btn" onclick="act(${c.id},'c')">اتصال</button><button class="btn w" onclick="act(${c.id},'w')">واتساب</button></div>`}
-function join(){return `<h1>انضم الآن</h1><p class="s">قدّم طلبك وبنتواصل معك لتفعيل اشتراكك.</p>
-<label>اسم الشركة</label><input id="jn"><label>نوع الخدمة</label><select id="js">${SV.map(s=>`<option value="${s.id}">${s.n}</option>`).join('')}</select>
-<label>رقم الهاتف</label><input id="jp" inputmode="tel" placeholder="965xxxxxxxx"><label>المنطقة الرئيسية</label><select id="ja">${AN.map(a=>`<option>${a}</option>`).join('')}</select>
-<label>شعار الشركة (اختياري)</label><input id="jl" type="file" accept="image/*" onchange="prevLogo(this,'jlp')"><div id="jlp"></div>
-<button class="btn full" style="margin-top:18px" onclick="sendJoin()">أرسل الطلب ثم تواصل لتفعيل الاشتراك</button><a href="https://wa.me/96565755222" target="_blank" rel="noopener" style="display:block;text-align:center;padding:14px;color:#128c48;font-weight:800">واتساب تفعيل الاشتراك: 65755222</a>`}
-async function sendJoin(){
-if(sending)return;
-const n=jn.value.trim(),p=jp.value.replace(/\D/g,''),s=js.value,a=ja.value;
-if(n.length<2||n.length>100)return toast('اسم الشركة لازم يكون بين 2 و100 حرف');
-if(p.length<8||p.length>20)return toast('اكتب رقم هاتف صحيح (8 أرقام أو أكثر)');
-const btn=document.querySelector('button[onclick="sendJoin()"]');sending=true;if(btn){btn.disabled=true;btn.textContent='جاري الإرسال...'}
-try{let logo=null;const lf=jl.files&&jl.files[0];
-if(lf){if(btn)btn.textContent='جاري رفع الشعار...';logo=await upLogo(await shrink(lf),'pending/'+rnd()+'.jpg')}
-if(btn)btn.textContent='جاري الإرسال...';
-await sb('/rest/v1/join_requests',{method:'POST',prefer:'return=minimal',body:Object.assign({company_name:n,service_id:s,phone:p,area_name:a,status:'new'},logo?{logo_url:logo}:{})});
-toast('وصل طلبك. تواصل مع الإدارة لتفعيل الاشتراك');window.open('https://wa.me/96565755222?text='+encodeURIComponent('السلام عليكم، سجلت شركة '+n+' في ماتعطل وأبي تفعيل الاشتراك'),'_blank');go('home')}
-catch(err){console.error('join_requests insert failed',err);toast('ما انحفظ الطلب: '+err.message)}
-finally{sending=false;const b=document.querySelector('button[onclick="sendJoin()"]');if(b){b.disabled=false;b.textContent='أرسل الطلب'}}}
-function admin(){
-if(!SES)return `<h1>دخول المالك</h1><p class="s">للمالك فقط. أدخل الإيميل وكلمة السر.</p><label>الإيميل</label><input id="le" type="email" autocomplete="username" inputmode="email"><label>كلمة السر</label><input id="lp" type="password" autocomplete="current-password"><button class="btn full" id="lb" style="margin-top:18px" onclick="login()">دخول</button>`;
-if(ADM.loading&&!ADM.loaded)return '<div class="empty">جاري التحميل...</div>';
-if(ADM.err&&!ADM.loaded)return `<h1>لوحة المالك</h1><div class="note">${e(ADM.err)}</div><button class="btn full" onclick="loadAdmin()">إعادة المحاولة</button><button class="btn g full" style="margin-top:10px" onclick="logout()">خروج</button>`;
-const n=ADM.cos.filter(vis).length;
-return `<div style="display:flex;justify-content:space-between;align-items:center"><h1 style="margin:0">لوحة المالك</h1><button class="btn sm g" onclick="logout()">خروج</button></div><p class="s">${e(SES.email)}</p>
-<h2>طلبات الانضمام (${ADM.req.length})</h2>${ADM.req.length?ADM.req.map(r=>`<div class="card ad">${r.logo_url?`<img alt="" src="${e(r.logo_url)}" style="width:56px;height:56px;border-radius:12px;object-fit:cover;float:left">`:''}<b>${e(r.company_name)}</b><div class="meta">${svcName(r.service_id)} · ${e(r.area_name||'')} · ${e(r.phone)}</div><div class="row"><button class="btn sm" onclick="accept(${r.id})">قبول وإضافة</button><button class="btn sm g" onclick="rejReq(${r.id})">رفض</button></div></div>`).join(''):'<p class="s">لا توجد طلبات جديدة.</p>'}
-<h2>الشركات (${ADM.cos.length}) · الظاهرة ${n}</h2><p class="s">تعديل القسم والبيانات حصري للإدارة. إحصائيات التواصل تحتاج تفعيل جدول contact_events في Supabase.</p>
-${ADM.cos.length?ADM.cos.map(c=>`<div class="card ad"><div class="top"><b>${e(c.n)}</b><span class="tag ${vis(c)?'red':''}">${!c.on?'موقوفة':c.end<today()?'منتهية':'فعّالة'}</span></div>
-<div class="meta">${svcName(c.s)} · ينتهي ${e(c.end)}${c.smp?' · تجريبية':''}</div>
-<div class="mini"><button class="btn sm g" onclick="tog(${c.id})">${c.on?'إيقاف':'تفعيل'}</button><button class="btn sm g" onclick="ext(${c.id})">تمديد 30 يوم</button><button class="btn sm g" onclick="ADM.edit=ADM.edit===${c.id}?null:${c.id};render()">تعديل</button><button class="btn sm g" onclick="del(${c.id})">حذف</button></div>
-${ADM.edit===c.id?`<div style="margin-top:10px"><label>الاسم</label><input id="edn" value="${e(c.n)}"><label>القسم الصحيح</label><select id="eds">${SV.map(s=>`<option value="${s.id}" ${c.s===s.id?'selected':''}>${s.n}</option>`).join('')}</select><label>الأسعار</label><input id="edp" value="${e(c.p==='اتصل للسعر'?'':c.p)}"><label>الهاتف</label><input id="edph" inputmode="tel" value="${e(c.call||'')}"><label>الشعار (اختر صورة لتغييره)</label><input id="edl" type="file" accept="image/*" onchange="prevLogo(this,'edlp')"><div id="edlp">${c.lg?`<img alt="" src="${e(c.lg)}" style="width:64px;height:64px;border-radius:14px;object-fit:cover;margin-top:8px">`:''}</div><div class="mini"><button class="btn sm" onclick="saveEdit(${c.id})">حفظ</button><button class="btn sm g" onclick="ADM.edit=null;render()">إلغاء</button></div></div>`:''}</div>`).join(''):'<p class="s">لا توجد شركات بعد.</p>'}
-<h2>إضافة شركة</h2><label>الاسم</label><input id="an"><label>الخدمة</label><select id="as">${SV.map(s=>`<option value="${s.id}">${s.n}</option>`).join('')}</select>
-<label>الهاتف</label><input id="ap" inputmode="tel"><label>الأسعار</label><input id="apr"><label>المنطقة</label><select id="aa">${AN.map(a=>`<option>${a}</option>`).join('')}</select>
-<button class="btn full" style="margin-top:14px" onclick="addCo()">إضافة (اشتراك 30 يوم)</button>`}
-function render(){const t=V.v;
-document.getElementById('areaBtn').innerHTML=svg('pin').replace('<svg','<svg style="width:16px;height:16px;stroke:var(--red);fill:none;stroke-width:2"')+(area==='all'?'كل الكويت':area);
-let h=t==='home'?home():t==='list'?list():t==='co'?co():t==='join'?join():admin();
-if(V.sel)h=`<div class="card" style="padding:12px;margin-bottom:12px"><b>اختر المنطقة</b><button class="btn full" style="margin-top:10px" onclick="locate()">حدد موقعي تلقائياً</button><button class="btn g full" style="margin-top:8px" onclick="openMap()">حدد على الخريطة</button><div class="mini"><button class="btn sm ${area==='all'?'':'g'}" onclick="setArea('all')">كل الكويت</button>${AN.map(a=>`<button class="btn sm ${area===a?'':'g'}" onclick="setArea('${a}')">${a}</button>`).join('')}</div></div>`+h;
-document.getElementById('app').innerHTML=h;
-const tabs=[['home','الرئيسية','home'],['join','انضم الآن','join'],['admin','الإدارة','admin']];const cur=(t==='list'||t==='co')?'home':t;
-document.getElementById('nav').innerHTML=tabs.map(x=>`<button class="${cur===x[0]?'on':''}" onclick="go('${x[0]}')">${svg(x[2])}${x[1]}</button>`).join('')}
-render();loadPublic();
-if(area==='all')locate(true);
-</script>
+<div id="splash" aria-hidden="true"><div class="sp"><div class="m">م</div><b>ماتعطل</b><small>خدمات السيارات بالكويت</small></div></div>
+<div id="app">
+  <main id="view" aria-live="polite"></main>
+</div>
+<nav class="tabbar" aria-label="التنقل الرئيسي">
+  <a href="#/" data-tab="home"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 10.5 12 3.8l8.5 6.7V20a1 1 0 0 1-1 1h-5v-6h-5v6h-5a1 1 0 0 1-1-1z"/></svg>الرئيسية</a>
+  <a href="#/search" data-tab="search"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3.5H6.5a1.5 1.5 0 0 0-1.5 1.5v14a1.5 1.5 0 0 0 1.5 1.5h4"/><path d="M8.5 8h7M8.5 11.5h4"/><circle cx="16" cy="15.5" r="3.2"/><path d="m18.4 17.9 2.1 2.1"/></svg>البحث</a>
+  <a href="#/advertise" class="fab" data-tab="ad" aria-label="اضف إعلان"><span class="c"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>اضف إعلان</a>
+  <a href="#/requests" data-tab="req"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4.5" width="14" height="16.5" rx="2"/><path d="M9 4.5V3.5h6v1M8.5 10h7M8.5 13.5h7M8.5 17h4"/></svg>طلباتي</a>
+  <a href="#/account" data-tab="account"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.6 18.2c1.2-2 3.1-3.2 5.4-3.2s4.2 1.2 5.4 3.2"/></svg>حسابي</a>
+</nav>
+<noscript><p style="padding:20px;text-align:center">ماتعطل يحتاج تفعيل JavaScript.</p></noscript>
+<script type="module" src="js/app.js?v=4.1.0"></script>
 </body>
 </html>

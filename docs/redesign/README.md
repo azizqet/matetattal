@@ -1,7 +1,6 @@
 # ماتعطل v4: إعادة التصميم
 
-> **الحالة:** معاينة على فرع `claude/matetattal-platform-redesign-lta96c`.
-> الموقع المنشور (`index.html` على `main`) و `CNAME` و GitHub Pages **لم يتم تغييرها**.
+> **الحالة:** منشورة على الصفحة الرئيسية https://mat3tl.com (تمت الموافقة من المالك). النسخة السابقة محفوظة في `backup/index-live-2026-11-23.html`.
 
 ## مكان الملفات
 
