@@ -1,7 +1,7 @@
 // ماتعطل v5 — Service Worker
 // يخزّن ملفات الواجهة الثابتة فقط. لا يخزّن طلبات الخادم (Supabase) أو بيانات الحساب أو لوحة الإدارة.
-const VERSION = 'm5-v5.0.1';
-const SHELL = ['./', './index.html', './css/app.css?v=5.0.0', './js/app.js?v=5.0.1', './js/i18n.js', './js/core.js', './manifest.webmanifest',
+const VERSION = 'm5-v502';
+const SHELL = ['./', './index.html', './css/app.css?v=502', './js/app.js?v=502', './js/core.js?v=502', './js/i18n.js?v=502', './js/boot-check.js?v=502', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/favicon.svg', './icons/apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => !k.startsWith(VERSION)).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

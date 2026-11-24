@@ -1,9 +1,9 @@
 // ماتعطل v5 — لوحة الإدارة. كل صلاحية يتحقق منها الخادم (RLS + دوال admin_*)، والواجهة للعرض فقط.
-import { setLang } from './i18n.js';
+import { setLang } from './i18n.js?v=502';
 import {
   CFG, esc, $, $$, fmtNum, fmtDate, ago, safeImg, initSession, session, rest, rpc, login, logout, myProfile, removeImages,
   icon, CAT_ICONS, toast, sheet, closeSheet, confirmBox, promptBox, busy, localPhone,
-} from './core.js';
+} from './core.js?v=502';
 
 setLang('ar');
 const GOVS = { capital: 'العاصمة', hawalli: 'حولي', farwaniya: 'الفروانية', jahra: 'الجهراء', ahmadi: 'الأحمدي', mubarak: 'مبارك الكبير' };

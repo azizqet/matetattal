@@ -1,10 +1,10 @@
 // ماتعطل v5 — تطبيق السوق (واجهة العملاء)
-import { t, nm, lang, setLang, isAr, errText } from './i18n.js';
+import { t, nm, lang, setLang, isAr, errText } from './i18n.js?v=502';
 import {
   CFG, esc, $, $$, digits, localPhone, rnd, safeImg, fmtNum, fmtDate, ago, store, initSession, session, onAuth,
   rest, rpc, login, register, logout, myProfile, shrinkImage, upload, removeImages, icon, CAT_ICONS, toast, sheet, closeSheet,
   confirmBox, promptBox, busy,
-} from './core.js';
+} from './core.js?v=502';
 
 const PAGE = 20;
 const GOVS = ['capital', 'hawalli', 'farwaniya', 'jahra', 'ahmadi', 'mubarak'];
@@ -753,6 +753,7 @@ async function boot() {
   const meP = session() ? loadMe().then(syncFavs) : Promise.resolve();
   if (session()) await Promise.race([meP, new Promise(r => setTimeout(r, 1500))]);
   await render();
+  window.__m5ok = true;
   const sp = $('#splash'); if (sp) { sp.classList.add('out'); setTimeout(() => sp.remove(), 400); }
   track('m_visit');
   meP.then(() => { unreadCount(); }).catch(() => { });

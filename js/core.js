@@ -1,6 +1,6 @@
 // ماتعطل v5 — الوحدة المشتركة: الاتصال بالخادم، الحسابات، الصور، الأيقونات، عناصر الواجهة
 // المفتاح أدناه هو المفتاح العام (publishable) فقط. الصلاحيات الفعلية تُفرض في الخادم عبر RLS والدوال.
-import { t, lang } from './i18n.js';
+import { t, lang } from './i18n.js?v=502';
 export const CFG = {
   url: 'https://xpnwhvbxordtsmnegvri.supabase.co',
   key: 'sb_publishable_n7zs9ZZSp98MURnnpu3UAw_-OhKNHH9',
