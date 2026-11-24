@@ -1,995 +1,761 @@
-// ماتعطل — تطبيق العملاء (SPA بتوجيه عبر الـ hash ليعمل على GitHub Pages)
+// ماتعطل v5 — تطبيق السوق (واجهة العملاء)
+import { t, nm, lang, setLang, isAr, errText } from './i18n.js';
 import {
-  CFG, esc, $, $$, todayISO, digits, localPhone, intlPhone, rnd, safeImg, fmtDate, fmtNum, norm, store, errText,
-  initSession, session, onAuth, login, register, logout, myProfile, api, rpc, rest, shrinkImage, upload,
-  icon, svcIcon, toast, sheet, closeSheet, confirmBox, busy, cropImage, loadLeaflet, tileLayer, markerIcon, pickOnMap, geo, distKm, nearestArea,
+  CFG, esc, $, $$, digits, localPhone, rnd, safeImg, fmtNum, fmtDate, ago, store, initSession, session, onAuth,
+  rest, rpc, login, register, logout, myProfile, shrinkImage, upload, removeImages, icon, CAT_ICONS, toast, sheet, closeSheet,
+  confirmBox, promptBox, busy,
 } from './core.js';
 
-initSession('local');
-const VERSION = '4.7.0';
-const COLS = 'id,service_id,name,phone,whatsapp,price_text,rating,rating_count,logo_url,cover_url,photos,description,address,lat,lng,is_24h,is_available,created_at,featured_until,is_sample,company_areas(areas(name_ar)),company_services(service_id)';
+const PAGE = 20;
+const GOVS = ['capital', 'hawalli', 'farwaniya', 'jahra', 'ahmadi', 'mubarak'];
+const AD_COLS = 'id,title,price,price_type,images,area_id,category_id,status,featured_until,created_at,bumped_at';
+const S = { cats: [], cat: {}, areas: [], area: {}, settings: {}, me: null, favs: new Set(), ready: false };
+const view = () => $('#view');
 
-/* ================= الحالة ================= */
-const S = {
-  services: [], areas: [], cos: [], banners: [], ads: [], settings: {},
-  loaded: false, err: null, profile: null, isAdmin: false,
-  area: store.get('area', 'all'), pos: store.get('pos', null),
-  favs: new Set(store.get('favs', [])), recent: store.get('recent', []),
-  installEvt: null,
-};
-const svc = id => S.services.find(s => s.id === id);
-const svcName = id => (svc(id) || {}).name_ar || '';
-const coById = id => S.cos.find(c => c.id === +id);
-const supportWa = () => digits(S.settings.support_whatsapp) || CFG.supportWa;
-
-function mapCo(r) {
-  const svcs = new Set([r.service_id, ...((r.company_services || []).map(x => x.service_id))].filter(Boolean));
-  return {
-    id: r.id, s: r.service_id, svcs, name: r.name || '', phone: localPhone(r.phone) || digits(r.phone), wa: localPhone(r.whatsapp) || localPhone(r.phone) || digits(r.whatsapp || r.phone),
-    price: r.price_text || '', rating: Number(r.rating) || 0, rc: r.rating_count || 0, logo: safeImg(r.logo_url), cover: safeImg(r.cover_url),
-    photos: (r.photos || []).map(safeImg).filter(Boolean), desc: r.description || '', addr: r.address || '',
-    lat: r.lat, lng: r.lng, h24: !!r.is_24h, avail: r.is_available !== false, created: r.created_at,
-    feat: false, // ميزة «المميز» ملغاة بطلب المالك
-    areas: (r.company_areas || []).map(x => x.areas && x.areas.name_ar).filter(Boolean),
-  };
-}
+/* ================= البيانات العامة ================= */
 function applyPublic(d) {
-  S.services = (d.services || []).filter(s => s.is_active !== false).sort((a, b) => (a.sort || 0) - (b.sort || 0));
-  S.areas = (d.areas || []).map(a => a.name_ar);
-  S.cos = (d.cos || []).filter(c => !c.is_sample).map(mapCo);
-  S.banners = d.banners || []; S.ads = d.ads || []; S.plans = d.plans || [];
-  S.settings = {}; (d.settings || []).forEach(x => { S.settings[x.key] = x.value; });
-  const featIds = new Set(S.ads.filter(a => a.ad_type === 'featured' && a.company_id).map(a => a.company_id));
-  S.cos.forEach(c => { if (featIds.has(c.id)) c.feat = true; });
-  S.loaded = true;
+  S.cats = (d.cats || []).filter(c => c.is_active !== false).sort((a, b) => a.sort - b.sort);
+  S.cat = Object.fromEntries(S.cats.map(c => [c.id, c]));
+  S.areas = (d.areas || []).filter(a => a.is_active !== false).sort((a, b) => GOVS.indexOf(a.gov) - GOVS.indexOf(b.gov) || a.sort - b.sort);
+  S.area = Object.fromEntries(S.areas.map(a => [a.id, a]));
+  S.settings = Object.fromEntries((d.settings || []).map(s => [s.key, s.value]));
+  if (S.settings.support_whatsapp) CFG.supportWa = String(S.settings.support_whatsapp);
 }
-async function loadPublic(force) {
+async function loadPublic() {
   const cached = store.get('pub');
-  if (cached && !S.loaded) { applyPublic(cached.d); render(); }
-  if (!force && cached && Date.now() - cached.t < 60000 && S.loaded) return;
-  try {
-    const t = todayISO();
-    const [services, areas, cos, banners, ads, settings, plans] = await Promise.all([
-      rest('services?select=id,name_ar,sort,icon,is_active&order=sort.asc', { anon: true }),
-      rest('areas?select=id,name_ar&order=id.asc', { anon: true }),
-      rest(`companies?select=${COLS}&is_active=eq.true&status=eq.approved&sub_end=gte.${t}&order=created_at.desc&limit=1000`, { anon: true }),
-      Promise.resolve([]), // البنرات ملغاة بطلب المالك
-      Promise.resolve([]), // الإعلانات ملغاة بطلب المالك
-      rest('app_settings?select=key,value&is_public=eq.true', { anon: true }).catch(() => []),
-      rest('subscription_plans?select=id,name_ar,months,price_kwd,sort&is_active=eq.true&order=sort.asc', { anon: true }).catch(() => []),
-    ]);
-    const d = { services, areas, cos, banners, ads, settings, plans };
-    applyPublic(d); S.err = null; store.set('pub', { t: Date.now(), d });
-  } catch (e) { S.err = e; if (!S.loaded) S.loaded = false; }
-  render(true);
+  if (cached) { applyPublic(cached); S.ready = true; }
+  const p = Promise.all([
+    rest('market_categories?select=id,name_ar,name_en,icon,sort,is_active,price_label,fields&order=sort.asc', { anon: true }),
+    rest('kw_areas?select=id,gov,name_ar,name_en,sort,is_active&order=sort.asc', { anon: true }),
+    rest('app_settings?select=key,value&is_public=eq.true', { anon: true }).catch(() => []),
+  ]).then(([cats, areas, settings]) => { const d = { cats, areas, settings }; store.set('pub', d); applyPublic(d); S.ready = true; });
+  if (!cached) await p; else p.catch(() => { });
 }
+const market = () => Object.assign({ max_images: 10, require_approval: false }, S.settings.market || {});
+const paid = () => Object.assign({ enabled: false, featured_prices: {} }, S.settings.paid_ads || {});
+
 async function loadMe() {
-  if (!session()) { S.profile = null; S.isAdmin = false; return; }
-  try {
-    S.profile = await myProfile();
-    S.isAdmin = !!(S.profile && S.profile.role === 'admin');
-    await syncFavs();
-  } catch (e) { if (/JWT|session|401/.test(String(e.message))) await logout(); }
+  if (!session()) { S.me = null; return null; }
+  try { S.me = await myProfile(); } catch (e) { if (e.status === 401) await logout(); S.me = null; }
+  return S.me;
 }
-onAuth(() => { loadMe().then(() => render(true)); });
+const isStaff = () => S.me && (S.me.role === 'admin' || S.me.role === 'staff');
 
 /* ================= المفضلة ================= */
+function localFavs() { return new Set((store.get('favs', []) || []).map(Number).filter(Boolean)); }
 async function syncFavs() {
-  if (!session()) return;
+  if (!session()) { S.favs = localFavs(); return; }
   try {
-    const local = [...S.favs];
-    const r = await rest('favorites?select=company_id');
-    const server = new Set((r || []).map(x => x.company_id));
-    const add = local.filter(id => !server.has(id));
-    if (add.length) await rest('favorites', { method: 'POST', body: add.map(id => ({ company_id: id })), prefer: 'resolution=ignore-duplicates,return=minimal' }).catch(() => { });
-    S.favs = new Set([...server, ...add]); store.set('favs', [...S.favs]);
+    const loc = localFavs();
+    const r = await rest('market_favorites?select=ad_id&order=created_at.desc&limit=500') || [];
+    S.favs = new Set(r.map(x => +x.ad_id));
+    const add = [...loc].filter(id => !S.favs.has(id));
+    if (add.length) {
+      await rest('market_favorites', { method: 'POST', body: add.map(id => ({ ad_id: id })), prefer: 'resolution=ignore-duplicates,return=minimal' }).catch(() => { });
+      add.forEach(id => S.favs.add(id));
+    }
+    store.del('favs');
   } catch (_) { }
 }
 async function toggleFav(id, btn) {
   id = +id; const on = !S.favs.has(id);
-  on ? S.favs.add(id) : S.favs.delete(id); store.set('favs', [...S.favs]);
-  $$(`[data-act="fav"][data-id="${id}"]`).forEach(b => b.classList.toggle('on', on));
-  toast(on ? 'تمت الإضافة للمفضلة' : 'تمت الإزالة من المفضلة');
-  if (session()) {
-    try {
-      if (on) await rest('favorites', { method: 'POST', body: { company_id: id }, prefer: 'resolution=ignore-duplicates,return=minimal' });
-      else await rest('favorites?company_id=eq.' + id, { method: 'DELETE' });
-    } catch (_) { }
-  }
+  on ? S.favs.add(id) : S.favs.delete(id);
+  $$(`[data-fav="${id}"]`).forEach(b => { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  toast(t(on ? 'fav_add' : 'fav_del'));
+  if (!session()) { store.set('favs', [...S.favs]); return; }
+  try {
+    if (on) await rest('market_favorites', { method: 'POST', body: { ad_id: id }, prefer: 'resolution=ignore-duplicates,return=minimal' });
+    else await rest('market_favorites?ad_id=eq.' + id, { method: 'DELETE' });
+  } catch (e) { on ? S.favs.delete(id) : S.favs.add(id); $$(`[data-fav="${id}"]`).forEach(b => b.classList.toggle('on', !on)); toast(errText(e), 'err'); }
 }
 
-/* ================= التتبع ================= */
+/* ================= العدادات ================= */
 const tracked = new Set();
-function track(kind, company) {
-  const k = kind + ':' + (company || '');
-  if (kind !== 'search' && tracked.has(k)) return; tracked.add(k);
-  rpc('track_event', { p_kind: kind, p_company: company ? +company : null }, { anon: true }).catch(() => { });
-}
-const adSeen = new Set();
-const trackAd = (id, kind) => { const k = id + kind; if (adSeen.has(k)) return; adSeen.add(k); rpc('track_ad', { p_id: +id, p_kind: kind }, { anon: true }).catch(() => { }); };
+function track(kind, ad) { const k = kind + ':' + (ad || ''); if (kind !== 'm_search' && tracked.has(k)) return; tracked.add(k); rpc('track_market', { p_kind: kind, p_ad: ad ? +ad : null }, { anon: true }).catch(() => { }); }
 
-/* ================= أجزاء واجهة ================= */
-const waText = c => {
-  let t = 'السلام عليكم، وصلت لكم عن طريق تطبيق ماتعطل وأحتاج خدمة' + (c && c.s ? ' (' + svcName(c.s) + ')' : '') + '.';
-  if (S.pos) t += '\nموقعي: https://maps.google.com/?q=' + S.pos.lat.toFixed(6) + ',' + S.pos.lng.toFixed(6);
-  return t;
-};
-const telHref = p => 'tel:+' + intlPhone(p);
-const waHref = (p, text) => 'https://wa.me/' + intlPhone(p) + (text ? '?text=' + encodeURIComponent(text) : '');
-function media(c, big) {
-  if (c.cover) return `<img src="${esc(c.cover)}" alt="" loading="lazy" decoding="async">`;
-  if (c.logo) return `<img class="fit" src="${esc(c.logo)}" alt="" loading="lazy" decoding="async">`;
-  return `<div class="ph-media">${svcIcon(svc(c.s) || c.s)}${big ? '' : `<span class="mono">ماتعطل</span>`}</div>`;
+/* ================= تنسيق ================= */
+const catIcon = c => icon(c && CAT_ICONS.includes(c.icon) ? c.icon : 'box');
+const govName = g => t('gov_' + g);
+const areaName = id => { const a = S.area[id]; return a ? nm(a) : ''; };
+const areaFull = id => { const a = S.area[id]; return a ? nm(a) + (isAr() ? '، ' : ', ') + govName(a.gov) : ''; };
+function priceHtml(a, big) {
+  if (a.price_type === 'free') return `<span class="pr free">${t('free')}</span>`;
+  if (a.price_type === 'ask' || a.price == null) return `<span class="pr ask">${t('ask')}</span>`;
+  return `<span class="pr">${fmtNum(a.price)} <small>${t('kwd')}</small>${a.price_type === 'negotiable' && big ? ` <em class="neg">${t('negotiable')}</em>` : ''}</span>`;
 }
-const areaText = c => c.areas.length ? (c.areas[0] + (c.areas.length > 1 ? ` +${c.areas.length - 1}` : '')) : 'الكويت';
-const rateHtml = c => c.rc > 0 ? `<span class="rate">${icon('star')}${c.rating.toFixed(1)} <small style="color:var(--mut);font-weight:700">(${c.rc})</small></span>` : '<span class="new-tag">جديد</span>';
-const distOf = c => (S.pos && c.lat != null && c.lng != null) ? distKm(S.pos, { lat: c.lat, lng: c.lng }) : null;
-const distTxt = c => { const d = distOf(c); return d == null ? '' : (d < 1 ? Math.round(d * 1000) + ' م' : d.toFixed(1) + ' كم'); };
-function actions(c) {
-  return `<div class="acts">
-    <a class="btn dark" href="${telHref(c.phone || c.wa)}" data-track="call" data-id="${c.id}">${icon('phone')}اتصال</a>
-    <a class="btn wa" href="${waHref(c.wa || c.phone, waText(c))}" target="_blank" rel="noopener" data-track="whatsapp" data-id="${c.id}">${icon('wa')}واتساب</a></div>`;
+const isFeatured = a => a.featured_until && new Date(a.featured_until) > new Date();
+function optLabel(f, v) { const o = (f.o || []).find(x => x.v === v); return o ? nm(o) : v; }
+function specsList(a) {
+  const c = S.cat[a.category_id]; if (!c) return [];
+  return (c.fields || []).map(f => {
+    const v = a.specs && a.specs[f.k]; if (v == null || v === '') return null;
+    return [nm(f), f.t === 'select' ? optLabel(f, v) : f.t === 'number' ? (f.k === 'year' ? String(v) : fmtNum(v)) : String(v)];
+  }).filter(Boolean);
 }
-function pcard(c) {
-  const fav = S.favs.has(c.id);
-  return `<div class="pcard" data-href="#/c/${c.id}" role="link" tabindex="0" aria-label="${esc(c.name)}">
-    <div class="media blue">${c.cover ? `<img src="${esc(c.cover)}" alt="" loading="lazy" decoding="async">` : `<span class="bigic">${svcIcon(svc(c.s) || c.s)}</span>`}
-      <div class="badges">${distTxt(c) ? `<span class="badge glass">${icon('pin')}${distTxt(c)}</span>` : ''}${c.feat ? `<span class="badge y">${icon('star')}مميز</span>` : ''}${c.h24 ? `<span class="badge glass">${icon('clock')}24 ساعة</span>` : ''}</div>
-      <button class="fav-mini ${fav ? 'on' : ''}" data-act="fav" data-id="${c.id}" aria-label="المفضلة">${icon('heart')}</button>
-      <span class="av">${c.logo ? `<img src="${esc(c.logo)}" alt="" loading="lazy">` : svcIcon(svc(c.s) || c.s)}</span></div>
-    <div class="body"><div class="nm">${esc(c.name)}</div>
-      <div class="meta">${svcIcon(svc(c.s) || c.s)}<span>${esc(svcName(c.s))}</span></div>
-      <div class="meta">${icon('pin')}<span>${esc(areaText(c))}${distTxt(c) ? ' · ' + distTxt(c) : ''}</span><span style="margin-inline-start:auto">${rateHtml(c)}</span></div>
-      ${actions(c)}</div></div>`;
-}
-function lcard(c) {
-  return `<div class="lcard" data-href="#/c/${c.id}" role="link" tabindex="0" aria-label="${esc(c.name)}">
-    <div class="thumb">${media(c)}</div>
-    <div class="info"><div class="nm">${esc(c.name)}</div>
-      <div class="meta">${icon('pin')}<span>${esc(areaText(c))}${distTxt(c) ? ' · ' + distTxt(c) : ''}</span></div>
-      <div class="tagline"><span class="tg">${esc(svcName(c.s))}</span>${c.feat ? '<span class="tg y">مميز</span>' : ''}${c.h24 ? '<span class="tg">24 ساعة</span>' : ''}${rateHtml(c)}</div>
-      ${actions(c)}</div></div>`;
-}
-const skRail = () => `<div class="rail">${'<div class="sk sk-card"></div>'.repeat(3)}</div>`;
-const emptyBox = (ic, t, p, extra = '') => `<div class="empty"><div class="big">${icon(ic)}</div><b>${esc(t)}</b>${p ? `<p>${esc(p)}</p>` : ''}${extra}</div>`;
-const topbar = (title, { back = true, right = '' } = {}) => `<header class="topbar line">${back ? `<button class="icon-btn clear" data-act="back" aria-label="رجوع">${icon('chevR')}</button>` : ''}<h1>${esc(title)}</h1>${right}</header>`;
-const errBox = () => `<div class="pad" style="margin-top:14px">${emptyBox('refresh', 'تعذّر تحميل البيانات', errText(S.err), `<button class="btn primary" data-act="reload">${icon('refresh')}إعادة المحاولة</button>`)}</div>`;
+const waLink = (phone, text) => 'https://wa.me/965' + phone + '?text=' + encodeURIComponent(text);
+const adUrl = id => location.origin + location.pathname.replace(/[^/]*$/, '') + '#/ad/' + id;
 
-function adLink(a) {
-  if (a.link_type === 'call' && a.phone) return { href: telHref(a.phone) };
-  if (a.link_type === 'whatsapp' && a.phone) return { href: waHref(a.phone, 'السلام عليكم، شفت إعلانكم في ماتعطل'), ext: true };
-  if (a.link_type === 'company' && a.company_id) return { href: '#/c/' + a.company_id };
-  return null;
+function topbar(title, { back = true, actions = '' } = {}) {
+  return `<header class="topbar">${back ? `<button class="icon-btn" data-act="back" aria-label="${t('back')}">${icon(isAr() ? 'chevR' : 'chevL')}</button>` : '<span class="sp"></span>'}<h1>${esc(title)}</h1><div class="tb-act">${actions}</div></header>`;
 }
-function bannerHtml(b, kind) {
-  if (kind === 'ad') {
-    const l = adLink(b), tag = l ? 'a' : 'div';
-    return `<${tag} class="banner" ${l ? `href="${esc(l.href)}" ${l.ext ? 'target="_blank" rel="noopener"' : ''}` : ''} data-ad="${b.id}">
-      <img src="${esc(safeImg(b.image_url))}" alt="${esc(b.title || 'إعلان')}" loading="lazy"><span class="adtag">إعلان</span>
-      ${b.title ? `<div class="cap"><b>${esc(b.title)}</b><span>${esc(b.advertiser_name || '')}</span></div>` : ''}</${tag}>`;
+const emptyBox = (ic, title, sub = '', extra = '') => `<div class="empty"><div class="em-i">${icon(ic)}</div><b>${esc(title)}</b>${sub ? `<p>${esc(sub)}</p>` : ''}${extra}</div>`;
+const skeleton = n => Array.from({ length: n }, () => '<div class="card sk"><div class="ph"></div><div class="bd"><i></i><i></i><i></i></div></div>').join('');
+
+function card(a) {
+  const img = safeImg(a.images && a.images[0]); const c = S.cat[a.category_id];
+  const n = (a.images || []).length;
+  return `<a class="card${a.status === 'sold' ? ' is-sold' : ''}" href="#/ad/${a.id}">
+    <div class="ph">${img ? `<img src="${esc(img)}" alt="" loading="lazy" decoding="async">` : `<span class="noimg">${catIcon(c)}</span>`}
+      ${a.status === 'sold' ? `<span class="badge sold">${t('sold')}</span>` : isFeatured(a) ? `<span class="badge feat">${icon('star')}${t('featured').split(' ')[0]}</span>` : ''}
+      ${n > 1 ? `<span class="cnt">${icon('camera')}${n}</span>` : ''}</div>
+    <div class="bd"><h3>${esc(a.title)}</h3>${priceHtml(a)}
+      <div class="mt"><span>${icon('pin')}${esc(areaName(a.area_id))}</span><span>${icon('clock')}${esc(ago(a.bumped_at || a.created_at))}</span></div></div>
+    <button class="fav${S.favs.has(+a.id) ? ' on' : ''}" data-fav="${a.id}" aria-label="${t('favs')}" aria-pressed="${S.favs.has(+a.id)}">${icon('heart')}</button></a>`;
+}
+const featCard = a => { const img = safeImg(a.images && a.images[0]); return `<a class="fcard" href="#/ad/${a.id}"><div class="ph">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : `<span class="noimg">${catIcon(S.cat[a.category_id])}</span>`}<span class="badge feat">${icon('star')}</span></div><b>${esc(a.title)}</b>${priceHtml(a)}</a>`; };
+
+/* ================= الاستعلام والفلاتر ================= */
+function parseF(q) {
+  const f = { cat: q.get('cat') || '', q: q.get('q') || '', area: q.get('area') || '', min: q.get('min') || '', max: q.get('max') || '', photos: q.get('photos') === '1', sort: q.get('sort') || 'new', specs: {} };
+  for (const [k, v] of q) if (k.startsWith('s_') && v) f.specs[k.slice(2)] = v;
+  return f;
+}
+function fToQuery(f, withCat) {
+  const p = new URLSearchParams();
+  if (withCat && f.cat) p.set('cat', f.cat);
+  if (f.q) p.set('q', f.q); if (f.area) p.set('area', f.area); if (f.min) p.set('min', f.min); if (f.max) p.set('max', f.max);
+  if (f.photos) p.set('photos', '1'); if (f.sort && f.sort !== 'new') p.set('sort', f.sort);
+  for (const k in f.specs) if (f.specs[k]) p.set('s_' + k, f.specs[k]);
+  const s = p.toString(); return s ? '?' + s : '';
+}
+function feedQS(f, offset = 0, extra = '') {
+  const p = [`select=${AD_COLS}`, 'status=eq.active'];
+  if (f.cat) p.push('category_id=eq.' + encodeURIComponent(f.cat));
+  if (f.area) {
+    if (f.area.startsWith('gov:')) { const ids = S.areas.filter(a => a.gov === f.area.slice(4)).map(a => a.id); if (ids.length) p.push('area_id=in.(' + ids.join(',') + ')'); }
+    else if (+f.area) p.push('area_id=eq.' + (+f.area));
   }
-  const tag = b.company_id ? 'a' : 'div';
-  return `<${tag} class="banner" ${b.company_id ? `href="#/c/${+b.company_id}"` : ''}>${safeImg(b.image_url) ? `<img src="${esc(safeImg(b.image_url))}" alt="" loading="lazy">` : ''}
-    ${(b.title || b.subtitle) ? `<div class="cap"><b>${esc(b.title || '')}</b><span>${esc(b.subtitle || '')}</span></div>` : ''}</${tag}>`;
+  const mn = parseFloat(digits(f.min)), mx = parseFloat(digits(f.max));
+  if (f.min !== '' && isFinite(mn)) p.push('price=gte.' + mn);
+  if (f.max !== '' && isFinite(mx)) p.push('price=lte.' + mx);
+  if (f.photos) p.push('images=neq.{}');
+  for (const k in f.specs) if (/^[a-z0-9_]{1,30}$/.test(k) && f.specs[k]) p.push(`specs->>${k}=eq.` + encodeURIComponent(f.specs[k]));
+  const q = String(f.q || '').replace(/[,()*\\:"'.%]/g, ' ').trim().slice(0, 60);
+  if (q) { const w = encodeURIComponent('*' + q.split(/\s+/).join('*') + '*'); p.push(`or=(title.ilike.${w},description.ilike.${w})`); }
+  p.push('order=' + (f.sort === 'low' ? 'price.asc.nullslast,bumped_at.desc' : f.sort === 'high' ? 'price.desc.nullslast,bumped_at.desc' : 'bumped_at.desc'));
+  p.push('limit=' + PAGE, 'offset=' + offset);
+  return 'market_ads?' + p.join('&') + extra;
 }
-function promos() {
-  return [
-    `<a class="banner promo" href="#/categories"><span class="k">ماتعطل · الكويت</span><b>كل خدمات سيارتك في مكان واحد</b><span class="go">تصفّح الأقسام${icon('chevL')}</span><span class="art">${icon('tow')}</span></a>`,
-    `<a class="banner promo y" href="#/advertise"><span class="k">مساحة إعلانية</span><b>إعلانك هنا يوصل لأصحاب السيارات</b><span class="go">أعلن معنا${icon('chevL')}</span><span class="art">${icon('megaphone')}</span></a>`,
-    `<a class="banner promo" href="#/join"><span class="k">لمقدمي الخدمات</span><b>تقدم خدمة سيارات؟ انضم لماتعطل</b><span class="go">انضم الآن${icon('chevL')}</span><span class="art">${icon('store')}</span></a>`,
-  ];
+/** يعرض قائمة إعلانات مع «عرض المزيد» */
+function mountFeed(box, f, { countEl } = {}) {
+  let off = 0, done = false, loading = false;
+  const list = $('.feed', box), more = $('.more', box);
+  const load = async () => {
+    if (loading || done) return; loading = true;
+    if (!off) list.innerHTML = skeleton(6);
+    more.hidden = true;
+    try {
+      const r = await rest(feedQS(f, off), { anon: true, count: !off && !!countEl });
+      const rows = Array.isArray(r) ? r : r.rows;
+      if (!off) { list.innerHTML = ''; if (countEl && r.total != null) countEl.textContent = t('ads_n', { n: fmtNum(r.total) }); }
+      if (!off && !rows.length) list.innerHTML = emptyBox('search', t('no_ads'), t('no_ads_sub'), `<a class="btn primary sm" href="#/post${f.cat ? '?cat=' + f.cat : ''}">${icon('plus')}${t('post')}</a>`);
+      list.insertAdjacentHTML('beforeend', rows.map(card).join(''));
+      off += rows.length; done = rows.length < PAGE; more.hidden = done;
+    } catch (e) {
+      if (!off) list.innerHTML = emptyBox('refresh', t('error'), errText(e), `<button class="btn ghost sm" data-retry>${t('retry')}</button>`);
+      else { more.hidden = false; toast(errText(e), 'err'); }
+      const rb = $('[data-retry]', list); if (rb) rb.onclick = () => { loading = false; load(); };
+    } finally { loading = false; }
+  };
+  more.onclick = load;
+  // تحميل تلقائي عند الوصول لنهاية القائمة
+  if ('IntersectionObserver' in window) { const io = new IntersectionObserver(es => { if (es[0].isIntersecting && off && !done) load(); }, { rootMargin: '400px' }); io.observe(more); box._io = io; }
+  load();
 }
-function carousel(items) {
-  return `<div class="carousel" data-carousel>${items.join('')}</div><div class="dots">${items.map((_, i) => `<i class="${i ? '' : 'on'}"></i>`).join('')}</div>`;
+const feedBox = () => `<div class="feedwrap"><div class="feed"></div><button class="btn ghost block more" hidden>${t('load_more')}</button></div>`;
+
+function areaSelect(name, val, { all = true, gov = true, req = false } = {}) {
+  let h = `<select class="inp" name="${name}" ${req ? 'required' : ''}>`;
+  h += all ? `<option value="">${t('all_kw')}</option>` : `<option value="" disabled ${val ? '' : 'selected'}>${t('choose')}</option>`;
+  for (const g of GOVS) {
+    const list = S.areas.filter(a => a.gov === g); if (!list.length) continue;
+    h += `<optgroup label="${esc(govName(g))}">`;
+    if (gov) h += `<option value="gov:${g}" ${val === 'gov:' + g ? 'selected' : ''}>${esc(govName(g))} — ${t('all_gov')}</option>`;
+    h += list.map(a => `<option value="${a.id}" ${String(val) === String(a.id) ? 'selected' : ''}>${esc(nm(a))}</option>`).join('') + '</optgroup>';
+  }
+  return h + '</select>';
+}
+const areaFilterLabel = v => !v ? t('all_kw') : v.startsWith('gov:') ? govName(v.slice(4)) : areaName(+v);
+
+function filterSheet(f, onApply) {
+  const c = S.cat[f.cat];
+  const flds = c ? (c.fields || []).filter(x => x.t === 'select') : [];
+  const pl = c ? t(c.price_label || 'price') : t('price');
+  sheet(`<div class="sheet-body"><h3 class="sh-title">${t('filters')}</h3>
+    <label class="lbl">${t('sort')}</label><div class="seg" data-sort>${['new', 'low', 'high'].map(s => `<button type="button" data-v="${s}" class="${f.sort === s ? 'on' : ''}">${t('sort_' + s)}</button>`).join('')}</div>
+    <label class="lbl">${t('area')}</label>${areaSelect('area', f.area)}
+    <label class="lbl">${esc(pl)} (${t('kwd')})</label><div class="row2"><input class="inp" name="min" inputmode="decimal" placeholder="${t('min')}" value="${esc(f.min)}"><input class="inp" name="max" inputmode="decimal" placeholder="${t('max')}" value="${esc(f.max)}"></div>
+    ${flds.map(x => `<label class="lbl">${esc(nm(x))}</label><select class="inp" name="s_${esc(x.k)}"><option value="">${t('any')}</option>${(x.o || []).map(o => `<option value="${esc(o.v)}" ${f.specs[x.k] === o.v ? 'selected' : ''}>${esc(nm(o))}</option>`).join('')}</select>`).join('')}
+    <label class="check"><input type="checkbox" name="photos" ${f.photos ? 'checked' : ''}><span>${t('with_photos')}</span></label>
+    <div class="row2 sticky-act"><button class="btn primary" data-apply>${t('apply')}</button><button class="btn ghost" data-reset>${t('reset')}</button></div></div>`, {
+    onOpen: sh => {
+      let sort = f.sort;
+      $$('[data-sort] button', sh).forEach(b => b.onclick = () => { sort = b.dataset.v; $$('[data-sort] button', sh).forEach(x => x.classList.toggle('on', x === b)); });
+      $('[data-apply]', sh).onclick = () => {
+        const nf = { cat: f.cat, q: f.q, sort, area: $('[name=area]', sh).value, min: digits($('[name=min]', sh).value), max: digits($('[name=max]', sh).value), photos: $('[name=photos]', sh).checked, specs: {} };
+        flds.forEach(x => { const v = $(`[name="s_${x.k}"]`, sh).value; if (v) nf.specs[x.k] = v; });
+        closeSheet(true, true); onApply(nf);
+      };
+      $('[data-reset]', sh).onclick = () => { closeSheet(true, true); onApply({ cat: f.cat, q: f.q, sort: 'new', area: '', min: '', max: '', photos: false, specs: {} }); };
+    },
+  });
+}
+function chipsHtml(f) {
+  const c = S.cat[f.cat];
+  const nFil = (f.area ? 1 : 0) + (f.min || f.max ? 1 : 0) + (f.photos ? 1 : 0) + Object.keys(f.specs).length + (f.sort !== 'new' ? 1 : 0);
+  const quick = c && (c.fields || []).find(x => x.t === 'select' && x.filter);
+  return `<div class="chips hscroll">
+    <button class="chip strong${nFil ? ' on' : ''}" data-act="filters">${icon('filter')}${t('filters')}${nFil ? ` <b>${nFil}</b>` : ''}</button>
+    <button class="chip${f.area ? ' on' : ''}" data-act="filters">${icon('pin')}${esc(areaFilterLabel(f.area))}</button>
+    ${quick ? (quick.o || []).slice(0, 14).map(o => `<button class="chip${f.specs[quick.k] === o.v ? ' on' : ''}" data-quick="${esc(quick.k)}" data-v="${esc(o.v)}">${esc(nm(o))}</button>`).join('') : ''}
+  </div>`;
+}
+function bindListing(el, f, base) {
+  const nav = nf => go(base + fToQuery(nf));
+  $$('[data-act="filters"]', el).forEach(b => b.onclick = () => filterSheet(f, nav));
+  $$('[data-quick]', el).forEach(b => b.onclick = () => { const nf = JSON.parse(JSON.stringify(f)); const k = b.dataset.quick; nf.specs[k] = nf.specs[k] === b.dataset.v ? '' : b.dataset.v; if (!nf.specs[k]) delete nf.specs[k]; nav(nf); });
+  mountFeed(el, f, { countEl: $('.count', el) });
+}
+async function featuredStrip(el, cat) {
+  if (!paid().enabled) return;
+  const box = $('.featured', el); if (!box) return;
+  try {
+    const r = await rest(`market_ads?select=${AD_COLS}&status=eq.active&featured_until=gt.${new Date().toISOString()}${cat ? '&category_id=eq.' + cat : ''}&order=bumped_at.desc&limit=12`, { anon: true }) || [];
+    if (!r.length) return;
+    box.innerHTML = `<div class="sec-h"><h2>${icon('star')}${t('featured')}</h2></div><div class="hscroll frow">${r.map(featCard).join('')}</div>`;
+  } catch (_) { }
 }
 
 /* ================= الصفحات ================= */
-function areaLabel() { return S.area === 'all' ? 'كل الكويت' : S.area; }
-function nearbyList() {
-  let list = S.cos.slice();
-  if (S.pos) {
-    const withD = list.filter(c => distOf(c) != null).sort((a, b) => distOf(a) - distOf(b));
-    const inA = list.filter(c => distOf(c) == null && S.area !== 'all' && c.areas.includes(S.area));
-    return [...withD.filter(c => distOf(c) <= 40), ...inA].slice(0, 12);
-  }
-  if (S.area === 'all') return [];
-  return list.filter(c => c.areas.includes(S.area)).slice(0, 12);
+function brandHead() {
+  return `<header class="hero">
+    <div class="hero-top"><a class="brand" href="#/" aria-label="${t('app')}"><span class="logo">م</span><span><b>${t('app')}</b><small>${t('tagline')}</small></span></a>
+      <div class="tb-act">${session() ? `<a class="icon-btn light" href="#/notifications" aria-label="${t('notifications')}">${icon('bell')}<i class="dot" id="ndot" hidden></i></a>` : ''}<button class="lang-btn" data-act="lang">${isAr() ? 'EN' : 'ع'}</button></div></div>
+    <form class="searchbar" data-search role="search"><span>${icon('search')}</span><input name="q" type="search" enterkeyhint="search" placeholder="${t('search_ph')}" autocomplete="off"><button class="btn sm primary" type="submit">${t('search')}</button></form>
+  </header>`;
 }
+const catTile = c => `<a class="ctile" href="#/c/${esc(c.id)}"><span class="ci">${catIcon(c)}</span><b>${esc(nm(c))}</b></a>`;
 
 function pgHome() {
-  const maint = S.settings.maintenance_message;
-  const homeAds = S.ads.filter(a => a.ad_type === 'home_banner' && safeImg(a.image_url));
-  const items = [...homeAds.map(a => bannerHtml(a, 'ad')), ...S.banners.map(b => bannerHtml(b)), ...promos()];
-  const cats = S.services.map(s => `<a class="cat" href="#/s/${esc(s.id)}"><span class="ic tile t-${esc(s.icon || s.id)}">${svcIcon(s)}</span><span class="n">${esc(s.name_ar)}</span></a>`).join('');
-  let nearby, featured = '', latest;
-  if (!S.loaded) { nearby = skRail(); latest = skRail(); }
-  else {
-    const nb = nearbyList();
-    if (S.area === 'all' && !S.pos) nearby = `<div class="pad"><div class="note y">${icon('pin')}<div><b>حدد موقعك</b> لعرض مقدمي الخدمة القريبين منك.<div class="row2" style="margin-top:10px"><button class="btn sm dark" data-act="locate">${icon('locate')}موقعي الحالي</button><button class="btn sm ghost" data-act="area">اختيار المنطقة</button></div></div></div></div>`;
-    else nearby = nb.length ? `<div class="rail">${nb.map(pcard).join('')}</div>` : `<div class="pad"><div class="note">${icon('info')}<div>ما فيه مقدمي خدمة مسجّلين في ${esc(areaLabel())} حالياً. <a href="#/categories" style="font-weight:800;text-decoration:underline">تصفّح كل الكويت</a></div></div></div>`;
-    const fe = S.cos.filter(c => c.feat);
-    if (fe.length) featured = `<section class="sec"><div class="sec-h"><h2>المميز</h2></div><div class="rail">${fe.map(pcard).join('')}</div></section>`;
-    const lt = S.cos.slice().sort((a, b) => String(b.created).localeCompare(String(a.created))).slice(0, 10);
-    latest = lt.length ? `<div class="rail">${lt.map(pcard).join('')}</div>` : `<div class="pad">${emptyBox('store', 'لا يوجد مقدمو خدمة بعد', 'كن أول مقدم خدمة على ماتعطل.', '<a class="btn primary" href="#/join">انضم الآن</a>')}</div>`;
-  }
   return {
-    tab: 'home',
-    html: `
-    <div class="home-band"><div class="home-head"><div class="logo wordmark" aria-label="ماتعطل">ماتعطل<span class="dot"></span></div>
-      <button class="loc-chip" data-act="area" aria-label="اختيار المنطقة">${icon('pin', 'pin')}<span>${esc(areaLabel())}</span>${icon('chevD')}</button></div>
-      <div class="greet"><small>${new Date().getHours() < 12 ? 'صباح الخير' : 'مساء الخير'} 👋</small><h1>وين ما تعطلت...<br>إحنا قريبين منك.</h1></div></div>
-    <div class="search-float"><a class="sbtn" href="#/search" aria-label="بحث">${icon('search')}</a><a class="sph" href="#/search">ابحث عن سطحة، بنشر، مفاتيح...</a><a class="sflt" href="#/categories" aria-label="الفلاتر">${icon('filter')}</a></div>
-    <a class="sos" href="#/s/tow"><span class="ic">${icon('siren')}</span><span class="t"><b>سيارتك تعطلت؟</b><small>اطلب سطحة الآن وتواصل مباشرة</small></span>${icon('arrowL', 'go')}</a>
-    ${installCard()}
-    ${maint ? `<div class="pad" style="margin-top:12px"><div class="note y">${icon('info')}<div>${esc(maint)}</div></div></div>` : ''}
-    ${S.err && !S.loaded ? errBox() : ''}
-
-    <section class="sec"><div class="sec-h"><h2>الخدمات</h2><a class="more" href="#/categories">الكل${icon('chevL')}</a></div><div class="cats">${cats || '<div class="sk" style="grid-column:1/-1;height:180px"></div>'}</div></section>
-    <section class="sec"><div class="sec-h"><h2>قريب منك</h2>${S.area !== 'all' || S.pos ? `<a class="more" href="#/s/${esc((S.services[0] || {}).id || 'tow')}?sort=near">عرض الكل${icon('chevL')}</a>` : ''}</div>${nearby}</section>
-    ${featured}
-
-    <section class="sec"><div class="sec-h"><h2>أحدث مقدمي الخدمات</h2></div>${latest}</section>
-    <div class="footer-note">ماتعطل · منصة خدمات السيارات في الكويت<br>التواصل والدفع يتم مباشرة بينك وبين مقدم الخدمة.</div>`,
-    after: el => { initCarousel(el); },
+    html: `${brandHead()}<div class="page">
+      <section class="cgrid">${S.cats.map(catTile).join('')}</section>
+      <a class="cta" href="#/post"><span class="cta-i">${icon('plus')}</span><span><b>${t('post')}</b><small>${t('free_note')}</small></span>${icon(isAr() ? 'chevL' : 'chevR')}</a>
+      <div class="featured"></div>
+      <div class="sec-h"><h2>${t('latest')}</h2></div>${feedBox()}</div>`,
+    after: el => { mountFeed(el, { sort: 'new', specs: {} }); featuredStrip(el); bindSearch(el); },
   };
 }
-function installCard() {
-  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-  if (standalone || store.get('installDismiss')) return '';
-  return `<div class="install-card"><img class="app-ic" src="icons/icon-192.png" alt="أيقونة ماتعطل" width="52" height="52"><div style="flex:1"><b>حمّل تطبيق ماتعطل</b><small>أيقونة على شاشتك الرئيسية</small></div><button class="btn sm primary" data-act="install">${icon('download')}تحميل</button><button class="icon-btn clear" data-act="install-hide" aria-label="إخفاء" style="width:32px;height:32px">${icon('close')}</button></div>`;
+function bindSearch(el) {
+  const fm = $('[data-search]', el); if (!fm) return;
+  fm.onsubmit = e => { e.preventDefault(); const q = fm.q.value.trim(); if (q) { track('m_search'); go('/search?q=' + encodeURIComponent(q)); } };
 }
-function initCarousel(root) {
-  const c = $('[data-carousel]', root); if (!c) return;
-  const dots = $$('.dots i', root); let idx = 0, timer = null, userT = 0;
-  const upd = () => { const w = c.clientWidth + 10; idx = Math.round(Math.abs(c.scrollLeft) / w); dots.forEach((d, i) => d.classList.toggle('on', i === idx)); };
-  c.addEventListener('scroll', () => { cancelAnimationFrame(c._r); c._r = requestAnimationFrame(upd); }, { passive: true });
-  c.addEventListener('touchstart', () => { userT = Date.now(); }, { passive: true });
-  const n = c.children.length;
-  if (n > 1) timer = setInterval(() => {
-    if (!c.isConnected) return clearInterval(timer);
-    if (Date.now() - userT < 6000 || document.hidden) return;
-    const next = (idx + 1) % n; const w = c.clientWidth + 10;
-    c.scrollTo({ left: (getComputedStyle(c).direction === 'rtl' ? -1 : 1) * next * w, behavior: 'smooth' });
-  }, 5200);
-  // مشاهدات الإعلانات الفعلية (عند ظهور 60% من الإعلان)
-  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { trackAd(e.target.dataset.ad, 'view'); io.unobserve(e.target); } }), { threshold: .6 });
-  $$('[data-ad]', root).forEach(x => io.observe(x));
+function pgCats() {
+  return { html: topbar(t('cats'), { back: false }) + `<div class="page"><div class="clist">${S.cats.map(c => `<a class="crow" href="#/c/${esc(c.id)}"><span class="ci">${catIcon(c)}</span><b>${esc(nm(c))}</b>${icon(isAr() ? 'chevL' : 'chevR', 'chev')}</a>`).join('')}</div></div>` };
 }
-
-function pgCategories() {
-  const n = id => S.cos.filter(c => c.svcs.has(id)).length;
+function pgCategory([id], q) {
+  const c = S.cat[id]; if (!c) return { html: topbar(t('cats')) + emptyBox('grid', t('not_found')) };
+  const f = parseF(q); f.cat = id;
   return {
-    tab: 'cats',
-    html: `<header class="topbar"><h1 style="font-size:24px">الأقسام</h1></header>
-    <a class="searchbar" href="#/search" style="margin-bottom:14px">${icon('search')}<span class="ph">ابحث في كل الأقسام</span></a>
-    <div class="cat-list">${S.services.map(s => `<a class="cat-row" href="#/s/${esc(s.id)}"><span class="ic tile t-${esc(s.icon || s.id)}">${svcIcon(s)}</span><span><b>${esc(s.name_ar)}</b><small>${S.loaded ? (n(s.id) ? fmtNum(n(s.id)) + ' مقدم خدمة' : 'لا يوجد حالياً') : '...'}</small></span>${icon('chevL', 'chev')}</a>`).join('') || '<div class="sk" style="height:300px"></div>'}</div>
-    ${S.err && !S.loaded ? errBox() : ''}`,
+    html: topbar(nm(c), { actions: `<a class="icon-btn" href="#/search?cat=${esc(id)}" aria-label="${t('search')}">${icon('search')}</a>` }) +
+      `<div class="page">${chipsHtml(f)}<div class="featured"></div><div class="listhead"><span class="count"></span><a class="btn sm soft" href="#/post?cat=${esc(id)}">${icon('plus')}${t('post')}</a></div>${feedBox()}</div>`,
+    after: el => { bindListing(el, f, '/c/' + id); featuredStrip(el, id); },
   };
 }
-
-function filterSort(list, q) {
-  const area = q.get('area') || S.area, sort = q.get('sort') || (S.pos ? 'near' : 'new'), h24 = q.get('h24') === '1', text = norm(q.get('q') || '');
-  let r = list.slice();
-  if (h24) r = r.filter(c => c.h24);
-  if (text) r = r.filter(c => norm([c.name, c.desc, c.price, svcName(c.s), c.areas.join(' ')].join(' ')).includes(text));
-  const byNew = (a, b) => String(b.created).localeCompare(String(a.created));
-  if (sort === 'near') r.sort((a, b) => { const da = distOf(a), db = distOf(b); if (da == null && db == null) return (b.feat - a.feat) || byNew(a, b); if (da == null) return 1; if (db == null) return -1; return da - db; });
-  else if (sort === 'rating') r.sort((a, b) => (b.rc > 0) - (a.rc > 0) || b.rating - a.rating || b.rc - a.rc);
-  else r.sort((a, b) => (b.feat - a.feat) || byNew(a, b));
-  // مقدمو المنطقة أولاً، ثم «مناطق أخرى» حتى لا يختفي أحد
-  let other = [];
-  if (area !== 'all') { const inA = c => c.areas.includes(area) || c.areas.length === 0; other = r.filter(c => !inA(c)); r = r.filter(inA); }
-  return { r, other, area, sort, h24 };
-}
-const SORTS = { new: 'الأحدث', near: 'الأقرب', rating: 'الأعلى تقييماً' };
-function pgService([id], q) {
-  const s = svc(id);
-  if (S.loaded && !s) return { html: topbar('القسم') + emptyBox('grid', 'القسم غير موجود', '', '<a class="btn primary" href="#/categories">كل الأقسام</a>') };
-  const all = S.cos.filter(c => c.svcs.has(id));
-  const { r, other, area, sort, h24 } = filterSort(all, q);
-  const catAds = S.ads.filter(a => a.ad_type === 'category_banner' && a.service_id === id && safeImg(a.image_url));
-  const qs = (k, v) => { const p = new URLSearchParams(q); v == null ? p.delete(k) : p.set(k, v); const t = p.toString(); return '#/s/' + id + (t ? '?' + t : ''); };
-  const otherHtml = other.length ? `<div class="sec-h" style="margin-top:22px"><h2 style="font-size:16px">مقدمو خدمة في مناطق أخرى (${fmtNum(other.length)})</h2></div><div class="stack">${other.map(lcard).join('')}</div>` : '';
-  const list = !S.loaded ? '<div class="stack">' + '<div class="sk" style="height:120px"></div>'.repeat(3) + '</div>'
-    : (r.length ? `<div class="stack">${r.map(lcard).join('')}</div>`
-      : other.length ? `<div class="pad"><div class="note">${icon('info')}<div>ما فيه مقدم خدمة مسجّل في ${esc(area)} لهذا القسم حالياً. هذي خيارات من مناطق قريبة وأخرى:</div></div></div>`
-      : emptyBox('search', all.length ? 'لا توجد نتائج مطابقة' : 'لا يوجد مقدمو خدمة في هذا القسم حالياً', all.length ? 'جرّب إزالة الفلاتر.' : 'نضيف مقدمي خدمة جدد باستمرار.', all.length ? `<a class="btn ghost" href="#/s/${esc(id)}?area=all">إزالة الفلاتر</a>` : `<a class="btn primary" href="#/join">تقدم هذه الخدمة؟ انضم الآن</a>`)) + otherHtml;
-  return {
-    tab: 'cats',
-    html: `${topbar(s ? s.name_ar : '...', { right: `<a class="icon-btn" href="#/search" aria-label="بحث">${icon('search')}</a>` })}
-    <div class="sticky-search">
-      <label class="searchbar" style="margin-top:10px">${icon('search')}<input type="search" placeholder="ابحث داخل ${esc(s ? s.name_ar : 'القسم')}" value="${esc(q.get('q') || '')}" data-live="svcq" enterkeyhint="search" aria-label="بحث داخل القسم"></label>
-      <div class="chips" style="margin-top:6px">
-        <button class="chip ${area !== 'all' ? 'on' : 'out'}" data-act="area" data-scope="list">${icon('pin')}${esc(area === 'all' ? 'كل المناطق' : area)}${icon('chevD')}</button>
-        <button class="chip out on" data-act="sort" data-cur="${sort}">${icon('sort')}${SORTS[sort]}</button>
-        <a class="chip ${h24 ? 'on' : 'out'}" href="${qs('h24', h24 ? null : '1')}">${icon('clock')}24 ساعة</a>
-      </div>
-      <div class="chips">${S.services.map(x => `<a class="chip ${x.id === id ? 'on' : ''}" href="#/s/${esc(x.id)}">${esc(x.name_ar)}</a>`).join('')}</div>
-    </div>
-    ${catAds.length ? `<div style="margin:6px 0 8px">${carousel(catAds.map(a => bannerHtml(a, 'ad')))}</div>` : ''}
-    ${S.loaded ? `<div class="count-line">${fmtNum(r.length)} مقدم خدمة${area !== 'all' ? ' في ' + esc(area) : ''}</div>` : ''}
-    ${S.err && !S.loaded ? errBox() : list}`,
-    after: el => { initCarousel(el); },
-  };
-}
-
 function pgSearch(_, q) {
-  const text = q.get('q') || '';
+  const f = parseF(q);
+  const cats = `<div class="chips hscroll"><button class="chip${!f.cat ? ' on' : ''}" data-cat="">${t('all_cats')}</button>${S.cats.map(c => `<button class="chip${f.cat === c.id ? ' on' : ''}" data-cat="${esc(c.id)}">${esc(nm(c))}</button>`).join('')}</div>`;
   return {
-    tab: 'search',
-    html: `<header class="topbar"><button class="icon-btn clear" data-act="back" aria-label="رجوع">${icon('chevR')}</button>
-      <label class="searchbar" style="margin:0;flex:1;width:auto;height:48px">${icon('search')}<input id="sq" type="search" placeholder="ابحث عن خدمة أو اسم أو منطقة" value="${esc(text)}" data-live="search" enterkeyhint="search" autocomplete="off" aria-label="بحث"></label></header>
-      <div id="sres">${searchResults(text)}</div>`,
-    after: el => { const i = $('#sq', el); if (i && !text) setTimeout(() => i.focus(), 60); },
-  };
-}
-function searchResults(text) {
-  const t = norm(text);
-  if (!t) {
-    return `${S.recent.length ? `<div class="sec-h" style="margin-top:14px"><h2 style="font-size:16px">عمليات البحث الأخيرة</h2><button class="more" data-act="clear-recent">مسح</button></div><div class="chips" style="flex-wrap:wrap">${S.recent.map(r => `<a class="chip out" href="#/search?q=${encodeURIComponent(r)}">${icon('clock')}${esc(r)}</a>`).join('')}</div>` : ''}
-      <div class="sec-h" style="margin-top:20px"><h2 style="font-size:16px">تصفّح حسب الخدمة</h2></div>
-      <div class="cat-list">${S.services.map(s => `<a class="cat-row" href="#/s/${esc(s.id)}"><span class="ic tile t-${esc(s.icon || s.id)}">${svcIcon(s)}</span><span><b>${esc(s.name_ar)}</b></span>${icon('chevL', 'chev')}</a>`).join('')}</div>`;
-  }
-  const cats = S.services.filter(s => norm(s.name_ar).includes(t) || t.split(' ').some(w => w.length > 1 && norm(s.name_ar).includes(w)));
-  const syn = { 'ونش': 'tow', 'سطحه': 'tow', 'سحب': 'tow', 'بنشر': 'tire', 'تاير': 'tire', 'اطار': 'tire', 'كفر': 'tire', 'مفتاح': 'keys', 'ريموت': 'keys', 'غسيل': 'wash', 'تلميع': 'wash', 'تظليل': 'shield', 'نانو': 'shield', 'حمايه': 'shield', 'بطاريه': 'bat', 'بطارية': 'bat', 'كهرباء': 'bat', 'ميكانيك': 'mech', 'صيانه': 'mech' };
-  const synIds = new Set(Object.entries(syn).filter(([k]) => t.includes(norm(k))).map(([, v]) => v));
-  synIds.forEach(id => { const s = svc(id); if (s && !cats.includes(s)) cats.push(s); });
-  const cos = S.cos.filter(c => synIds.has(c.s) || norm([c.name, c.desc, c.price, svcName(c.s), c.areas.join(' ')].join(' ')).includes(t));
-  return `${cats.length ? `<div class="chips" style="margin-top:10px;flex-wrap:wrap">${cats.map(s => `<a class="chip" href="#/s/${esc(s.id)}">${svcIcon(s)}${esc(s.name_ar)}</a>`).join('')}</div>` : ''}
-    <div class="count-line" style="margin-top:12px">${fmtNum(cos.length)} نتيجة</div>
-    ${cos.length ? `<div class="stack">${cos.map(lcard).join('')}</div>` : emptyBox('search', 'ما لقينا نتائج', 'جرّب كلمة ثانية مثل: ونش، بنشر، بطارية.')}`;
-}
-
-async function pgCompany([id]) {
-  const c = coById(id);
-  if (!S.loaded) return { hideTabs: true, html: topbar('') + '<div class="pad"><div class="sk" style="height:260px;margin-top:10px"></div></div>' };
-  if (!c) return { hideTabs: true, html: topbar('مقدم الخدمة') + emptyBox('store', 'مقدم الخدمة غير متاح', 'ممكن يكون اشتراكه منتهي أو تم إيقافه.', '<a class="btn primary" href="#/">الرئيسية</a>') };
-  track('company_view', c.id);
-  const fav = S.favs.has(c.id);
-  const photos = c.photos.slice(0, 9);
-  return {
-    hideTabs: true,
-    html: `<div class="hero-media">${c.cover ? `<img src="${esc(c.cover)}" alt="">` : c.logo ? `<img class="fit" src="${esc(c.logo)}" alt="" style="object-fit:contain;background:#fff;padding:30px">` : `<div class="ph-media">${svcIcon(svc(c.s) || c.s)}</div>`}
-      <div class="hero-top"><button class="icon-btn" data-act="back" aria-label="رجوع">${icon('chevR')}</button><div class="g"><button class="icon-btn" data-act="share" data-id="${c.id}" aria-label="مشاركة">${icon('share')}</button><button class="icon-btn ${fav ? 'on' : ''}" data-act="fav" data-id="${c.id}" aria-label="المفضلة">${icon('heart')}</button></div></div></div>
-    <div class="detail">
-      ${c.cover && c.logo ? `<div class="logo-av"><img src="${esc(c.logo)}" alt=""></div>` : ''}
-      <h1>${esc(c.name)}</h1>
-      <div class="tagline"><a class="tg" href="#/s/${esc(c.s)}">${svcIcon(svc(c.s) || c.s)}${esc(svcName(c.s))}</a>${c.feat ? '<span class="tg y">مميز</span>' : ''}${c.h24 ? `<span class="tg">${icon('clock')}24 ساعة</span>` : ''}${c.avail ? '<span class="tg ok">متاح</span>' : '<span class="tg warn">غير متاح حالياً</span>'}${rateHtml(c)}</div>
-    </div>
-    <div class="pad" style="display:grid;gap:16px;margin-top:6px">
-      <div class="kv">
-        <div class="r">${icon('pin')}<span><b>مناطق الخدمة</b><div>${c.areas.length ? c.areas.map(esc).join('، ') : 'كل الكويت'}${distTxt(c) ? ` · يبعد عنك ${distTxt(c)}` : ''}</div></span></div>
-        ${c.price ? `<div class="r">${icon('card')}<span><b>الأسعار</b><div>${esc(c.price)}</div></span></div>` : ''}
-        ${c.addr ? `<div class="r">${icon('map')}<span><b>العنوان</b><div>${esc(c.addr)}</div></span></div>` : ''}
-        <div class="r">${icon('phone')}<span><b>رقم التواصل</b><div dir="ltr" style="text-align:right">+965 ${esc(c.phone || c.wa)}</div></span></div>
-      </div>
-      ${c.desc ? `<div><div class="lbl" style="margin-bottom:8px">عن مقدم الخدمة</div><div style="font-size:15px;line-height:1.9;white-space:pre-line;color:var(--ink2)">${esc(c.desc)}</div></div>` : ''}
-      ${c.lat != null && c.lng != null ? `<div><div class="lbl" style="margin-bottom:8px">الموقع</div><div class="minimap" id="minimap" dir="ltr"></div><a class="btn line block" style="margin-top:8px" target="_blank" rel="noopener" href="https://maps.google.com/?q=${+c.lat},${+c.lng}">${icon('external')}فتح في الخرائط</a></div>` : ''}
-      ${photos.length ? `<div><div class="lbl" style="margin-bottom:8px">الصور</div><div class="gallery">${photos.map((p, i) => `<button data-act="photo" data-i="${i}" data-id="${c.id}"><img src="${esc(p)}" alt="" loading="lazy"></button>`).join('')}</div></div>` : ''}
-      <div id="reviews"><div class="lbl">التقييمات</div><div class="sk" style="height:60px;margin-top:8px"></div></div>
-      <div class="note">${icon('shieldc')}<div>التعامل والدفع يتم مباشرة مع مقدم الخدمة. واجهت مشكلة؟ <a href="${waHref(supportWa(), 'بلاغ بخصوص مقدم الخدمة: ' + c.name + ' (#' + c.id + ')')}" target="_blank" rel="noopener" style="font-weight:800;text-decoration:underline">أبلغ الإدارة</a></div></div>
-    </div>
-    <div class="sticky-cta"><a class="btn dark" href="${telHref(c.phone || c.wa)}" data-track="call" data-id="${c.id}">${icon('phone')}اتصال</a><a class="btn wa" href="${waHref(c.wa || c.phone, waText(c))}" target="_blank" rel="noopener" data-track="whatsapp" data-id="${c.id}">${icon('wa')}واتساب</a></div>`,
-    after: async el => {
-      if (c.lat != null && c.lng != null) loadLeaflet().then(L => { const box = $('#minimap', el); if (!box) return; const m = L.map(box, { zoomControl: false, dragging: false, scrollWheelZoom: false, attributionControl: false }).setView([c.lat, c.lng], 14); tileLayer(L).addTo(m); L.marker([c.lat, c.lng], { icon: markerIcon(L) }).addTo(m); }).catch(() => { });
-      loadReviews(c, el);
+    html: `<header class="topbar search-top"><button class="icon-btn" data-act="back" aria-label="${t('back')}">${icon(isAr() ? 'chevR' : 'chevL')}</button>
+      <form class="searchbar mini" data-s2 role="search"><span>${icon('search')}</span><input name="q" type="search" enterkeyhint="search" value="${esc(f.q)}" placeholder="${t('search_ph')}" autocomplete="off"></form></header>
+      <div class="page">${cats}${chipsHtml(f)}<div class="listhead"><span class="count"></span></div>${feedBox()}</div>`,
+    after: el => {
+      const fm = $('[data-s2]', el), inp = fm.q;
+      if (!f.q && !f.cat) setTimeout(() => inp.focus(), 60);
+      const nav = nf => go('/search' + fToQuery(nf, true), true);
+      fm.onsubmit = e => { e.preventDefault(); inp.blur(); track('m_search'); nav(Object.assign({}, f, { q: inp.value.trim() })); };
+      $$('[data-cat]', el).forEach(b => b.onclick = () => nav(Object.assign({}, f, { cat: b.dataset.cat, specs: {} })));
+      $$('[data-act="filters"]', el).forEach(b => b.onclick = () => filterSheet(f, nav));
+      $$('[data-quick]', el).forEach(b => b.onclick = () => { const nf = JSON.parse(JSON.stringify(f)); const k = b.dataset.quick; if (nf.specs[k] === b.dataset.v) nf.specs[k] = ''; else nf.specs[k] = b.dataset.v; nav(nf); });
+      if (f.q || f.cat || Object.keys(f.specs).length || f.area) mountFeed(el, f, { countEl: $('.count', el) });
+      else $('.feed', el).innerHTML = emptyBox('search', t('search'), t('search_ph'));
     },
   };
 }
-async function loadReviews(c, el) {
-  const box = $('#reviews', el); if (!box) return;
-  let list = [];
-  try { list = await rest(`reviews?select=id,rating,comment,created_at,user_id&company_id=eq.${c.id}&is_hidden=eq.false&order=created_at.desc&limit=30`, { anon: true }) || []; } catch (_) { }
-  const ses = session(); const mine = ses && list.find(r => r.user_id === ses.uid);
-  if (!box.isConnected) return;
-  box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div class="lbl">التقييمات ${list.length ? `(${list.length})` : ''}</div>${mine ? '<span class="tg ok">قيّمت هذا المقدم</span>' : `<button class="btn xs ghost" data-act="review" data-id="${c.id}">${icon('star')}أضف تقييمك</button>`}</div>
-    ${list.length ? `<div style="display:grid;gap:8px">${list.map(r => `<div class="review"><div class="h"><span class="rate">${icon('star')}${r.rating}</span><span>${fmtDate(r.created_at)}</span></div>${r.comment ? `<p>${esc(r.comment)}</p>` : ''}</div>`).join('')}</div>` : '<div class="note">' + icon('star') + '<div>لا توجد تقييمات بعد. التقييمات تُكتب فقط من عملاء مسجّلين.</div></div>'}`;
+
+/* ---------- صفحة الإعلان ---------- */
+async function pgAd([id]) {
+  id = +id;
+  let a = null;
+  try { a = ((await rest(`market_ads?select=*&id=eq.${id}`)) || [])[0]; } catch (e) { return { html: topbar('') + emptyBox('refresh', t('error'), errText(e)) }; }
+  if (!a) return { html: topbar('') + emptyBox('search', t('not_found'), t('not_found_sub'), `<a class="btn primary sm" href="#/">${t('home')}</a>`) };
+  const c = S.cat[a.category_id], mine = session() && a.user_id === session().uid;
+  const imgs = (a.images || []).map(safeImg).filter(Boolean);
+  const specs = specsList(a);
+  if (a.status === 'active' || a.status === 'sold') track('ad_view', id);
+  const statusNote = a.status === 'pending' ? `<div class="note warn">${icon('clock')}${t('pending_note')}</div>` : a.status === 'removed' ? `<div class="note err">${icon('ban')}${t('removed')}${a.removed_reason && a.removed_reason !== 'banned' ? ' — ' + esc(t('removed_note', { r: a.removed_reason })) : ''}</div>` : a.status === 'hidden' ? `<div class="note">${icon('eyeOff')}${t('hidden')}</div>` : '';
+  const html = `<div class="adpage">
+    <div class="gal${imgs.length ? '' : ' empty'}">
+      <div class="gal-top"><button class="icon-btn glass" data-act="back" aria-label="${t('back')}">${icon(isAr() ? 'chevR' : 'chevL')}</button><span class="sp"></span>
+        <button class="icon-btn glass" data-act="share" aria-label="${t('share')}">${icon('share')}</button>
+        <button class="icon-btn glass fav${S.favs.has(id) ? ' on' : ''}" data-fav="${id}" aria-label="${t('favs')}">${icon('heart')}</button></div>
+      ${imgs.length ? `<div class="gal-track" dir="ltr">${imgs.map((u, i) => `<img src="${esc(u)}" alt="" data-i="${i}" ${i ? 'loading="lazy"' : ''}>`).join('')}</div>${imgs.length > 1 ? `<span class="gal-n"><b>1</b>/${imgs.length}</span>` : ''}` : `<span class="noimg big">${catIcon(c)}</span>`}
+      ${a.status === 'sold' ? `<span class="badge sold big">${t('sold')}</span>` : ''}
+    </div>
+    <div class="page ad-body">${statusNote}
+      <div class="ad-head">${priceHtml(a, true)}<h1>${esc(a.title)}</h1>
+        <div class="mt"><a href="#/c/${esc(a.category_id)}">${catIcon(c)}${esc(nm(c))}</a><span>${icon('pin')}${esc(areaFull(a.area_id))}</span><span>${icon('clock')}${esc(ago(a.bumped_at))}</span></div></div>
+      ${specs.length ? `<section class="box"><h2>${t('details')}</h2><dl class="specs">${specs.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl></section>` : ''}
+      ${a.description ? `<section class="box"><h2>${t('description')}</h2><p class="desc">${esc(a.description)}</p></section>` : ''}
+      ${mine ? ownerPanel(a) : ''}
+      <div class="ad-meta"><span>${t('ad_no')}: <b dir="ltr">#${a.id}</b></span><span>${icon('eye')}${fmtNum(a.views)} ${t('views')}</span><span>${t('posted')} ${esc(fmtDate(a.created_at))}</span></div>
+      <p class="safety">${icon('shield')}${t('safety')}</p>
+      ${!mine && (a.status === 'active' || a.status === 'sold') ? `<button class="link-btn" data-act="report">${icon('flag')}${t('report')}</button>` : ''}
+      <div class="similar"></div>
+    </div>
+    ${!mine && a.status !== 'removed' ? `<div class="contact-bar">
+      <a class="btn call" href="tel:+965${esc(a.phone)}" data-track="ad_call">${icon('phoneCall')}<span>${t('call')}</span><small dir="ltr">${esc(a.phone)}</small></a>
+      ${a.show_whatsapp ? `<a class="btn wa" href="${esc(waLink(a.phone, t('wa_msg', { t: a.title + ' — ' + adUrl(a.id) })))}" target="_blank" rel="noopener" data-track="ad_whatsapp">${icon('wa')}<span>${t('whatsapp')}</span></a>` : ''}
+    </div>` : ''}
+  </div>`;
+  return {
+    html, cls: 'no-tab',
+    after: el => {
+      const tr = $('.gal-track', el), n = $('.gal-n b', el);
+      if (tr && n) tr.addEventListener('scroll', () => { n.textContent = Math.round(Math.abs(tr.scrollLeft) / tr.clientWidth) + 1; }, { passive: true });
+      if (tr) $$('img', tr).forEach(im => im.onclick = () => viewer(imgs, +im.dataset.i));
+      $$('[data-track]', el).forEach(b => b.addEventListener('click', () => track(b.dataset.track, id)));
+      const sh = $('[data-act="share"]', el); if (sh) sh.onclick = () => share(a);
+      const rp = $('[data-act="report"]', el); if (rp) rp.onclick = () => reportSheet(id);
+      bindOwner(el, a);
+      loadSimilar($('.similar', el), a);
+    },
+  };
 }
-async function reviewSheet(id) {
-  if (!(await ensureAuth('سجّل دخولك لإضافة تقييم'))) return;
-  let val = 0;
-  sheet(`<div class="sheet-h"><h3>قيّم مقدم الخدمة</h3><button class="icon-btn clear" data-close>${icon('close')}</button></div>
-    <div class="sheet-body"><div class="stars" id="stars">${[1, 2, 3, 4, 5].map(n => `<button data-n="${n}" aria-label="${n}">${icon('star')}</button>`).join('')}</div>
-    <textarea class="inp" id="rvc" maxlength="500" placeholder="اكتب تجربتك (اختياري)"></textarea><button class="btn primary block" id="rvs">إرسال التقييم</button></div>`, {
-    onOpen: sh => {
-      $$('#stars button', sh).forEach(b => b.onclick = () => { val = +b.dataset.n; $$('#stars button', sh).forEach(x => x.classList.toggle('on', +x.dataset.n <= val)); });
-      $('#rvs', sh).onclick = e => busy(e.currentTarget, async () => {
-        if (!val) return toast('اختر عدد النجوم');
-        try { await rest('reviews', { method: 'POST', body: { company_id: +id, rating: val, comment: $('#rvc', sh).value.trim() || null }, prefer: 'return=minimal' }); closeSheet(); toast('شكراً لتقييمك', 'ok'); render(true); }
-        catch (err) { toast(errText(err), 'err'); }
-      }, 'جاري الإرسال...');
-    }
+async function loadSimilar(box, a) {
+  try {
+    const r = await rest(`market_ads?select=${AD_COLS}&status=eq.active&category_id=eq.${a.category_id}&id=neq.${a.id}&order=bumped_at.desc&limit=6`, { anon: true }) || [];
+    if (r.length) box.innerHTML = `<div class="sec-h"><h2>${t('similar')}</h2><a href="#/c/${esc(a.category_id)}">${t('see_all')}</a></div><div class="feed">${r.map(card).join('')}</div>`;
+  } catch (_) { }
+}
+function viewer(imgs, i) {
+  const o = document.createElement('div'); o.className = 'viewer';
+  o.innerHTML = `<button class="icon-btn glass vx" aria-label="${t('close')}">${icon('close')}</button><div class="v-track" dir="ltr">${imgs.map(u => `<div><img src="${esc(u)}" alt=""></div>`).join('')}</div>`;
+  document.body.appendChild(o); document.body.classList.add('noscroll');
+  const tr = $('.v-track', o); requestAnimationFrame(() => { tr.scrollLeft = tr.clientWidth * i; });
+  const end = () => { o.remove(); document.body.classList.remove('noscroll'); removeEventListener('keydown', k); };
+  const k = e => { if (e.key === 'Escape') end(); };
+  addEventListener('keydown', k); $('.vx', o).onclick = end;
+}
+async function share(a) {
+  const url = adUrl(a.id);
+  try { if (navigator.share) { await navigator.share({ title: a.title, text: a.title, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(url); toast(t('copied'), 'ok'); } catch (_) { promptBox(t('share'), { value: url, ok: t('close') }); }
+}
+function reportSheet(id) {
+  const reasons = ['spam', 'fraud', 'prohibited', 'wrong_category', 'duplicate', 'sold', 'offensive', 'other'];
+  sheet(`<div class="sheet-body"><h3 class="sh-title">${t('report_title')}</h3><div class="radios">${reasons.map((r, i) => `<label class="radio"><input type="radio" name="r" value="${r}" ${i ? '' : 'checked'}><span>${t('r_' + r)}</span></label>`).join('')}</div>
+    <label class="lbl">${t('report_details')}</label><textarea class="inp" rows="3" maxlength="500" name="d"></textarea>
+    <button class="btn danger block" data-send style="margin-top:14px">${icon('flag')}${t('send')}</button></div>`, {
+    onOpen: sh => $('[data-send]', sh).onclick = e => busy(e.currentTarget, async () => {
+      try { await rpc('report_market_ad', { p_id: id, p_reason: $('input[name=r]:checked', sh).value, p_details: $('[name=d]', sh).value.trim() || null }); closeSheet(); toast(t('report_ok'), 'ok'); }
+      catch (err) { toast(errText(err), 'err'); }
+    }),
+  });
+}
+function ownerPanel(a) {
+  const st = a.status; const pa = paid();
+  return `<section class="box owner"><h2>${t('my_ads')} · <span class="st st-${st}">${t(st)}</span></h2>
+    ${st === 'removed' && a.removed_reason ? `<p class="muted">${esc(t('removed_note', { r: a.removed_reason === 'banned' ? t('banned') : a.removed_reason }))}</p>` : ''}
+    <div class="own-acts">
+      ${st !== 'removed' && st !== 'pending' ? `<a class="btn soft sm" href="#/edit/${a.id}">${icon('edit')}${t('edit')}</a>` : ''}
+      ${st === 'active' ? `<button class="btn soft sm" data-own="bump">${icon('arrowUp')}${t('bump')}</button><button class="btn soft sm" data-own="sold">${icon('tag')}${t('mark_sold')}</button><button class="btn soft sm" data-own="hide">${icon('eyeOff')}${t('hide')}</button>` : ''}
+      ${st === 'sold' || st === 'hidden' ? `<button class="btn soft sm" data-own="active">${icon('refresh')}${t('mark_active')}</button>` : ''}
+      <button class="btn soft sm danger-t" data-own="del">${icon('trash')}${t('del')}</button>
+    </div>
+    ${pa.enabled && st === 'active' ? `<div class="feat-box"><b>${icon('star')}${t('feature_ad')}</b><p>${t('feature_sub')}</p><div class="chips">${Object.entries(pa.featured_prices || {}).map(([d, p]) => `<span class="chip">${d} ${isAr() ? 'يوم' : 'days'} · ${fmtNum(p)} ${t('kwd')}</span>`).join('')}</div>
+      <a class="btn wa sm" target="_blank" rel="noopener" href="${esc('https://wa.me/' + CFG.supportWa + '?text=' + encodeURIComponent((isAr() ? 'أبي أميّز إعلاني رقم #' : 'I want to feature my ad #') + a.id))}">${icon('wa')}${t('feature_contact')}</a></div>` : ''}
+  </section>`;
+}
+function bindOwner(el, a) {
+  $$('[data-own]', el).forEach(b => b.onclick = () => ownerAction(b, a, () => render(true)));
+}
+async function ownerAction(b, a, done) {
+  const act = b.dataset.own;
+  if (act === 'del') {
+    if (!(await confirmBox(t('del_q'), { ok: t('del'), danger: true }))) return;
+    return busy(b, async () => { try { await rest('market_ads?id=eq.' + a.id, { method: 'DELETE' }); removeImages(a.images); toast(t('saved'), 'ok'); if (/^#\/ad\//.test(location.hash)) go('/my', true); else done(); } catch (e) { toast(errText(e), 'err'); } });
+  }
+  if (act === 'sold' && !(await confirmBox(t('sold_q'), { ok: t('mark_sold') }))) return;
+  busy(b, async () => {
+    try {
+      if (act === 'bump') { await rpc('bump_market_ad', { p_id: a.id }); toast(t('bumped'), 'ok'); }
+      else { await rest('market_ads?id=eq.' + a.id, { method: 'PATCH', body: { status: act === 'hide' ? 'hidden' : act }, prefer: 'return=minimal' }); toast(t('saved'), 'ok'); }
+      done();
+    } catch (e) { toast(errText(e), 'err'); }
   });
 }
 
-/* ---------- الحسابات ---------- */
-function authForm(mode, title) {
-  return `<div class="seg" role="tablist"><button data-mode="login" class="${mode === 'login' ? 'on' : ''}">تسجيل الدخول</button><button data-mode="register" class="${mode === 'register' ? 'on' : ''}">حساب جديد</button></div>
-    ${title ? `<div class="note y">${icon('info')}<div>${esc(title)}</div></div>` : ''}
-    <form class="form" style="padding:0" data-auth="${mode}" novalidate>
-      ${mode === 'register' ? `<div class="field"><label for="an">الاسم</label><input class="inp" id="an" autocomplete="name" maxlength="80" placeholder="اسمك"></div>` : ''}
-      <div class="field"><label for="ap">رقم الهاتف</label><div class="inp-wrap has-prefix"><span class="prefix">+965</span><input class="inp ltr" id="ap" inputmode="numeric" autocomplete="tel-national" maxlength="12" placeholder="XXXXXXXX" ${mode === 'login' ? '' : ''}></div>${mode === 'login' ? '<span class="hint">أو اكتب البريد الإلكتروني إذا كان حسابك قديماً بالإيميل.</span>' : ''}</div>
-      <div class="field"><label for="apw">كلمة السر</label><div class="inp-wrap"><input class="inp" id="apw" type="password" autocomplete="${mode === 'login' ? 'current-password' : 'new-password'}" maxlength="72" placeholder="${mode === 'register' ? '8 خانات على الأقل (أرقام وحروف)' : 'كلمة السر'}"><button type="button" class="suffix" data-act="showpw" aria-label="إظهار كلمة السر">${icon('eye')}</button></div></div>
-      <button class="btn primary block" type="submit">${mode === 'login' ? 'دخول' : 'إنشاء الحساب'}</button>
-      ${mode === 'login' ? '<button type="button" class="btn ghost block" data-act="forgot">نسيت كلمة السر؟</button>' : `<div class="note">${icon('shieldc')}<div>ما نرسل رسائل تحقق. رقم الهاتف يُستخدم للدخول فقط ولا يُعتبر موثّقاً.</div></div>`}
-    </form>`;
+/* ---------- الحساب والدخول ---------- */
+function authForm(mode) {
+  const reg = mode === 'register';
+  return `<form class="auth" data-auth="${mode}" novalidate>
+    <div class="seg"><button type="button" data-mode="login" class="${reg ? '' : 'on'}">${t('login')}</button><button type="button" data-mode="register" class="${reg ? 'on' : ''}">${t('register')}</button></div>
+    <label class="lbl">${t('phone')}</label><div class="phone-inp" dir="ltr"><span>+965</span><input class="inp" name="phone" inputmode="tel" autocomplete="tel-national" maxlength="12" placeholder="5xxxxxxx" required></div>
+    ${reg ? `<label class="lbl">${t('name_opt')}</label><input class="inp" name="name" maxlength="60" autocomplete="name">` : ''}
+    <label class="lbl">${t('password')}</label><div class="pass"><input class="inp" name="password" type="password" autocomplete="${reg ? 'new-password' : 'current-password'}" required minlength="8" maxlength="72"><button type="button" class="icon-btn" data-eye aria-label="show">${icon('eye')}</button></div>
+    ${reg ? `<p class="hint">${t('pass_hint')}</p>` : ''}
+    <button class="btn primary block lg" type="submit">${reg ? t('register') : t('login')}</button>
+    ${reg ? '' : `<button type="button" class="link-btn center" data-forgot>${t('forgot')}</button>`}
+  </form>`;
 }
-function bindAuth(root, done, title) {
-  const draw = mode => {
-    const host = $('[data-auth-host]', root); host.innerHTML = authForm(mode, title);
-    $$('.seg button', host).forEach(b => b.onclick = () => draw(b.dataset.mode));
-    const f = $('form', host);
-    f.onsubmit = e => {
-      e.preventDefault();
-      const btn = $('button[type=submit]', f);
-      busy(btn, async () => {
-        const ph = $('#ap', f).value.trim(), pw = $('#apw', f).value;
-        try {
-          if (mode === 'register') {
-            if (!localPhone(ph) || /^2/.test(localPhone(ph))) throw new Error('invalid phone');
-            if (pw.length < 8 || !/\d/.test(pw) || !/\D/.test(pw)) throw new Error('weak password');
-            await register(ph, pw, $('#an', f).value.trim());
-            toast('تم إنشاء حسابك', 'ok');
-          } else {
-            if (!ph || !pw) return toast('اكتب رقم الهاتف وكلمة السر');
-            await login(ph, pw); toast('أهلاً بك', 'ok');
-          }
-          await loadMe(); done && done(true);
-        } catch (err) { toast(errText(err), 'err'); }
-      }, mode === 'login' ? 'جاري الدخول...' : 'جاري الإنشاء...');
-    };
+function bindAuth(root, done) {
+  const f = $('form.auth', root);
+  $$('[data-mode]', f).forEach(b => b.onclick = () => { f.outerHTML = authForm(b.dataset.mode); bindAuth(root, done); });
+  $('[data-eye]', f).onclick = () => { const p = f.password; p.type = p.type === 'password' ? 'text' : 'password'; };
+  const fg = $('[data-forgot]', f); if (fg) fg.onclick = forgotSheet;
+  f.onsubmit = e => {
+    e.preventDefault();
+    const phone = localPhone(f.phone.value), pw = f.password.value, reg = f.dataset.auth === 'register';
+    if (!phone) return toast(errText('invalid phone'), 'err');
+    if (reg && (pw.length < 8 || !/\d/.test(pw) || !/\D/.test(pw))) return toast(errText('weak password'), 'err');
+    busy($('[type=submit]', f), async () => {
+      try {
+        if (reg) await register(phone, pw, f.name.value.trim()); else await login(phone, pw);
+        await loadMe(); await syncFavs(); toast(t('welcome') + (S.me && S.me.full_name ? (isAr() ? '، ' : ', ') + S.me.full_name : ''), 'ok'); done();
+      } catch (err) { toast(errText(err), 'err'); }
+    });
   };
-  draw('login');
-}
-function ensureAuth(title) {
-  if (session()) return Promise.resolve(true);
-  return new Promise(res => {
-    let ok = false;
-    const sh = sheet(`<div class="sheet-h"><h3>حسابك في ماتعطل</h3><button class="icon-btn clear" data-close>${icon('close')}</button></div><div class="sheet-body" data-auth-host></div>`);
-    bindAuth(sh, v => { ok = v; closeSheet(); res(true); }, title);
-    const bg = $('#sheetBg'); const obs = new MutationObserver(() => { if (!bg.isConnected) { obs.disconnect(); if (!ok) res(false); } }); obs.observe(document.body, { childList: true });
-  });
 }
 function forgotSheet() {
-  sheet(`<div class="sheet-h"><h3>استرجاع كلمة السر</h3><button class="icon-btn clear" data-close>${icon('close')}</button></div>
-    <div class="sheet-body"><div class="note">${icon('key2')}<div>استخدم <b>رمز الاسترجاع</b> اللي أنشأته من صفحة حسابي. ما عندك رمز؟ تواصل مع الدعم من رقمك المسجّل.</div></div>
-    <div class="field"><label>رقم الهاتف</label><input class="inp ltr" id="fp" inputmode="numeric" maxlength="12" placeholder="XXXXXXXX"></div>
-    <div class="field"><label>رمز الاسترجاع</label><input class="inp ltr" id="fc" autocapitalize="characters" placeholder="XXXXXX-XXXXXX-XXXXXX"></div>
-    <div class="field"><label>كلمة السر الجديدة</label><input class="inp" id="fnp" type="password" autocomplete="new-password" placeholder="8 خانات على الأقل (أرقام وحروف)"></div>
-    <button class="btn primary block" id="fgo">تغيير كلمة السر</button>
-    <a class="btn ghost block" target="_blank" rel="noopener" href="${waHref(supportWa(), 'السلام عليكم، نسيت كلمة السر لحسابي في ماتعطل')}">${icon('wa')}تواصل مع الدعم</a></div>`, {
-    onOpen: sh => $('#fgo', sh).onclick = e => busy(e.currentTarget, async () => {
-      const p = localPhone($('#fp', sh).value), c = $('#fc', sh).value.trim(), np = $('#fnp', sh).value;
+  sheet(`<div class="sheet-body"><h3 class="sh-title">${t('reset_pass')}</h3><p class="muted">${t('forgot_sub')}</p>
+    <label class="lbl">${t('phone')}</label><input class="inp" name="p" inputmode="tel" dir="ltr" placeholder="5xxxxxxx">
+    <label class="lbl">${t('recovery_code')}</label><input class="inp" name="c" dir="ltr" autocapitalize="characters" placeholder="XXXXXX-XXXXXX-XXXXXX">
+    <label class="lbl">${t('new_password')}</label><input class="inp" name="n" type="password" autocomplete="new-password"><p class="hint">${t('pass_hint')}</p>
+    <button class="btn primary block" data-go>${t('reset_pass')}</button>
+    <a class="btn wa block" style="margin-top:10px" target="_blank" rel="noopener" href="https://wa.me/${esc(CFG.supportWa)}">${icon('wa')}${t('support')}</a></div>`, {
+    onOpen: sh => $('[data-go]', sh).onclick = e => busy(e.currentTarget, async () => {
+      const p = localPhone($('[name=p]', sh).value), c = $('[name=c]', sh).value.trim(), np = $('[name=n]', sh).value;
       if (!p) return toast(errText('invalid phone'), 'err');
-      if (np.length < 8 || !/\d/.test(np) || !/\D/.test(np)) return toast(errText('weak password'), 'err');
-      try { const ok = await rpc('reset_password_with_recovery', { p_phone: p, p_code: c, p_new_password: np }, { anon: true }); if (ok) { closeSheet(); toast('تم تغيير كلمة السر. سجّل الدخول الآن.', 'ok'); } else toast('الرمز غير صحيح أو مقفل مؤقتاً.', 'err'); }
+      try { const ok = await rpc('reset_password_with_recovery', { p_phone: p, p_code: c, p_new_password: np }, { anon: true }); if (ok) { closeSheet(); toast(t('reset_ok'), 'ok'); } else toast(t('reset_bad'), 'err'); }
       catch (err) { toast(errText(err), 'err'); }
-    })
+    }),
   });
 }
-function pgAuth(_, q) {
-  const next = q.get('next') || '/account';
+function pgLogin(_, q) {
+  const next = q.get('next') || '/me';
   if (session()) { setTimeout(() => go(next, true)); return { html: '' }; }
   return {
-    tab: 'account',
-    html: `${topbar('حسابك')}<div class="page-title" style="margin-top:8px"><h1>أهلاً بك في ماتعطل</h1><p>التسجيل اختياري للعملاء. تقدر تتصفح وتتواصل بدون حساب.</p></div><div class="sheet-body" style="margin-top:16px" data-auth-host></div>`,
+    html: topbar(t('login')) + `<div class="page narrow"><div class="auth-hero"><span class="logo lg">م</span><h2>${t(next.startsWith('/post') ? 'login_to_post' : 'welcome')}</h2><p class="muted">${t('login_sub')}</p></div>${authForm(q.get('mode') === 'register' ? 'register' : 'login')}</div>`,
     after: el => bindAuth(el, () => go(next, true)),
   };
 }
-function pgAccount() {
-  const ses = session(), p = S.profile;
-  const menuItem = (href, ic, t, extra = '') => `<a href="${href}"><span class="ic">${icon(ic)}</span>${esc(t)}${extra || icon('chevL', 'chev')}</a>`;
-  const common = `<div class="menu-title">ماتعطل</div><div class="menu">
-      ${menuItem('#/join', 'store', 'انضم كمقدم خدمة')}
-      <a href="${waHref(supportWa(), 'السلام عليكم، عندي استفسار بخصوص ماتعطل')}" target="_blank" rel="noopener"><span class="ic">${icon('wa')}</span>تواصل مع الدعم${icon('chevL', 'chev')}</a>
-      ${menuItem('#/about', 'info', 'عن ماتعطل والخصوصية')}
-      <button data-act="install"><span class="ic">${icon('download')}</span>تثبيت التطبيق${icon('chevL', 'chev')}</button>
-      <button data-act="theme"><span class="ic">${icon('eye')}</span>المظهر: ${({ auto: 'تلقائي', light: 'فاتح', dark: 'داكن' })[store.get('theme', 'auto')]}${icon('chevL', 'chev')}</button></div>`;
-  if (!ses) return {
-    tab: 'account',
-    html: `<header class="topbar"><h1 style="font-size:24px">حسابي</h1></header>
-    <div class="acc-head"><div class="av">${icon('user')}</div><h2>سجّل دخولك</h2><p>احفظ المفضلة، تابع طلبات الانضمام والإعلانات.</p><div class="row2"><a class="btn primary" href="#/auth">دخول</a><a class="btn ghost" href="#/auth?m=register" data-act="goreg">حساب جديد</a></div></div>
-    <div class="menu-title">حسابي</div><div class="menu">${menuItem('#/favorites', 'heart', 'المفضلة')}</div>${common}
-    <div class="footer-note">الإصدار ${VERSION}</div>`,
-  };
-  const name = (p && p.full_name) || 'مستخدم ماتعطل';
-  return {
-    tab: 'account',
-    html: `<header class="topbar"><h1 style="font-size:24px">حسابي</h1></header>
-    <div class="acc-head"><div class="av">${esc(name.trim()[0] || 'م')}</div><h2>${esc(name)}</h2><p dir="ltr" style="text-align:right">${p && p.phone ? '+965 ' + esc(p.phone) : esc(ses.email)}</p>${p && p.phone ? '<p style="font-size:12px;margin-top:4px">رقم غير موثّق — يُستخدم لتسجيل الدخول فقط</p>' : ''}</div>
-    ${S.isAdmin ? `<div class="pad" style="margin-top:12px"><a class="btn dark block" href="admin.html">${icon('chart')}لوحة الإدارة</a></div>` : ''}
-    <div class="menu-title">حسابي</div><div class="menu">
-      ${menuItem('#/notifications', 'bell', 'الإشعارات', `<span class="cnt" id="ncnt" hidden></span>`)}
-      ${menuItem('#/favorites', 'heart', 'المفضلة')}${menuItem('#/my-business', 'store', 'نشاطي التجاري')}
-      <button data-act="edit-name"><span class="ic">${icon('edit')}</span>تعديل الاسم${icon('chevL', 'chev')}</button>
-      <button data-act="change-pw"><span class="ic">${icon('lock')}</span>تغيير كلمة السر${icon('chevL', 'chev')}</button>
-      <button data-act="recovery"><span class="ic">${icon('key2')}</span>رمز استرجاع كلمة السر${icon('chevL', 'chev')}</button></div>
-    ${common}
-    <div class="menu-title">الجلسة</div><div class="menu"><button data-act="logout"><span class="ic">${icon('logout')}</span>تسجيل الخروج</button><button data-act="delete-account" class="danger"><span class="ic">${icon('trash')}</span>حذف الحساب</button></div>
-    <div class="footer-note">الإصدار ${VERSION}</div>`,
-    after: async () => { try { const r = await rest('notifications?select=id&read_at=is.null&limit=50'); const n = (r || []).length; const b = $('#ncnt'); if (b && n) { b.hidden = false; b.textContent = n; } } catch (_) { } },
-  };
-}
-function pgFavorites() {
-  const list = S.cos.filter(c => S.favs.has(c.id));
-  return {
-    tab: 'account',
-    html: `<header class="topbar"><h1 style="font-size:24px">المفضلة</h1></header>
-    ${!S.loaded ? '<div class="stack"><div class="sk" style="height:120px"></div></div>' : list.length ? `<div class="stack">${list.map(lcard).join('')}</div>` : emptyBox('heart', 'ما عندك مفضلة بعد', 'اضغط على القلب في أي مقدم خدمة لحفظه هنا والوصول له بسرعة.', '<a class="btn primary" href="#/categories">تصفّح الأقسام</a>')}
-    ${!session() && list.length ? `<div class="pad" style="margin-top:14px"><div class="note">${icon('info')}<div>المفضلة محفوظة على هذا الجهاز. <a href="#/auth?next=/favorites" style="font-weight:800;text-decoration:underline">سجّل دخولك</a> لحفظها في حسابك.</div></div></div>` : ''}`,
-  };
-}
-async function pgNotifications() {
-  if (!session()) return { html: topbar('الإشعارات') + emptyBox('bell', 'سجّل دخولك', '', '<a class="btn primary" href="#/auth?next=/notifications">دخول</a>') };
-  let list = [];
-  try { list = await rest('notifications?select=id,title,body,created_at,read_at&order=created_at.desc&limit=50') || []; } catch (e) { return { html: topbar('الإشعارات') + emptyBox('refresh', 'تعذّر التحميل', errText(e)) }; }
-  const unread = list.filter(n => !n.read_at).map(n => n.id);
-  if (unread.length) rest('notifications?id=in.(' + unread.join(',') + ')', { method: 'PATCH', body: { read_at: new Date().toISOString() }, prefer: 'return=minimal' }).catch(() => { });
-  return {
-    tab: 'account',
-    html: topbar('الإشعارات') + (list.length ? `<div class="stack" style="margin-top:12px">${list.map(n => `<div class="item-card" style="${n.read_at ? '' : 'border-color:var(--ink)'}"><b>${esc(n.title)}</b>${n.body ? `<div style="color:var(--ink2);font-size:14px">${esc(n.body)}</div>` : ''}<small style="color:var(--mut)">${fmtDate(n.created_at)}</small></div>`).join('')}</div>` : emptyBox('bell', 'لا توجد إشعارات', 'نبلغك هنا عند الموافقة على طلباتك وإعلاناتك.')),
-  };
-}
+function requireLogin(path) { go('/login?next=' + encodeURIComponent(path) + '&mode=register', true); return { html: '' }; }
 
-/* ---------- انضم الآن ---------- */
-const statusTag = c => {
-  const t = todayISO();
-  if (c.status === 'pending') return '<span class="tg warn">بانتظار موافقة الإدارة</span>';
-  if (c.status === 'rejected') return '<span class="tg bad">مرفوض</span>';
-  if (c.status === 'suspended' || !c.is_active) return '<span class="tg bad">موقوف</span>';
-  if (c.sub_end && c.sub_end < t) return '<span class="tg warn">الاشتراك منتهي</span>';
-  return '<span class="tg ok">ظاهر للعملاء</span>';
-};
-async function myCompanies() {
-  const ses = session(); if (!ses) return [];
-  return await rest('companies?select=id,name,service_id,status,is_active,sub_end,visits,calls,wa_taps,logo_url,created_at&owner_id=eq.' + ses.uid + '&order=created_at.desc') || [];
-}
-async function pgMyBusiness() {
-  if (!session()) return { html: topbar('نشاطي التجاري') + emptyBox('store', 'سجّل دخولك', 'لمتابعة طلب انضمامك.', '<a class="btn primary" href="#/auth?next=/my-business">دخول</a>') };
-  let list = [];
-  try { list = await myCompanies(); } catch (e) { return { html: topbar('نشاطي التجاري') + emptyBox('refresh', 'تعذّر التحميل', errText(e)) }; }
-  return {
-    tab: 'req',
-    html: topbar('نشاطي التجاري') + (list.length ? `<div class="stack" style="margin-top:12px">${list.map(c => `<div class="item-card"><div class="top">${safeImg(c.logo_url) ? `<img src="${esc(safeImg(c.logo_url))}" alt="">` : `<span class="ph">${svcIcon(svc(c.service_id) || c.service_id)}</span>`}<div style="flex:1;min-width:0"><b>${esc(c.name)}</b><small style="color:var(--mut)">${esc(svcName(c.service_id))}</small></div></div>
-      <div class="tagline">${statusTag(c)}${c.status === 'approved' && c.sub_end ? `<span class="tg">الاشتراك حتى ${fmtDate(c.sub_end)}</span>` : ''}</div>
-      ${c.status === 'approved' ? `<div class="stats3"><div><b>${fmtNum(c.visits)}</b><small>مشاهدة</small></div><div><b>${fmtNum(c.calls)}</b><small>اتصال</small></div><div><b>${fmtNum(c.wa_taps)}</b><small>واتساب</small></div></div>` : ''}
-      ${c.status === 'pending' ? `<div class="note">${icon('clock')}<div>طلبك قيد المراجعة. ما يظهر نشاطك للعامة إلا بعد موافقة الإدارة وتفعيل الاشتراك.</div></div>` : ''}
-      <a class="btn sm ghost" target="_blank" rel="noopener" href="${waHref(supportWa(), 'السلام عليكم، بخصوص نشاطي في ماتعطل: ' + c.name + ' (#' + c.id + ')')}">${icon('wa')}تواصل مع الإدارة</a></div>`).join('')}<a class="btn line block" href="#/join?new=1">${icon('plus')}إضافة نشاط آخر</a></div>`
-        : emptyBox('store', 'ما عندك نشاط مسجّل', 'قدّم طلب انضمام ليظهر نشاطك لعملاء ماتعطل بعد موافقة الإدارة.', '<a class="btn primary" href="#/join">انضم الآن</a>')),
-  };
-}
-async function pgJoin(_, q) {
-  const ses = session();
-  if (ses && !q.get('new')) {
-    let mine = [];
-    try { mine = await myCompanies(); } catch (_) { }
-    if (mine.length) return {
-      tab: 'join',
-      html: `${topbar('انضم الآن')}<div class="pad" style="margin-top:12px"><div class="note y">${icon('info')}<div>عندك ${mine.length === 1 ? 'نشاط مسجّل' : mine.length + ' أنشطة مسجّلة'}. تابع حالته من «طلباتي».</div></div></div>
-        <div class="pad" style="margin-top:12px;display:grid;gap:10px"><a class="btn primary block" href="#/requests?t=biz">طلباتي</a><a class="btn line block" href="#/join?new=1">${icon('plus')}تسجيل نشاط آخر</a></div>`,
+async function pgMe() {
+  if (!session()) {
+    return {
+      html: topbar(t('me'), { back: false }) + `<div class="page narrow"><div class="prof guest"><span class="av">${icon('user')}</span><div><b>${t('guest')}</b><small>${t('guest_sub')}</small></div></div>
+        ${authForm('register')}<div class="menu">${langRow()}${commonMenu()}</div></div>`,
+      after: el => { bindAuth(el, () => render(true)); bindMenu(el); },
     };
   }
-  const prof = S.profile || {};
+  if (!S.me) await loadMe();
+  const me = S.me || {};
   return {
-    tab: 'join',
-    html: `${topbar('انضم الآن')}
-    <div class="join-hero"><span class="ic">${icon('store')}</span><div><b>سجّل نشاطك في دقيقة</b><small>التسجيل مجاني${monthlyPrice() != null ? ' — الاشتراك ' + kwd(monthlyPrice()) + ' شهرياً بعد الموافقة' : ''}</small></div></div>
-
-    <form class="form" id="joinf" novalidate style="margin-top:14px">
-      <div class="field"><label for="jn">اسم النشاط</label><input class="inp" id="jn" maxlength="100" placeholder="مثال: ونش السالمية" autocomplete="organization"></div>
-      <div class="field"><label for="jsvc">الخدمة</label><select class="inp" id="jsvc">${S.services.map(s => `<option value="${esc(s.id)}">${esc(s.name_ar)}</option>`).join('')}</select></div>
-      <div class="field"><label for="jp">رقم الهاتف</label><div class="inp-wrap has-prefix"><span class="prefix">+965</span><input class="inp ltr" id="jp" inputmode="numeric" maxlength="12" value="${esc(prof.phone || '')}" placeholder="XXXXXXXX" autocomplete="tel-national"></div></div>
-      ${ses ? '' : `<div class="field"><label for="jpw">كلمة سر لحسابك</label><div class="inp-wrap"><input class="inp" id="jpw" type="password" autocomplete="new-password" maxlength="72" placeholder="8 خانات أو أكثر (أرقام وحروف)"><button type="button" class="suffix" data-act="showpw" aria-label="إظهار">${icon('eye')}</button></div><span class="hint">عندك حساب؟ اكتب كلمة السر نفسها وبندخلك تلقائياً.</span></div>`}
-      <button class="btn primary block" type="submit">إرسال الطلب</button>
-      <details class="more-opts"><summary>${icon('plus')}تفاصيل إضافية <small>(اختياري)</small></summary><div class="form" style="padding:12px 0 0">
-        <div class="field"><label for="jar">المنطقة</label><select class="inp" id="jar"><option value="">كل الكويت</option>${S.areas.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('')}</select></div>
-        <div class="field"><label for="jw">رقم واتساب مختلف</label><div class="inp-wrap has-prefix"><span class="prefix">+965</span><input class="inp ltr" id="jw" inputmode="numeric" maxlength="12" placeholder="اتركه فارغاً إذا نفس الرقم"></div></div>
-        <div class="field"><label for="jd">وصف أو أسعار</label><textarea class="inp" id="jd" maxlength="1500" placeholder="خدماتك، أوقاتك، أسعارك"></textarea></div>
-        <button type="button" class="switch" id="j24"><span><b>متاح 24 ساعة</b></span><span class="tgl"></span></button>
-        <div class="field"><span class="lbl">الشعار</span><label class="upload"><input type="file" id="jl" accept="image/jpeg,image/png,image/webp"><span class="pv" id="jlp">${icon('image')}</span><span><b>اختر صورة</b><small>اختياري</small></span></label></div>
-        <button type="button" class="btn line block" id="jmap">${icon('map')}<span>موقعك على الخريطة</span></button>
-      </div></details>
-    </form>`,
-    after: el => bindJoin(el),
+    html: topbar(t('me'), { back: false }) + `<div class="page narrow">
+      <div class="prof"><span class="av">${esc((me.full_name || '').trim().slice(0, 1) || 'م')}</span><div><b>${esc(me.full_name || t('welcome'))}</b><small dir="ltr">+965 ${esc(me.phone || '')}</small></div><button class="icon-btn" data-m="name" aria-label="${t('edit_name')}">${icon('edit')}</button></div>
+      ${me.is_banned ? `<div class="note err">${icon('ban')}<div><b>${t('banned')}</b><br>${t('banned_sub')}</div></div>` : ''}
+      <div class="menu">
+        <a href="#/my">${icon('layers')}<span>${t('my_ads')}</span>${icon(isAr() ? 'chevL' : 'chevR', 'chev')}</a>
+        <a href="#/favs">${icon('heart')}<span>${t('favs')}</span>${icon(isAr() ? 'chevL' : 'chevR', 'chev')}</a>
+        <a href="#/notifications">${icon('bell')}<span>${t('notifications')}</span><b class="cnt" id="ncnt" hidden></b>${icon(isAr() ? 'chevL' : 'chevR', 'chev')}</a>
+        ${isStaff() ? `<a href="admin.html">${icon('shield')}<span>${t('admin_panel')}</span>${icon(isAr() ? 'chevL' : 'chevR', 'chev')}</a>` : ''}
+      </div>
+      <div class="menu">${langRow()}<button data-m="recovery">${icon('lock')}<span>${t('recovery')}</span>${icon(isAr() ? 'chevL' : 'chevR', 'chev')}</button>${commonMenu()}</div>
+      <div class="menu"><button data-m="logout">${icon('logout')}<span>${t('logout')}</span></button><button data-m="delete" class="danger-t">${icon('trash')}<span>${t('del_account')}</span></button></div>
+    </div>`,
+    after: el => { bindMenu(el); unreadCount(); },
   };
 }
-function bindJoin(el) {
-  const f = $('#joinf', el); let pos = null, h24 = false;
-  $('#j24', f).onclick = e => { h24 = !h24; $('.tgl', e.currentTarget).classList.toggle('on', h24); };
-  $('#jl', f).onchange = e => previewFile(e.target, $('#jlp', f));
-  $('#jmap', f).onclick = async e => { const p = await pickOnMap(pos || S.pos); if (p) { pos = p; $('span', e.currentTarget).textContent = 'تم تحديد الموقع ✓'; } };
-  f.onsubmit = ev => {
-    ev.preventDefault();
-    busy($('button[type=submit]', f), async () => {
-      const name = $('#jn', f).value.trim(), sv = $('#jsvc', f).value, area = $('#jar', f).value;
-      const ph = localPhone($('#jp', f).value), wa = $('#jw', f).value.trim() ? localPhone($('#jw', f).value) : ph;
-      if (name.length < 2) return toast('اكتب اسم النشاط', 'err');
-      if (!ph) return toast('اكتب رقم هاتف صحيح من 8 أرقام', 'err');
-      if (!wa) return toast('رقم الواتساب غير صحيح', 'err');
-      try {
-        if (!session()) {
-          const pw = $('#jpw', f).value;
-          if (pw.length < 8 || !/\d/.test(pw) || !/\D/.test(pw)) return toast(errText('weak password'), 'err');
-          if (/^2/.test(ph)) return toast('للتسجيل استخدم رقم موبايل', 'err');
-          try { await register(ph, pw, name); }
-          catch (e) {
-            if (!/already registered/.test(e.message)) throw e;
-            try { await login(ph, pw); } catch (_) { return toast('هذا الرقم مسجّل. اكتب كلمة السر الصحيحة لحسابك.', 'err'); }
-          }
-          await loadMe();
-        }
-        const ses = session(); if (!ses) throw new Error('session');
-        let logo = null; const file = $('#jl', f).files[0];
-        if (file) logo = await upload('company-media', ses.uid + '/logo-' + rnd() + '.jpg', await shrinkImage(file, 800));
-        const desc = $('#jd', f).value.trim() || null;
-        const body = { owner_id: ses.uid, name, service_id: sv, phone: ph, whatsapp: wa, description: desc, is_24h: h24, status: 'pending', is_active: false, logo_url: logo };
-        if (pos) { body.lat = pos.lat; body.lng = pos.lng; }
-        const r = await rest('companies', { method: 'POST', body, prefer: 'return=representation' });
-        const cid = r && r[0] && r[0].id; if (!cid) throw new Error('no id');
-        if (area) {
-          const areaRows = await rest('areas?select=id,name_ar', { anon: true });
-          const ids = (areaRows || []).filter(a => a.name_ar === area).map(a => ({ company_id: cid, area_id: a.id }));
-          if (ids.length) await rest('company_areas', { method: 'POST', body: ids, prefer: 'return=minimal' });
-        }
-        $('#view').innerHTML = `${topbar('انضم الآن')}<div class="success"><div class="ok">${icon('check')}</div><h2>وصلنا طلبك</h2><p>«${esc(name)}» قيد المراجعة. بنبلغك بعد موافقة الإدارة.</p>
-          <a class="btn wa block" target="_blank" rel="noopener" href="${waHref(supportWa(), 'السلام عليكم، سجلت نشاط «' + name + '» في ماتعطل (#' + cid + ') وأبي تفعيل الاشتراك')}">${icon('wa')}تواصل لتسريع التفعيل</a><a class="btn ghost block" href="#/requests?t=biz">متابعة الطلب</a></div>`;
-      } catch (err) { toast(errText(err), 'err'); }
-    }, 'جاري الإرسال...');
-  };
+const langRow = () => `<button data-m="lang">${icon('globe')}<span>${t('language')}</span><em>${isAr() ? 'العربية' : 'English'}</em></button>`;
+const commonMenu = () => `${installable() ? `<button data-m="install">${icon('download')}<span>${t('install')}</span></button>` : ''}
+  <a href="#/about">${icon('info')}<span>${t('about')}</span>${icon(isAr() ? 'chevL' : 'chevR', 'chev')}</a>
+  <a href="#/terms">${icon('doc')}<span>${t('terms')}</span>${icon(isAr() ? 'chevL' : 'chevR', 'chev')}</a>
+  <a href="https://wa.me/${esc(CFG.supportWa)}" target="_blank" rel="noopener">${icon('wa')}<span>${t('support')}</span>${icon(isAr() ? 'chevL' : 'chevR', 'chev')}</a>`;
+function bindMenu(el) {
+  $$('[data-m]', el).forEach(b => b.onclick = async () => {
+    const m = b.dataset.m;
+    if (m === 'lang') { setLang(isAr() ? 'en' : 'ar'); paintTabbar(); render(true); }
+    else if (m === 'install') installApp();
+    else if (m === 'logout') { await logout(); S.me = null; S.favs = new Set(); toast(t('logout')); go('/', true); }
+    else if (m === 'delete') {
+      if (!(await confirmBox(t('del_acc_q'), { ok: t('del_account'), danger: true }))) return;
+      try { await rpc('delete_my_account'); await logout(); S.me = null; toast(t('saved')); go('/', true); } catch (e) { toast(errText(e), 'err'); }
+    } else if (m === 'name') {
+      const v = await promptBox(t('edit_name'), { value: (S.me && S.me.full_name) || '' }); if (v == null) return;
+      try { await rest('profiles?id=eq.' + session().uid, { method: 'PATCH', body: { full_name: v.slice(0, 60) || null }, prefer: 'return=minimal' }); await loadMe(); render(true); toast(t('saved'), 'ok'); } catch (e) { toast(errText(e), 'err'); }
+    } else if (m === 'recovery') recoverySheet();
+  });
 }
-function previewFile(input, box) {
-  const f = input.files && input.files[0]; if (!f) return;
-  if (f.size > 12 * 1024 * 1024) { input.value = ''; return toast('حجم الصورة كبير جداً', 'err'); }
-  const u = URL.createObjectURL(f); box.innerHTML = `<img src="${u}" alt="">`;
+async function recoverySheet() {
+  let has = false; try { has = await rpc('has_recovery_code'); } catch (_) { }
+  sheet(`<div class="sheet-body"><h3 class="sh-title">${t('recovery')}</h3><p class="muted">${t('recovery_sub')}</p>${has ? `<p class="note">${t('recovery_have')}</p>` : ''}<div data-out></div><button class="btn primary block" data-mk>${t('recovery_make')}</button></div>`, {
+    onOpen: sh => $('[data-mk]', sh).onclick = e => busy(e.currentTarget, async () => {
+      try { const code = await rpc('create_recovery_code'); $('[data-out]', sh).innerHTML = `<div class="code" dir="ltr">${esc(code)}</div>`; e.currentTarget.hidden = true; try { await navigator.clipboard.writeText(code); toast(t('copied')); } catch (_) { } }
+      catch (err) { toast(errText(err), 'err'); }
+    }),
+  });
 }
-
-/* ---------- الأسعار ---------- */
-const kwd = n => fmtNum(n) + ' د.ك';
-const adPrice = (type, days) => { const t = (S.settings.ad_prices || {})[type] || {}; const v = t[String(days)]; return v == null ? null : Number(v); };
-const monthlyPrice = () => { const m = (S.plans || []).filter(p => p.months === 1); return m.length ? Math.min(...m.map(p => Number(p.price_kwd))) : null; };
-function plansHtml() {
-  if (!S.plans || !S.plans.length) return '';
-  const base = monthlyPrice();
-  return `<div class="plans">${S.plans.map(p => { const save = base && p.months > 1 ? Math.round((1 - p.price_kwd / (base * p.months)) * 100) : 0;
-    return `<div class="plan ${p.months === 1 ? 'hl' : ''}"><small>${esc(String(p.name_ar).replace('اشتراك ', ''))}</small><b>${kwd(p.price_kwd)}</b>${save > 0 ? `<span class="save">وفّر ${save}%</span>` : '<span class="save mo">الأساسي</span>'}</div>`; }).join('')}</div>`;
+async function unreadCount() {
+  if (!session()) return;
+  try { const r = await rest('notifications?select=id&read_at=is.null&limit=50') || []; const n = r.length; ['#ncnt', '#ndot'].forEach(s => { const b = $(s); if (b) { b.hidden = !n; if (s === '#ncnt') b.textContent = n; } }); } catch (_) { }
 }
-/* ---------- أعلن معنا ---------- */
-const AD_TYPES = [
-  { id: 'home_banner', t: 'بانر الصفحة الرئيسية', d: 'يظهر في أعلى الصفحة الرئيسية لكل الزوار', ic: 'layers' },
-  { id: 'category_banner', t: 'بانر داخل قسم', d: 'يظهر داخل قسم خدمة محدد تختاره', ic: 'grid' },
-  { id: 'featured', t: 'مقدم خدمة مميز', d: 'يظهر نشاطك في قسم «المميز» مع شارة مميزة', ic: 'star' },
-];
-const DURS = [7, 14, 30, 60, 90];
-function pgAdvertise() {
-  return {
-    tab: 'ad',
-    html: `${topbar('أعلن معنا')}
-    <div class="intro-card"><span class="k">إعلانات ماتعطل</span><h2>وصل إعلانك لأصحاب السيارات في الكويت</h2><p>قدّم طلبك، والإدارة تراجعه وتتواصل معك بالسعر. ما يظهر أي إعلان إلا بعد الموافقة وتأكيد الدفع.</p>
-      <div class="steps"><div><span>1</span>أرسل طلب الإعلان</div><div><span>2</span>مراجعة وتأكيد السعر والدفع</div><div><span>3</span>يبدأ الإعلان بالمدة المحددة مع إحصائيات مشاهدات فعلية</div></div><span class="art">${icon('megaphone')}</span></div>
-    <form class="form" id="adf" novalidate style="margin-top:18px">
-      <div class="field"><span class="lbl">المعلن</span><div class="seg" id="akind"><button type="button" class="on" data-v="individual">فرد</button><button type="button" data-v="company">شركة</button></div></div>
-      <div class="field"><label for="aname">اسم المعلن *</label><input class="inp" id="aname" maxlength="80" placeholder="الاسم أو اسم الشركة" value="${esc((S.profile && S.profile.full_name) || '')}"></div>
-      <div class="field"><label for="aphone">رقم الهاتف *</label><div class="inp-wrap has-prefix"><span class="prefix">+965</span><input class="inp ltr" id="aphone" inputmode="numeric" maxlength="12" placeholder="XXXXXXXX" value="${esc((S.profile && S.profile.phone) || '')}"></div></div>
-      <div class="field"><span class="lbl">نوع الإعلان *</span><div class="opt-grid" id="atype">${AD_TYPES.map((a, i) => `<button type="button" class="opt ${i === 0 ? 'on' : ''}" data-v="${a.id}"><span class="ic">${icon(a.ic)}</span><span><b>${a.t}</b><small>${a.d}</small></span><span class="rad"></span></button>`).join('')}</div></div>
-      <div class="field" id="asvcw" hidden><label for="asvc">القسم</label><select class="inp" id="asvc">${S.services.map(s => `<option value="${esc(s.id)}">${esc(s.name_ar)}</option>`).join('')}</select></div>
-      <div class="field" id="acow" hidden><label for="aco">النشاط المراد تمييزه</label><select class="inp" id="aco"><option value="">— سجّل دخولك لعرض أنشطتك —</option></select><span class="hint">لازم يكون عندك نشاط مسجّل في ماتعطل. <a href="#/join" style="text-decoration:underline;font-weight:800">سجّل نشاطك</a></span></div>
-      <div class="field"><span class="lbl">صورة الإعلان *</span><label class="upload wide" id="aup"><input type="file" id="aimg" accept="image/jpeg,image/png,image/webp"><span class="pv" id="aimgp">${icon('image')}</span><span><b>اختر صورة</b><small>تقدر تحرّكها وتكبّرها لتغطي الإعلان بالكامل</small></span></label>
-        <div id="aprev" hidden><div class="ad-preview"><img id="aprevimg" alt="معاينة الإعلان"><span class="adtag">إعلان</span></div><div class="row2" style="margin-top:8px"><button type="button" class="btn sm ghost" id="arecrop">${icon('edit')}تعديل القص</button><button type="button" class="btn sm ghost" id="achange">${icon('image')}تغيير الصورة</button></div></div></div>
-      <div class="field"><label for="atitle">عنوان قصير (اختياري)</label><input class="inp" id="atitle" maxlength="80" placeholder="مثال: خصم 20% على تبديل البطاريات"></div>
-      <div class="field"><span class="lbl">عند الضغط على الإعلان</span><div class="seg" id="alink"><button type="button" class="on" data-v="whatsapp">واتساب</button><button type="button" data-v="call">اتصال</button><button type="button" data-v="none">بدون</button></div></div>
-      <div class="field"><span class="lbl">المدة المطلوبة *</span><div class="wrapchips" id="adur">${DURS.map(d => `<button type="button" class="chip out ${d === 30 ? 'on' : ''}" data-v="${d}">${d} يوم</button>`).join('')}</div></div>
-      <div class="price-box" id="aprice"></div>
-      <div class="field"><label for="anotes">ملاحظات (اختياري)</label><textarea class="inp" id="anotes" maxlength="500" placeholder="أي تفاصيل إضافية للإدارة"></textarea></div>
-      <div class="note y">${icon('info')}<div>كل الإعلانات تكون <b>بانتظار الموافقة</b>. الإدارة تتواصل معك لطريقة الدفع، ويبدأ الإعلان بعد تأكيد الدفع.</div></div>
-      <button class="btn primary block" type="submit">إرسال طلب الإعلان</button>
-      ${session() ? '<a class="btn ghost block" href="#/my-ads">متابعة إعلاناتي</a>' : ''}
-    </form>`,
-    after: el => bindAdvertise(el),
-  };
-}
-function bindAdvertise(el) {
-  const f = $('#adf', el);
-  const segPick = id => $$(`#${id} button`, f).forEach(b => b.onclick = () => { $$(`#${id} button`, f).forEach(x => x.classList.remove('on')); b.classList.add('on'); if (id === 'atype') typeChanged(); });
-  ['akind', 'alink', 'atype'].forEach(segPick);
-  const showPrice = () => {
-    const t = $('#atype .on', f).dataset.v, d = +$('#adur .on', f).dataset.v, v = adPrice(t, d);
-    $$('#adur .chip', f).forEach(c => { const pv = adPrice(t, +c.dataset.v); c.innerHTML = c.dataset.v + ' يوم' + (pv != null ? ` · <b>${fmtNum(pv)}</b> د.ك` : ''); });
-    $('#aprice', f).innerHTML = v != null ? `<span>السعر</span><b>${kwd(v)}</b><small>${d} يوم · الدفع بعد موافقة الإدارة</small>` : '';
-  };
-  $$('#adur .chip', f).forEach(b => b.onclick = () => { $$('#adur .chip', f).forEach(x => x.classList.remove('on')); b.classList.add('on'); showPrice(); });
-  $$('#atype button', f).forEach(b => b.addEventListener('click', showPrice));
-  showPrice();
-  let adBlob = null, srcFile = null;
-  const applyCrop = async file => {
-    const blob = await cropImage(file, 1200, 510);
-    if (!blob) return;
-    adBlob = blob; srcFile = file;
-    const pv = $('#aprevimg', f); if (pv.src) URL.revokeObjectURL(pv.src); pv.src = URL.createObjectURL(blob);
-    $('#aprev', f).hidden = false; $('#aup', f).hidden = true;
-  };
-  $('#aimg', f).onchange = e => { const file = e.target.files && e.target.files[0]; e.target.value = ''; if (!file) return; if (file.size > 15 * 1024 * 1024) return toast('حجم الصورة كبير جداً', 'err'); applyCrop(file); };
-  $('#arecrop', f).onclick = () => srcFile && applyCrop(srcFile);
-  $('#achange', f).onclick = () => $('#aimg', f).click();
-  const loadCos = async () => { if (!session()) return; try { const l = (await myCompanies()).filter(c => c.status !== 'rejected'); $('#aco', f).innerHTML = l.length ? l.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('') : '<option value="">لا يوجد نشاط مسجّل</option>'; } catch (_) { } };
-  function typeChanged() { const t = $('#atype .on', f).dataset.v; $('#asvcw', f).hidden = t !== 'category_banner'; $('#acow', f).hidden = t !== 'featured'; if (t === 'featured') loadCos(); }
-  f.onsubmit = ev => {
-    ev.preventDefault();
-    const btn = $('button[type=submit]', f);
-    busy(btn, async () => {
-      const name = $('#aname', f).value.trim(), phone = localPhone($('#aphone', f).value), type = $('#atype .on', f).dataset.v, file = adBlob;
-      if (name.length < 2) return toast('اكتب اسم المعلن', 'err');
-      if (!phone) return toast('اكتب رقم هاتف صحيح من 8 أرقام', 'err');
-      if (!file) return toast('اختر صورة الإعلان', 'err');
-      const link = $('#alink .on', f).dataset.v;
-      if (link === 'whatsapp' && /^2/.test(phone)) return toast('رقم الواتساب لازم يكون رقم موبايل', 'err');
-      if (!(await ensureAuth('لإرسال الإعلان ومتابعة حالته تحتاج حساب (رقم هاتف وكلمة سر فقط).'))) return;
-      if (type === 'featured') { await loadCos(); if (!$('#aco', f).value) return toast('سجّل نشاطك أولاً من «انضم الآن»', 'err'); }
-      try {
-        const ses = session();
-        const url = await upload('ads', ses.uid + '/campaign-' + rnd() + '.jpg', adBlob);
-        const body = { owner_id: ses.uid, advertiser_name: name, advertiser_kind: $('#akind .on', f).dataset.v, phone, ad_type: type, image_url: url, title: $('#atitle', f).value.trim() || null, link_type: type === 'featured' ? 'company' : link, duration_days: +$('#adur .on', f).dataset.v, notes: $('#anotes', f).value.trim() || null };
-        if (type === 'category_banner') body.service_id = $('#asvc', f).value;
-        if (type === 'featured') body.company_id = +$('#aco', f).value;
-        await rest('ad_campaigns', { method: 'POST', body, prefer: 'return=minimal' });
-        $('#view').innerHTML = `${topbar('أعلن معنا')}<div class="success"><div class="ok">${icon('check')}</div><h2>تم إرسال طلب الإعلان</h2><p>حالة إعلانك الآن: <b>بانتظار الموافقة</b>. الإدارة بتراجعه وتتواصل معك على ${esc(phone)} لتأكيد السعر والدفع.</p><a class="btn dark block" href="#/my-ads">متابعة إعلاناتي</a><a class="btn ghost block" href="#/">الرئيسية</a></div>`;
-      } catch (err) { toast(errText(err), 'err'); }
-    }, 'جاري الإرسال...');
-  };
-}
-const adStatus = a => {
-  const now = Date.now(), st = a.starts_at && Date.parse(a.starts_at), en = a.ends_at && Date.parse(a.ends_at);
-  if (a.status === 'pending') return ['warn', 'بانتظار الموافقة'];
-  if (a.status === 'rejected') return ['bad', 'مرفوض'];
-  if (a.status === 'paused') return ['warn', 'موقوف مؤقتاً'];
-  if (a.status === 'ended' || (en && en <= now)) return ['', 'منتهي'];
-  if (a.payment_status !== 'paid') return ['warn', 'مقبول — بانتظار تأكيد الدفع'];
-  if (st && st > now) return ['', 'مجدول يبدأ ' + fmtDate(a.starts_at)];
-  return ['ok', 'منشور حتى ' + fmtDate(a.ends_at)];
-};
-async function pgMyAds() {
-  if (!session()) return { html: topbar('إعلاناتي') + emptyBox('megaphone', 'سجّل دخولك', 'لمتابعة إعلاناتك.', '<a class="btn primary" href="#/auth?next=/my-ads">دخول</a>') };
+async function pgNotifications() {
+  if (!session()) return requireLogin('/notifications');
   let list = [];
-  try { list = await rest('ad_campaigns?select=id,advertiser_name,ad_type,image_url,title,duration_days,status,payment_status,starts_at,ends_at,reject_reason,views,clicks,created_at&order=created_at.desc') || []; }
-  catch (e) { return { html: topbar('إعلاناتي') + emptyBox('refresh', 'تعذّر التحميل', errText(e)) }; }
-  const tName = id => (AD_TYPES.find(t => t.id === id) || {}).t || id;
+  try { list = await rest('notifications?select=id,title,body,created_at,read_at&order=created_at.desc&limit=50') || []; } catch (e) { return { html: topbar(t('notifications')) + emptyBox('refresh', t('error'), errText(e)) }; }
+  const unread = list.filter(n => !n.read_at).map(n => n.id);
+  if (unread.length) rest('notifications?id=in.(' + unread.join(',') + ')', { method: 'PATCH', body: { read_at: new Date().toISOString() }, prefer: 'return=minimal' }).catch(() => { });
+  return { html: topbar(t('notifications')) + `<div class="page narrow">${list.length ? `<div class="notifs">${list.map(n => `<div class="notif${n.read_at ? '' : ' new'}"><b>${esc(n.title)}</b><p>${esc(n.body || '')}</p><small>${esc(ago(n.created_at))}</small></div>`).join('')}</div>` : emptyBox('bell', t('no_notifs'))}</div>` };
+}
+
+/* ---------- إعلاناتي والمفضلة ---------- */
+async function pgMy(_, q) {
+  if (!session()) return requireLogin('/my');
+  const st = q.get('s') || 'all';
+  let list = [];
+  try { list = await rest(`market_ads?select=${AD_COLS},views,calls,wa_taps,removed_reason,user_id&user_id=eq.${session().uid}&order=created_at.desc&limit=200`) || []; }
+  catch (e) { return { html: topbar(t('my_ads')) + emptyBox('refresh', t('error'), errText(e)) }; }
+  const counts = list.reduce((m, a) => (m[a.status] = (m[a.status] || 0) + 1, m), {});
+  const shown = st === 'all' ? list : list.filter(a => a.status === st);
+  const tabs = ['all', 'active', 'sold', 'hidden', 'pending', 'removed'].filter(s => s === 'all' || counts[s]);
   return {
-    tab: 'req',
-    html: topbar('إعلاناتي') + (list.length ? `<div class="stack" style="margin-top:12px">${list.map(a => { const [k, t] = adStatus(a); return `<div class="item-card"><img class="wide-img" src="${esc(safeImg(a.image_url))}" alt="" loading="lazy">
-      <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>${esc(a.title || tName(a.ad_type))}</b><span class="tg ${k}">${esc(t)}</span></div>
-      <small style="color:var(--mut)">${esc(tName(a.ad_type))} · ${a.duration_days} يوم · أُرسل ${fmtDate(a.created_at)}</small>
-      ${a.reject_reason ? `<div class="note bad">${icon('info')}<div>${esc(a.reject_reason)}</div></div>` : ''}
-      ${a.status === 'approved' ? `<div class="stats3"><div><b>${fmtNum(a.views)}</b><small>مشاهدة</small></div><div><b>${fmtNum(a.clicks)}</b><small>نقرة</small></div><div><b>${a.views ? ((a.clicks / a.views) * 100).toFixed(1) + '%' : '—'}</b><small>نسبة النقر</small></div></div>` : ''}
-      ${a.status === 'pending' && a.payment_status === 'unpaid' ? `<button class="btn sm danger-soft" data-act="del-ad" data-id="${a.id}">${icon('trash')}إلغاء الطلب</button>` : ''}</div>`; }).join('')}<a class="btn primary block" href="#/advertise">${icon('plus')}طلب إعلان جديد</a></div>`
-        : emptyBox('megaphone', 'ما عندك إعلانات', 'قدّم طلب إعلانك وتابع حالته وإحصائياته من هنا.', '<a class="btn primary" href="#/advertise">أعلن معنا</a>')),
+    html: topbar(t('my_ads'), { actions: `<a class="icon-btn" href="#/post" aria-label="${t('post')}">${icon('plus')}</a>` }) + `<div class="page">
+      ${list.length ? `<div class="chips hscroll">${tabs.map(s => `<a class="chip${st === s ? ' on' : ''}" href="#/my${s === 'all' ? '' : '?s=' + s}">${s === 'all' ? t('status_all') : t(s)} <b>${s === 'all' ? list.length : counts[s]}</b></a>`).join('')}</div>` : ''}
+      ${shown.length ? `<div class="mylist">${shown.map(a => `<div class="myrow">${card(a)}<div class="my-st"><span class="st st-${a.status}">${t(a.status)}</span><span>${icon('eye')}${fmtNum(a.views)}</span><span>${icon('phoneCall')}${fmtNum(a.calls)}</span><span>${icon('wa')}${fmtNum(a.wa_taps)}</span></div>
+        <div class="own-acts">${a.status !== 'removed' && a.status !== 'pending' ? `<a class="btn soft xs" href="#/edit/${a.id}">${icon('edit')}${t('edit')}</a>` : ''}
+        ${a.status === 'active' ? `<button class="btn soft xs" data-own="bump" data-id="${a.id}">${icon('arrowUp')}${t('bump')}</button><button class="btn soft xs" data-own="sold" data-id="${a.id}">${icon('tag')}${t('mark_sold')}</button>` : ''}
+        ${a.status === 'sold' || a.status === 'hidden' ? `<button class="btn soft xs" data-own="active" data-id="${a.id}">${icon('refresh')}${t('mark_active')}</button>` : ''}
+        <button class="btn soft xs danger-t" data-own="del" data-id="${a.id}">${icon('trash')}</button></div></div>`).join('')}</div>`
+        : emptyBox('layers', t('no_my_ads'), t('no_my_ads_sub'), `<a class="btn primary" href="#/post">${icon('plus')}${t('post')}</a>`)}</div>`,
+    after: el => $$('[data-own]', el).forEach(b => b.onclick = () => ownerAction(b, list.find(a => a.id === +b.dataset.id), () => render(true))),
   };
 }
-async function pgRequests(_, q) {
-  const inner = await pgMyBusiness();
-  const body = (inner.html || '').replace(/^\s*<header[\s\S]*?<\/header>/, '');
+async function pgFavs() {
+  const ids = [...S.favs];
+  let list = [];
+  if (ids.length) { try { list = await rest(`market_ads?select=${AD_COLS}&id=in.(${ids.slice(0, 200).join(',')})&order=bumped_at.desc`, { anon: !session() }) || []; } catch (e) { return { html: topbar(t('favs'), { back: false }) + emptyBox('refresh', t('error'), errText(e)) }; } }
+  return { html: topbar(t('favs'), { back: false }) + `<div class="page">${list.length ? `<div class="feed">${list.map(card).join('')}</div>` : emptyBox('heart', t('no_favs'), t('no_favs_sub'))}</div>` };
+}
+
+/* ---------- إضافة / تعديل إعلان ---------- */
+function pgPostPick(q) {
+  if (!session()) return requireLogin('/post' + (q.toString() ? '?' + q : ''));
+  if (S.me && S.me.is_banned) return { html: topbar(t('post')) + emptyBox('ban', t('banned'), t('banned_sub')) };
+  const c = q.get('cat');
+  if (c && S.cat[c]) return postForm(null, c);
   return {
-    tab: 'req',
-    html: `<header class="topbar"><h1 style="font-size:24px">طلباتي</h1></header>${body}`,
+    html: topbar(t('choose_cat'), { back: false }) + `<div class="page"><p class="free-note">${icon('check')}${t('free_note')}</p><section class="cgrid">${S.cats.map(c => `<a class="ctile" href="#/post?cat=${esc(c.id)}"><span class="ci">${catIcon(c)}</span><b>${esc(nm(c))}</b></a>`).join('')}</section></div>`,
   };
 }
-function pgAbout() {
+async function pgEdit([id]) {
+  if (!session()) return requireLogin('/edit/' + id);
+  let a; try { a = ((await rest(`market_ads?select=*&id=eq.${+id}&user_id=eq.${session().uid}`)) || [])[0]; } catch (e) { return { html: topbar(t('edit_ad')) + emptyBox('refresh', t('error'), errText(e)) }; }
+  if (!a) return { html: topbar(t('edit_ad')) + emptyBox('search', t('not_found')) };
+  return postForm(a, a.category_id);
+}
+function fieldInput(f, v) {
+  const req = f.req ? ' required' : '', name = 'sp_' + f.k, star = f.req ? ' <i class="req">*</i>' : '';
+  if (f.t === 'select') return `<label class="lbl">${esc(nm(f))}${star}</label><select class="inp" name="${esc(name)}"${req}><option value="">${t('choose')}</option>${(f.o || []).map(o => `<option value="${esc(o.v)}" ${v === o.v ? 'selected' : ''}>${esc(nm(o))}</option>`).join('')}</select>`;
+  if (f.t === 'number') return `<label class="lbl">${esc(nm(f))}${star}</label><input class="inp" name="${esc(name)}" inputmode="numeric" value="${esc(v == null ? '' : v)}"${req}>`;
+  return `<label class="lbl">${esc(nm(f))}${star}</label><input class="inp" name="${esc(name)}" maxlength="80" value="${esc(v || '')}"${req}>`;
+}
+function postForm(a, catId) {
+  const c = S.cat[catId], edit = !!a, maxImg = Math.min(10, +market().max_images || 10);
+  const pl = t(c.price_label || 'price');
+  const photos = (a ? a.images : []).map(u => ({ url: u, prev: u }));
+  const pt = a ? a.price_type : 'fixed';
+  const html = topbar(edit ? t('edit_ad') : t('new_ad')) + `<form class="page narrow postform" novalidate>
+    <div class="catpick"><span class="ci">${catIcon(c)}</span><b>${esc(nm(c))}</b>${edit ? '' : `<a class="btn ghost xs" href="#/post">${t('change_cat')}</a>`}</div>
+    <label class="lbl">${t('photos')} <small>${t('photos_hint', { n: maxImg })}</small></label>
+    <div class="photos" data-photos></div><input type="file" accept="image/*" multiple hidden data-file>
+    <label class="lbl">${t('title')} <i class="req">*</i></label><input class="inp" name="title" maxlength="90" required value="${esc(a ? a.title : '')}" placeholder="${t('title_ph')}">
+    ${(c.fields || []).map(f => fieldInput(f, a && a.specs ? a.specs[f.k] : undefined)).join('')}
+    <label class="lbl">${esc(pl)}</label>
+    <div class="seg wrap" data-pt>${['fixed', 'negotiable', 'ask', 'free'].map(p => `<button type="button" data-v="${p}" class="${pt === p ? 'on' : ''}">${t(p)}</button>`).join('')}</div>
+    <div class="price-inp" data-pricebox ${pt === 'ask' || pt === 'free' ? 'hidden' : ''}><input class="inp" name="price" inputmode="decimal" placeholder="0" value="${esc(a && a.price != null ? +a.price : '')}"><span>${t('kwd')}</span></div>
+    <label class="lbl">${t('area')} <i class="req">*</i></label>${areaSelect('area', a ? String(a.area_id) : '', { all: false, gov: false, req: true })}
+    <label class="lbl">${t('description')}</label><textarea class="inp" name="description" rows="5" maxlength="3000" placeholder="${t('desc_ph')}">${esc(a ? a.description || '' : '')}</textarea>
+    <label class="lbl">${t('contact_phone')}</label><div class="phone-ro" dir="ltr">+965 ${esc((a && a.phone) || (S.me && S.me.phone) || '')}</div><p class="hint">${t('phone_from_account')}</p>
+    <label class="check"><input type="checkbox" name="wa" ${!a || a.show_whatsapp ? 'checked' : ''}><span>${icon('wa')}${t('show_wa')}</span></label>
+    <button class="btn primary block lg" type="submit">${edit ? t('save') : t('publish')}</button>
+    ${edit ? '' : `<p class="free-note center">${icon('check')}${t('free_note')}</p>`}
+  </form>`;
   return {
-    tab: 'account',
-    html: `${topbar('عن ماتعطل')}<div class="pad" style="display:grid;gap:14px;margin-top:12px;line-height:1.9;font-size:15px;color:var(--ink2)">
-      <div class="logo" style="font-size:30px"><span class="mark">م</span>ماتعطل</div>
-      <p style="margin:0">ماتعطل منصة كويتية تجمع مقدمي خدمات السيارات: الونشات وسحب السيارات، البنشر المتنقل، مفاتيح وبرمجة السيارات، الغسيل المتنقل، الحماية والتظليل، البطاريات وغيرها.</p>
-      <div class="kv"><div class="r">${icon('shieldc')}<span><b>مقدمو الخدمة</b><div>لا يظهر أي مقدم خدمة للعامة إلا بعد موافقة الإدارة واشتراك فعّال.</div></span></div>
-      <div class="r">${icon('lock')}<span><b>الخصوصية</b><div>التصفح بدون حساب. لا نخزّن بيانات حساسة على جهازك غير جلسة الدخول. موقعك يُحفظ على جهازك فقط ويُرسل لمقدم الخدمة فقط عند ضغطك على واتساب.</div></span></div>
-      <div class="r">${icon('phone')}<span><b>أرقام الهواتف</b><div>التسجيل برقم الهاتف بدون رسائل تحقق، لذلك الرقم لا يُعتبر إثباتاً لملكيته.</div></span></div></div>
-      <a class="btn wa block" target="_blank" rel="noopener" href="${waHref(supportWa(), 'السلام عليكم')}">${icon('wa')}تواصل مع ماتعطل</a>
-      <div class="footer-note">mat3tl.com · الإصدار ${VERSION}</div></div>`,
+    html, cls: 'no-tab',
+    after: el => {
+      const fm = $('form.postform', el), box = $('[data-photos]', el), file = $('[data-file]', el);
+      let ptype = pt;
+      const paint = () => {
+        box.innerHTML = photos.map((p, i) => `<div class="pthumb${i ? '' : ' cover'}" data-i="${i}"><img src="${esc(p.prev)}" alt="">${i ? `<button type="button" class="pt-star" data-cov="${i}" aria-label="${t('cover')}">${icon('star')}</button>` : `<span class="pt-cov">${t('cover')}</span>`}<button type="button" class="pt-x" data-rm="${i}" aria-label="${t('del')}">${icon('close')}</button></div>`).join('')
+          + (photos.length < maxImg ? `<button type="button" class="padd" data-add>${icon('camera')}<span>${t('add_photo')}</span><small>${photos.length}/${maxImg}</small></button>` : '');
+        const ad = $('[data-add]', box); if (ad) ad.onclick = () => file.click();
+        $$('[data-rm]', box).forEach(b => b.onclick = () => { const [p] = photos.splice(+b.dataset.rm, 1); if (p.file) URL.revokeObjectURL(p.prev); paint(); });
+        $$('[data-cov]', box).forEach(b => b.onclick = () => { const [p] = photos.splice(+b.dataset.cov, 1); photos.unshift(p); paint(); });
+      };
+      paint();
+      file.onchange = () => { [...file.files].slice(0, maxImg - photos.length).forEach(f => { if (/^image\//.test(f.type)) photos.push({ file: f, prev: URL.createObjectURL(f) }); }); file.value = ''; paint(); };
+      $$('[data-pt] button', el).forEach(b => b.onclick = () => { ptype = b.dataset.v; $$('[data-pt] button', el).forEach(x => x.classList.toggle('on', x === b)); $('[data-pricebox]', el).hidden = ptype === 'ask' || ptype === 'free'; });
+      fm.onsubmit = e => {
+        e.preventDefault();
+        const bad = el2 => { el2.classList.add('bad'); el2.focus(); el2.scrollIntoView({ block: 'center', behavior: 'smooth' }); toast(t('required'), 'err'); };
+        $$('.bad', fm).forEach(x => x.classList.remove('bad'));
+        const title = fm.title.value.trim(); if (title.length < 3) return bad(fm.title);
+        const specs = {};
+        for (const f of c.fields || []) {
+          const inp = fm['sp_' + f.k]; if (!inp) continue; let v = inp.value.trim();
+          if (f.t === 'number' && v !== '') { v = digits(v); if (v === '') return bad(inp); v = Math.min(+v, f.max || 1e9); }
+          if (f.req && (v === '' || v == null)) return bad(inp);
+          if (v !== '' && v != null) specs[f.k] = v;
+        }
+        let price = null;
+        if (ptype === 'fixed' || ptype === 'negotiable') { const raw = String(fm.price.value).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[^\d.]/g, ''); price = parseFloat(raw); if (!isFinite(price) || price < 0) return bad(fm.price); }
+        const area = +fm.area.value; if (!area) return bad(fm.area);
+        const btn = $('[type=submit]', fm);
+        busy(btn, async () => {
+          try {
+            const uid = session().uid, urls = [], todo = photos.filter(p => !p.url).length; let k = 0;
+            for (const p of photos) {
+              if (p.url) { urls.push(p.url); continue; }
+              k++; btn.lastChild && (btn.innerHTML = `<span class="spin"></span>${esc(t('uploading', { a: k, b: todo }))}`);
+              const blob = await shrinkImage(p.file); p.url = await upload(uid + '/' + rnd() + '.jpg', blob); urls.push(p.url);
+            }
+            btn.innerHTML = `<span class="spin"></span>${esc(t('publishing'))}`;
+            const body = { category_id: c.id, area_id: area, title, description: fm.description.value.trim() || null, price, price_type: ptype, specs, images: urls, show_whatsapp: fm.wa.checked };
+            if (edit) {
+              await rest('market_ads?id=eq.' + a.id, { method: 'PATCH', body, prefer: 'return=minimal' });
+              removeImages((a.images || []).filter(u => !urls.includes(u)));
+              toast(t('saved'), 'ok'); go('/ad/' + a.id, true);
+            } else {
+              const r = await rest('market_ads', { method: 'POST', body: Object.assign({ user_id: uid }, body), prefer: 'return=representation' });
+              const ad = r && r[0];
+              toast(ad && ad.status === 'pending' ? t('published_pending') : t('published'), 'ok');
+              go('/ad/' + ad.id, true);
+            }
+          } catch (err) { toast(errText(err), 'err'); }
+        }, t('publishing'));
+      };
+    },
   };
 }
 
-/* ================= المنطقة والموقع ================= */
-function areaSheet(scope) {
-  const cur = scope === 'list' ? (new URLSearchParams(location.hash.split('?')[1] || '').get('area') || S.area) : S.area;
-  sheet(`<div class="sheet-h"><h3>اختر المنطقة</h3><button class="icon-btn clear" data-close>${icon('close')}</button></div>
-    <div class="sheet-body"><div class="row2"><button class="btn dark" data-act="locate">${icon('locate')}موقعي الحالي</button><button class="btn ghost" data-act="mappick">${icon('map')}على الخريطة</button></div>
-    <div class="area-list"><button class="${cur === 'all' ? 'on' : ''}" data-act="set-area" data-v="all" data-scope="${scope || ''}">كل الكويت</button>${S.areas.map(a => `<button class="${cur === a ? 'on' : ''}" data-act="set-area" data-v="${esc(a)}" data-scope="${scope || ''}">${esc(a)}</button>`).join('')}</div>
-    ${S.pos ? `<button class="btn line block" data-act="clear-pos">${icon('close')}مسح موقعي المحفوظ</button>` : ''}</div>`);
+/* ---------- صفحات ثابتة ---------- */
+function pgAbout() {
+  const ar = isAr();
+  return { html: topbar(t('about')) + `<div class="page narrow prose"><div class="auth-hero"><span class="logo lg">م</span><h2>${t('app')}</h2><p class="muted">${t('tagline')}</p></div>
+    ${ar ? `<p>ماتعطل سوق كويتي مجاني للإعلانات المبوبة: سيارات، عقارات، هواتف، إلكترونيات، وكل شي تبي تبيعه أو تشتريه.</p><ul><li>تصفح بدون تسجيل.</li><li>انشر إعلانك مجاناً وبدون عمولة خلال دقيقة.</li><li>تواصل مباشر مع المعلن بالاتصال أو الواتساب.</li></ul>`
+      : `<p>Matetattal is a free Kuwaiti classifieds marketplace: cars, real estate, phones, electronics and anything you want to buy or sell.</p><ul><li>Browse without an account.</li><li>Post ads for free with no commission.</li><li>Contact sellers directly by phone or WhatsApp.</li></ul>`}
+    <a class="btn wa block" target="_blank" rel="noopener" href="https://wa.me/${esc(CFG.supportWa)}">${icon('wa')}${t('support')}</a></div>` };
 }
-function setArea(a, scope) {
-  closeSheet();
-  if (scope === 'list') { const [p, qs] = location.hash.slice(1).split('?'); const q = new URLSearchParams(qs || ''); a === 'all' ? q.set('area', 'all') : q.set('area', a); go(p + '?' + q.toString(), true); return; }
-  S.area = a; store.set('area', a); render(true);
-}
-function setPos(p, quiet) {
-  S.pos = p; store.set('pos', p);
-  const a = nearestArea(p, S.areas.length ? S.areas : Object.keys({}));
-  if (a) { S.area = a; store.set('area', a); }
-  closeSheet(); render(true);
-  if (!quiet) toast(a ? 'تم تحديد موقعك · ' + a : 'تم تحديد موقعك', 'ok');
+function pgTerms() {
+  const ar = isAr();
+  return { html: topbar(t('terms')) + `<div class="page narrow prose">${ar ? `
+    <h3>شروط الاستخدام</h3><ul><li>المعلن مسؤول عن صحة إعلانه وملكيته للسلعة.</li><li>يُمنع نشر السلع الممنوعة قانوناً في دولة الكويت، والإعلانات المضللة أو المكررة أو المسيئة.</li><li>ماتعطل وسيط إعلاني فقط ولا يتدخل في البيع أو الدفع أو التوصيل.</li><li>يحق للإدارة إيقاف أي إعلان أو حساب مخالف دون إشعار.</li></ul>
+    <h3>الخصوصية</h3><ul><li>نحفظ رقم هاتفك واسمك وإعلاناتك فقط لتشغيل الخدمة.</li><li>رقمك يظهر داخل إعلاناتك ليتواصل معك المشترون.</li><li>نسجل إحصائيات عامة مجهولة (مشاهدات، اتصالات) لتحسين الخدمة.</li><li>تقدر تحذف حسابك وكل إعلاناتك نهائياً من صفحة «حسابي».</li></ul>`
+      : `<h3>Terms of use</h3><ul><li>Advertisers are responsible for the accuracy of their ads and ownership of the items.</li><li>Items prohibited by Kuwaiti law, and misleading, duplicate or offensive ads are not allowed.</li><li>Matetattal is only an advertising platform and is not part of any sale, payment or delivery.</li><li>Admins may suspend any violating ad or account without notice.</li></ul>
+    <h3>Privacy</h3><ul><li>We store your phone number, name and ads only to run the service.</li><li>Your number is shown on your ads so buyers can contact you.</li><li>We record anonymous aggregate stats (views, calls) to improve the service.</li><li>You can permanently delete your account and ads from the Account page.</li></ul>`}</div>` };
 }
 
 /* ================= التوجيه ================= */
 const ROUTES = [
-  [/^\/?$/, pgHome], [/^\/categories$/, pgCategories], [/^\/s\/([\w-]+)$/, pgService], [/^\/search$/, pgSearch], [/^\/c\/(\d+)$/, pgCompany],
-  [/^\/advertise$/, pgJoin], [/^\/join$/, pgJoin], [/^\/account$/, pgAccount], [/^\/auth$/, pgAuth], [/^\/favorites$/, pgFavorites],
-  [/^\/my-ads$/, pgRequests], [/^\/requests$/, pgRequests], [/^\/my-business$/, pgMyBusiness], [/^\/notifications$/, pgNotifications], [/^\/about$/, pgAbout],
+  [/^\/?$/, pgHome, 'home'], [/^\/cats$/, pgCats, 'cats'], [/^\/c\/([a-z0-9_]+)$/, pgCategory, 'cats'], [/^\/search$/, pgSearch, 'home'],
+  [/^\/ad\/(\d+)$/, pgAd, ''], [/^\/post$/, (m, q) => pgPostPick(q), 'post'], [/^\/edit\/(\d+)$/, pgEdit, 'me'],
+  [/^\/favs$/, pgFavs, 'favs'], [/^\/me$/, pgMe, 'me'], [/^\/my$/, pgMy, 'me'], [/^\/login$/, pgLogin, 'me'],
+  [/^\/notifications$/, pgNotifications, 'me'], [/^\/about$/, pgAbout, 'me'], [/^\/terms$/, pgTerms, 'me'],
 ];
-const parse = () => { const h = location.hash.replace(/^#/, '') || '/'; const [p, qs] = h.split('?'); return { p: p || '/', q: new URLSearchParams(qs || '') }; };
-export function go(path, replace) { const h = '#' + (path.startsWith('/') ? path : '/' + path); if (replace) { history.replaceState(null, '', h); render(); } else location.hash = h; }
-const navStack = []; const scrollMem = {};
-let renderSeq = 0;
+export function go(path, replace) {
+  const h = '#' + path;
+  if (replace) { history.replaceState(history.state && history.state.sheet ? null : history.state, '', h); render(); }
+  else if (location.hash === h) render(true); else location.hash = h;
+}
+let renderSeq = 0; const scrollMem = {};
 async function render(soft) {
   const seq = ++renderSeq;
-  const { p, q } = parse();
-  const key = location.hash || '#/';
-  let fn = pgHome, m = [];
-  for (const [re, f] of ROUTES) { const x = p.match(re); if (x) { fn = f; m = x.slice(1); break; } }
-  if (!ROUTES.some(([re]) => re.test(p))) { fn = () => ({ html: topbar('الصفحة غير موجودة') + emptyBox('info', 'الصفحة غير موجودة', '', '<a class="btn primary" href="#/">الرئيسية</a>') }); }
-  const res = await fn(m, q);
+  closeSheet(true, true);
+  const raw = location.hash.slice(1) || '/'; const [path, qs] = raw.split('?');
+  const q = new URLSearchParams(qs || '');
+  let route = ROUTES.find(r => r[0].test(path)); if (!route) route = ROUTES[0];
+  const m = path.match(route[0]).slice(1);
+  const v = view();
+  if (!soft) { v.innerHTML = `<div class="page"><div class="feed">${skeleton(4)}</div></div>`; }
+  let out;
+  try { out = await route[1](m, q); } catch (e) { console.error(e); out = { html: topbar(t('error')) + emptyBox('refresh', t('error'), errText(e)) }; }
   if (seq !== renderSeq) return;
-  const view = $('#view');
-  const y = soft ? scrollY : null;
-  if (!soft) { view.style.animation = 'none'; void view.offsetWidth; view.style.animation = ''; }
-  view.innerHTML = res.html || '';
-  document.body.classList.toggle('hide-tabs', !!res.hideTabs);
-  $$('.tabbar [data-tab]').forEach(a => a.classList.toggle('on', a.dataset.tab === res.tab));
-  if (res.after) try { await res.after(view); } catch (e) { console.error(e); }
-  if (soft) scrollTo(0, y);
-  else if (scrollMem[key] != null && navStack[navStack.length - 1] === key) scrollTo(0, scrollMem[key]);
-  else scrollTo(0, 0);
-  const t = { '/': 'ماتعطل | خدمات السيارات بالكويت' }[p];
-  document.title = t || (($('.topbar h1', view) || {}).textContent ? $('.topbar h1', view).textContent + ' | ماتعطل' : 'ماتعطل');
+  const prev = v.firstElementChild && v.firstElementChild._io; if (prev) prev.disconnect();
+  v.innerHTML = out.html || '';
+  document.body.classList.toggle('no-tab', out.cls === 'no-tab');
+  $$('.tabbar a').forEach(a => a.classList.toggle('on', a.dataset.tab === route[2]));
+  if (out.after) try { out.after(v); } catch (e) { console.error(e); }
+  if (!soft) window.scrollTo(0, scrollMem[raw] || 0);
 }
-let lastKey = location.hash || '#/';
-addEventListener('hashchange', () => {
-  scrollMem[lastKey] = scrollY;
-  const key = location.hash || '#/';
-  if (navStack[navStack.length - 2] === key) navStack.pop(); else navStack.push(lastKey);
-  lastKey = key;
-  closeSheet(true); render();
-});
+addEventListener('scroll', () => { scrollMem[location.hash.slice(1) || '/'] = window.scrollY; }, { passive: true });
 
-/* ================= الأحداث ================= */
-const ACT = {
-  back: () => { if (navStack.length) history.back(); else go('/'); },
-  reload: () => loadPublic(true),
-  fav: el => toggleFav(el.dataset.id, el),
-  area: el => areaSheet(el.dataset.scope),
-  'set-area': el => setArea(el.dataset.v, el.dataset.scope),
-  locate: el => busy(el, () => geo().then(p => setPos(p)).catch(() => toast('ما قدرنا نحدد موقعك. فعّل الموقع أو اختر منطقتك يدوياً.', 'err')), 'جاري التحديد...'),
-  mappick: async () => { closeSheet(true); const p = await pickOnMap(S.pos); if (p) setPos(p); },
-  'clear-pos': () => { S.pos = null; store.del('pos'); closeSheet(); render(true); toast('تم مسح الموقع'); },
-  sort: el => {
-    const cur = el.dataset.cur;
-    sheet(`<div class="sheet-h"><h3>الترتيب</h3><button class="icon-btn clear" data-close>${icon('close')}</button></div><div class="sheet-body"><div class="opt-grid">${Object.entries(SORTS).map(([k, t]) => `<button class="opt ${k === cur ? 'on' : ''}" data-act="set-sort" data-v="${k}"><span class="ic">${icon(k === 'near' ? 'locate' : k === 'rating' ? 'star' : 'clock')}</span><span><b>${t}</b>${k === 'near' && !S.pos ? '<small>يحتاج تحديد موقعك</small>' : ''}</span><span class="rad"></span></button>`).join('')}</div></div>`);
-  },
-  'set-sort': async el => {
-    const v = el.dataset.v; closeSheet(true);
-    if (v === 'near' && !S.pos) { try { const p = await geo(); S.pos = p; store.set('pos', p); } catch (_) { toast('فعّل الموقع لترتيب الأقرب', 'err'); return; } }
-    const [p, qs] = location.hash.slice(1).split('?'); const q = new URLSearchParams(qs || ''); q.set('sort', v); go(p + '?' + q.toString(), true);
-  },
-  share: async el => {
-    const c = coById(el.dataset.id); if (!c) return;
-    const url = location.origin + location.pathname + '#/c/' + c.id, text = c.name + ' — ' + svcName(c.s) + ' | ماتعطل';
-    if (navigator.share) { try { await navigator.share({ title: c.name, text, url }); } catch (_) { } }
-    else { try { await navigator.clipboard.writeText(url); toast('تم نسخ الرابط'); } catch (_) { toast(url); } }
-  },
-  photo: el => { const c = coById(el.dataset.id); if (!c) return; sheet(`<div class="sheet-body"><img src="${esc(c.photos[+el.dataset.i])}" alt="" style="border-radius:16px;width:100%"><button class="btn ghost block" data-close>إغلاق</button></div>`); },
-  review: el => reviewSheet(el.dataset.id),
-  showpw: el => { const i = el.parentElement.querySelector('input'); i.type = i.type === 'password' ? 'text' : 'password'; },
-  forgot: () => forgotSheet(),
-  logout: async () => { if (await confirmBox('تأكيد تسجيل الخروج؟', { ok: 'خروج' })) { await logout(); S.profile = null; S.isAdmin = false; toast('تم تسجيل الخروج'); go('/account', true); } },
-  'delete-account': async () => {
-    if (!(await confirmBox('سيتم حذف حسابك نهائياً مع المفضلة والإشعارات. الأنشطة والإعلانات المرتبطة قد تُحذف. متأكد؟', { ok: 'حذف نهائي', danger: true }))) return;
-    try { await rpc('delete_my_account'); await logout(); toast('تم حذف الحساب'); go('/', true); } catch (e) { toast(errText(e), 'err'); }
-  },
-  'edit-name': () => {
-    sheet(`<div class="sheet-h"><h3>تعديل الاسم</h3><button class="icon-btn clear" data-close>${icon('close')}</button></div><div class="sheet-body"><input class="inp" id="nn" maxlength="80" value="${esc((S.profile && S.profile.full_name) || '')}"><button class="btn primary block" id="nns">حفظ</button></div>`, {
-      onOpen: sh => $('#nns', sh).onclick = e => busy(e.currentTarget, async () => { try { await rest('profiles?id=eq.' + session().uid, { method: 'PATCH', body: { full_name: $('#nn', sh).value.trim() || null }, prefer: 'return=minimal' }); await loadMe(); closeSheet(); render(true); toast('تم الحفظ', 'ok'); } catch (err) { toast(errText(err), 'err'); } })
-    });
-  },
-  recovery: async () => {
-    let has = false; try { has = await rpc('has_recovery_code'); } catch (_) { }
-    sheet(`<div class="sheet-h"><h3>رمز الاسترجاع</h3><button class="icon-btn clear" data-close>${icon('close')}</button></div><div class="sheet-body">
-      <div class="note">${icon('key2')}<div>بما إننا ما نرسل رسائل SMS، رمز الاسترجاع هو طريقتك لتغيير كلمة السر إذا نسيتها. احفظه في مكان آمن — يظهر مرة وحدة فقط.</div></div>
-      ${has ? '<div class="note ok">' + icon('check') + '<div>عندك رمز محفوظ. إنشاء رمز جديد يلغي القديم.</div></div>' : ''}
-      <div id="rcout"></div><button class="btn primary block" id="rcgo">${has ? 'إنشاء رمز جديد' : 'إنشاء رمز'}</button></div>`, {
-      onOpen: sh => $('#rcgo', sh).onclick = e => busy(e.currentTarget, async () => {
-        try { const code = await rpc('create_recovery_code'); $('#rcout', sh).innerHTML = `<div class="kv"><div class="r"><span style="flex:1"><b>رمزك (انسخه الآن)</b><div dir="ltr" style="font-size:20px;font-weight:800;letter-spacing:1px;text-align:center;user-select:all">${esc(code)}</div></span></div></div>`; e.currentTarget && (e.currentTarget.hidden = true); try { await navigator.clipboard.writeText(code); toast('تم نسخ الرمز'); } catch (_) { } }
-        catch (err) { toast(errText(err), 'err'); }
-      })
-    });
-  },
-  'change-pw': () => {
-    sheet(`<div class="sheet-h"><h3>تغيير كلمة السر</h3><button class="icon-btn clear" data-close>${icon('close')}</button></div><div class="sheet-body">
-      <div class="field"><label>كلمة السر الجديدة</label><input class="inp" id="np1" type="password" autocomplete="new-password" maxlength="72" placeholder="8 خانات أو أكثر (أرقام وحروف)"></div>
-      <div class="field"><label>تأكيد كلمة السر</label><input class="inp" id="np2" type="password" autocomplete="new-password" maxlength="72"></div>
-      <button class="btn primary block" id="npgo">حفظ</button></div>`, {
-      onOpen: sh => $('#npgo', sh).onclick = e => busy(e.currentTarget, async () => {
-        const a = $('#np1', sh).value, b = $('#np2', sh).value;
-        if (a.length < 8 || !/\d/.test(a) || !/\D/.test(a)) return toast(errText('weak password'), 'err');
-        if (a !== b) return toast('كلمتا السر غير متطابقتين', 'err');
-        try { await api('/auth/v1/user', { method: 'PUT', body: { password: a } }); closeSheet(); toast('تم تغيير كلمة السر', 'ok'); } catch (err) { toast(errText(err), 'err'); }
-      })
-    });
-  },
-  'del-ad': async el => { if (!(await confirmBox('إلغاء طلب الإعلان؟', { ok: 'إلغاء الطلب', danger: true }))) return; try { await rest('ad_campaigns?id=eq.' + (+el.dataset.id), { method: 'DELETE' }); toast('تم إلغاء الطلب'); render(true); } catch (e) { toast(errText(e), 'err'); } },
-  'clear-recent': () => { S.recent = []; store.set('recent', []); render(true); },
-  install: () => installApp(),
-  'install-hide': () => { store.set('installDismiss', 1); render(true); },
-  'copy-link': async () => { try { await navigator.clipboard.writeText(location.origin + location.pathname); toast('تم نسخ الرابط — افتحه في Safari', 'ok'); } catch (_) { toast(location.origin); } },
-  theme: () => { const order = ['auto', 'light', 'dark']; const cur = store.get('theme', 'auto'); const n = order[(order.indexOf(cur) + 1) % 3]; store.set('theme', n); applyTheme(); render(true); },
-  goreg: (el, e) => { e.preventDefault(); go('/auth'); setTimeout(() => { const b = $('.seg button[data-mode="register"]'); b && b.click(); }, 50); },
-};
+/* ================= أحداث عامة ================= */
 document.addEventListener('click', e => {
-  const a = e.target.closest('[data-act]');
-  if (a) { const f = ACT[a.dataset.act]; if (f) { if (a.tagName === 'A' && a.dataset.act !== 'goreg') e.preventDefault(); f(a, e); return; } }
-  const t = e.target.closest('[data-track]');
-  if (t) { track(t.dataset.track, t.dataset.id); return; }
-  const ad = e.target.closest('[data-ad]');
-  if (ad) trackAd(ad.dataset.ad, 'click');
-  const card = e.target.closest('[data-href]');
-  if (card && !e.target.closest('a,button')) location.hash = card.dataset.href;
+  const fav = e.target.closest('[data-fav]');
+  if (fav) { e.preventDefault(); e.stopPropagation(); toggleFav(fav.dataset.fav, fav); return; }
+  const a = e.target.closest('[data-act]'); if (!a) return;
+  if (a.dataset.act === 'back') { let nav = false; try { nav = !!sessionStorage.getItem('m5_nav'); } catch (_) { } if (nav) history.back(); else go('/', true); }
+  if (a.dataset.act === 'lang') { setLang(isAr() ? 'en' : 'ar'); paintTabbar(); render(true); }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Enter') { const c = e.target.closest && e.target.closest('[data-href]'); if (c && e.target === c) location.hash = c.dataset.href; } if (e.key === 'Escape') closeSheet(); });
-let liveT = null;
-document.addEventListener('input', e => {
-  const el = e.target; if (!el.dataset || !el.dataset.live) return;
-  clearTimeout(liveT);
-  liveT = setTimeout(() => {
-    const v = el.value.trim();
-    if (el.dataset.live === 'search') {
-      history.replaceState(null, '', '#/search' + (v ? '?q=' + encodeURIComponent(v) : '')); lastKey = location.hash;
-      $('#sres').innerHTML = searchResults(v);
-      if (v.length >= 2) { S.recent = [v, ...S.recent.filter(x => x !== v)].slice(0, 8); store.set('recent', S.recent); track('search'); }
-    } else if (el.dataset.live === 'svcq') {
-      const [p, qs] = location.hash.slice(1).split('?'); const q = new URLSearchParams(qs || ''); v ? q.set('q', v) : q.delete('q');
-      history.replaceState(null, '', '#' + p + (q.toString() ? '?' + q : '')); lastKey = location.hash;
-      const pos = el.selectionStart; render(true).then(() => { const i = $('[data-live="svcq"]'); if (i) { i.focus(); try { i.setSelectionRange(pos, pos); } catch (_) { } } });
-    }
-  }, el.dataset.live === 'search' ? 220 : 280);
-});
+addEventListener('hashchange', () => { try { sessionStorage.setItem('m5_nav', '1'); } catch (_) { } render(); });
+addEventListener('offline', () => toast(t('offline'), 'err'));
 
-/* ================= PWA ================= */
-addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.installEvt = e; });
-async function installApp() {
-  // أندرويد/كروم/إيدج: تثبيت مباشر بضغطة واحدة
-  if (S.installEvt) {
-    const ev = S.installEvt; S.installEvt = null;
-    ev.prompt(); let ok = false; try { ok = (await ev.userChoice).outcome === 'accepted'; } catch (_) { }
-    if (ok) { store.set('installDismiss', 1); toast('تم تحميل ماتعطل على شاشتك الرئيسية', 'ok'); render(true); }
-    return;
-  }
-  const ua = navigator.userAgent, ios = /iphone|ipad|ipod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-  const iosOther = ios && /CriOS|FxiOS|EdgiOS|OPiOS|GSA|FBAN|FBAV|Instagram|Snapchat/i.test(ua);
-  const head = `<div class="inst-head"><img src="icons/icon-192.png" alt="" width="72" height="72"><div><b>ماتعطل</b><small>mat3tl.com</small></div></div>`;
-  let body;
-  if (iosOther) body = `<div class="note y">${icon('info')}<div>على الآيفون التحميل يشتغل من <b>Safari</b> فقط. انسخ الرابط وافتحه في Safari.</div></div>
-    <button class="btn primary block" data-act="copy-link">${icon('share')}نسخ الرابط</button>`;
-  else if (ios) body = `<div class="inst-steps">
-      <div class="st"><span class="n">1</span><span class="tx">اضغط زر <b>المشاركة</b> أسفل الشاشة</span><span class="vis">${icon('share')}</span></div>
-      <div class="st"><span class="n">2</span><span class="tx">اختر <b>«إضافة إلى الشاشة الرئيسية»</b></span><span class="vis">${icon('plus')}</span></div>
-      <div class="st"><span class="n">3</span><span class="tx">اضغط <b>«إضافة»</b> — تظهر أيقونة ماتعطل على شاشتك</span><span class="vis app"><img src="icons/icon-96.png" alt=""></span></div></div>
-    <div class="inst-arrow">${icon('chevD')}زر المشاركة تحت ${icon('chevD')}</div>`;
-  else body = `<div class="inst-steps">
-      <div class="st"><span class="n">1</span><span class="tx">افتح قائمة المتصفح <b>⋮</b> فوق</span><span class="vis">⋮</span></div>
-      <div class="st"><span class="n">2</span><span class="tx">اختر <b>«تثبيت التطبيق»</b> أو <b>«إضافة إلى الشاشة الرئيسية»</b></span><span class="vis app"><img src="icons/icon-96.png" alt=""></span></div></div>`;
-  sheet(`<div class="sheet-h"><h3>تحميل تطبيق ماتعطل</h3><button class="icon-btn clear" data-close>${icon('close')}</button></div><div class="sheet-body">${head}${body}<button class="btn ghost block" data-close>تم</button></div>`);
+function paintTabbar() {
+  const tb = $('.tabbar'); if (!tb) return;
+  tb.setAttribute('aria-label', t('home'));
+  tb.innerHTML = `<a href="#/" data-tab="home">${icon('home')}<span>${t('home')}</span></a>
+    <a href="#/cats" data-tab="cats">${icon('grid')}<span>${t('cats')}</span></a>
+    <a href="#/post" data-tab="post" class="fab"><span class="c">${icon('plus')}</span><span>${t('post')}</span></a>
+    <a href="#/favs" data-tab="favs">${icon('heart')}<span>${t('favs')}</span></a>
+    <a href="#/me" data-tab="me">${icon('user')}<span>${t('me')}</span></a>`;
+  document.title = t('app') + ' | ' + t('tagline');
 }
-function applyTheme() { const t = store.get('theme', 'auto'); t === 'auto' ? document.documentElement.removeAttribute('data-theme') : document.documentElement.setAttribute('data-theme', t); }
-applyTheme();
-if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => { }));
-const offline = () => { let b = $('#offbar'); if (!navigator.onLine) { if (!b) { b = document.createElement('div'); b.id = 'offbar'; b.className = 'offline-bar'; b.textContent = 'أنت غير متصل — تعرض آخر بيانات محفوظة'; $('#app').prepend(b); } } else if (b) { b.remove(); loadPublic(true); } };
-addEventListener('online', offline); addEventListener('offline', offline);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) loadPublic(); });
 
-/* ================= البدء ================= */
-(async function boot() {
-  render();
-  const sp = $('#splash'); const hide = () => sp && sp.classList.add('out');
-  setTimeout(hide, store.get('pub') ? 250 : 1600);
-  await Promise.all([loadPublic(true), loadMe()]);
-  render(true); hide(); offline();
-  track('visit');
-  if (S.area === 'all' && !S.pos && !store.get('askedGeo') && navigator.permissions) {
-    try { const st = await navigator.permissions.query({ name: 'geolocation' }); if (st.state === 'granted') geo().then(p => setPos(p, true)).catch(() => { }); } catch (_) { }
-  }
-})();
+/* ================= التثبيت ================= */
+let deferredPrompt = null;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; });
+const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+const installable = () => !standalone() && (deferredPrompt || /iphone|ipad|ipod/i.test(navigator.userAgent));
+async function installApp() {
+  if (deferredPrompt) { deferredPrompt.prompt(); try { await deferredPrompt.userChoice; } catch (_) { } deferredPrompt = null; return; }
+  sheet(`<div class="sheet-body"><h3 class="sh-title">${t('install')}</h3><p>${t('install_ios')}</p><button class="btn primary block" data-close>${t('close')}</button></div>`);
+}
+
+/* ================= التشغيل ================= */
+async function boot() {
+  initSession();
+  paintTabbar();
+  onAuth(s => { if (!s) { S.me = null; } });
+  try { await loadPublic(); } catch (e) { view().innerHTML = `<div class="page">${emptyBox('refresh', t('error'), errText(e), '<button class="btn primary" data-reload>' + t('retry') + '</button>')}</div>`; $('[data-reload]').onclick = () => location.reload(); const sp = $('#splash'); if (sp) sp.remove(); return; }
+  S.favs = localFavs();
+  const meP = session() ? loadMe().then(syncFavs) : Promise.resolve();
+  if (session()) await Promise.race([meP, new Promise(r => setTimeout(r, 1500))]);
+  await render();
+  const sp = $('#splash'); if (sp) { sp.classList.add('out'); setTimeout(() => sp.remove(), 400); }
+  track('m_visit');
+  meP.then(() => { unreadCount(); }).catch(() => { });
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => { });
+}
+boot();
