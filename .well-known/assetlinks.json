@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.mat3tl.app",
+    "sha256_cert_fingerprints": [
+      "F7:73:B1:BB:C8:49:C1:ED:D0:58:A8:61:40:52:C7:36:A6:90:38:11:E7:51:B8:DB:90:9E:6F:ED:A6:42:C9:50"
+    ]
+  }
+}]

@@ -5,6 +5,7 @@ import {
   rest, rpc, login, register, logout, myProfile, shrinkImage, upload, removeImages, icon, CAT_ICONS, toast, sheet, closeSheet,
   confirmBox, promptBox, busy,
 } from './core.js?v=502';
+import { isNative, SITE, statusBar, hideSplash, tap, nativeShare, backButton, deepLinks } from './native.js?v=502';
 
 const PAGE = 20;
 const GOVS = ['capital', 'hawalli', 'farwaniya', 'jahra', 'ahmadi', 'mubarak'];
@@ -58,7 +59,7 @@ async function syncFavs() {
   } catch (_) { }
 }
 async function toggleFav(id, btn) {
-  id = +id; const on = !S.favs.has(id);
+  id = +id; const on = !S.favs.has(id); tap();
   on ? S.favs.add(id) : S.favs.delete(id);
   $$(`[data-fav="${id}"]`).forEach(b => { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
   toast(t(on ? 'fav_add' : 'fav_del'));
@@ -93,7 +94,7 @@ function specsList(a) {
   }).filter(Boolean);
 }
 const waLink = (phone, text) => 'https://wa.me/965' + phone + '?text=' + encodeURIComponent(text);
-const adUrl = id => location.origin + location.pathname.replace(/[^/]*$/, '') + '#/ad/' + id;
+const adUrl = id => (isNative ? SITE : location.origin + location.pathname.replace(/[^/]*$/, '')) + '#/ad/' + id;
 
 function topbar(title, { back = true, actions = '' } = {}) {
   return `<header class="topbar">${back ? `<button class="icon-btn" data-act="back" aria-label="${t('back')}">${icon(isAr() ? 'chevR' : 'chevL')}</button>` : '<span class="sp"></span>'}<h1>${esc(title)}</h1><div class="tb-act">${actions}</div></header>`;
@@ -359,6 +360,7 @@ function viewer(imgs, i) {
 }
 async function share(a) {
   const url = adUrl(a.id);
+  if (await nativeShare(a.title, url)) return;
   try { if (navigator.share) { await navigator.share({ title: a.title, text: a.title, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
   try { await navigator.clipboard.writeText(url); toast(t('copied'), 'ok'); } catch (_) { promptBox(t('share'), { value: url, ok: t('close') }); }
 }
@@ -706,6 +708,7 @@ async function render(soft) {
   v.innerHTML = out.html || '';
   document.body.classList.toggle('no-tab', out.cls === 'no-tab');
   $$('.tabbar a').forEach(a => a.classList.toggle('on', a.dataset.tab === route[2]));
+  statusBar(route[1] === pgHome);
   if (out.after) try { out.after(v); } catch (e) { console.error(e); }
   if (!soft) window.scrollTo(0, scrollMem[raw] || 0);
 }
@@ -737,7 +740,7 @@ function paintTabbar() {
 let deferredPrompt = null;
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; });
 const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-const installable = () => !standalone() && (deferredPrompt || /iphone|ipad|ipod/i.test(navigator.userAgent));
+const installable = () => !isNative && !standalone() && (deferredPrompt || /iphone|ipad|ipod/i.test(navigator.userAgent));
 async function installApp() {
   if (deferredPrompt) { deferredPrompt.prompt(); try { await deferredPrompt.userChoice; } catch (_) { } deferredPrompt = null; return; }
   sheet(`<div class="sheet-body"><h3 class="sh-title">${t('install')}</h3><p>${t('install_ios')}</p><button class="btn primary block" data-close>${t('close')}</button></div>`);
@@ -748,15 +751,26 @@ async function boot() {
   initSession();
   paintTabbar();
   onAuth(s => { if (!s) { S.me = null; } });
-  try { await loadPublic(); } catch (e) { view().innerHTML = `<div class="page">${emptyBox('refresh', t('error'), errText(e), '<button class="btn primary" data-reload>' + t('retry') + '</button>')}</div>`; $('[data-reload]').onclick = () => location.reload(); const sp = $('#splash'); if (sp) sp.remove(); return; }
+  try { await loadPublic(); } catch (e) { hideSplash(); view().innerHTML = `<div class="page">${emptyBox('refresh', t('error'), errText(e), '<button class="btn primary" data-reload>' + t('retry') + '</button>')}</div>`; $('[data-reload]').onclick = () => location.reload(); const sp = $('#splash'); if (sp) sp.remove(); return; }
   S.favs = localFavs();
   const meP = session() ? loadMe().then(syncFavs) : Promise.resolve();
   if (session()) await Promise.race([meP, new Promise(r => setTimeout(r, 1500))]);
   await render();
   window.__m5ok = true;
+  hideSplash();
   const sp = $('#splash'); if (sp) { sp.classList.add('out'); setTimeout(() => sp.remove(), 400); }
   track('m_visit');
   meP.then(() => { unreadCount(); }).catch(() => { });
-  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => { });
+  if (!isNative && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => { });
+  deepLinks(p => go(p));
+  backButton(() => {
+    const vw = $('.viewer'); if (vw) { vw.remove(); document.body.classList.remove('noscroll'); return true; }
+    if ($('#sheetBg')) { closeSheet(); return true; }
+    const h = location.hash.slice(1) || '/';
+    if (h === '/' || h === '') return false;
+    let nav = false; try { nav = !!sessionStorage.getItem('m5_nav'); } catch (_) { }
+    if (nav) history.back(); else go('/', true);
+    return true;
+  });
 }
 boot();

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ماتعطل</string>
+    <string name="title_activity_main">ماتعطل</string>
+    <string name="package_name">com.mat3tl.app</string>
+    <string name="custom_url_scheme">com.mat3tl.app</string>
+</resources>

@@ -1,0 +1,12 @@
+{
+  "appId": "com.mat3tl.app",
+  "appName": "ماتعطل",
+  "webDir": "www",
+  "server": { "androidScheme": "https" },
+  "android": { "allowMixedContent": false, "captureInput": true, "webContentsDebuggingEnabled": false },
+  "ios": { "contentInset": "never", "scheme": "Matetattal", "limitsNavigationsToAppBoundDomains": false },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 3000, "launchAutoHide": false, "backgroundColor": "#1a44c2", "showSpinner": false, "androidScaleType": "CENTER_CROP", "splashFullScreen": false, "splashImmersive": false },
+    "StatusBar": { "style": "DARK", "backgroundColor": "#1a44c2", "overlaysWebView": false }
+  }
+}
