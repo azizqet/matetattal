@@ -102,7 +102,7 @@ const ERR = {
   ],
 };
 let LANG = 'ar';
-try { const s = localStorage.getItem('m5_lang'); if (s === 'en' || s === 'ar') LANG = s; else if (!s && /^en/i.test(navigator.language || '') && !/^ar/i.test(navigator.language || '')) LANG = 'en'; } catch (_) { }
+try { const s = localStorage.getItem('m5_lang'); if (s === 'en' || s === 'ar') LANG = s; } catch (_) { }
 export const lang = () => LANG;
 export const isAr = () => LANG === 'ar';
 export function setLang(l) { LANG = l === 'en' ? 'en' : 'ar'; try { localStorage.setItem('m5_lang', LANG); } catch (_) { } applyLang(); }
