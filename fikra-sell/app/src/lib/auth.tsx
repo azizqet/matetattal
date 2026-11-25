@@ -46,11 +46,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      setSession(data.session);
-      await loadProfile(data.session?.user.id);
-      setReady(true);
-    });
+    // Restore the saved session, but never block the UI on it: guests can
+    // browse immediately and a slow keychain read must not leave a blank screen.
+    let settled = false;
+    const done = () => { if (!settled) { settled = true; setReady(true); } };
+    const failsafe = setTimeout(done, 3000);
+    supabase.auth.getSession()
+      .then(async ({ data }) => {
+        setSession(data.session);
+        if (data.session) loadProfile(data.session.user.id);
+      })
+      .catch(() => { /* corrupted storage → continue as guest */ })
+      .finally(() => { clearTimeout(failsafe); done(); });
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'SIGNED_OUT') {

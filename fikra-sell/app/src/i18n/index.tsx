@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Updates from 'expo-updates';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { DevSettings, I18nManager, Platform } from 'react-native';
+import { I18nManager, Platform, View } from 'react-native';
 import ar, { type Dict } from './ar';
 import en from './en';
 
@@ -34,45 +33,52 @@ type Ctx = {
 
 const I18nContext = createContext<Ctx | null>(null);
 
-async function reload() {
-  if (Platform.OS === 'web') { window.location.reload(); return; }
-  try { await Updates.reloadAsync(); } catch { DevSettings.reload(); }
-}
-
-/** Ensures native layout direction matches the language (one reload if not). */
-async function applyDirection(lang: Lang): Promise<boolean> {
+/**
+ * Layout direction is applied with a `direction` style on the root view, so
+ * the very first render is correct everywhere (standalone builds, Expo Go and
+ * web) without restarting the app. The native RTL flag is also updated so
+ * system UI follows on the next cold start. The app never reloads itself.
+ */
+function applyNativeDirection(lang: Lang) {
   const rtl = lang === 'ar';
   if (Platform.OS === 'web') {
-    document.documentElement.dir = rtl ? 'rtl' : 'ltr';
-    document.documentElement.lang = lang;
-    return false;
+    if (typeof document !== 'undefined') {
+      document.documentElement.dir = rtl ? 'rtl' : 'ltr';
+      document.documentElement.lang = lang;
+    }
+    return;
   }
-  I18nManager.allowRTL(true);
-  if (I18nManager.isRTL !== rtl) {
-    I18nManager.forceRTL(rtl);
-    I18nManager.swapLeftAndRightInRTL(true);
-    return true;
+  try {
+    I18nManager.allowRTL(true);
+    if (I18nManager.isRTL !== rtl) I18nManager.forceRTL(rtl);
+  } catch {
+    // Native direction is best-effort; the root `direction` style is authoritative.
   }
-  return false;
+}
+
+async function readSavedLang(): Promise<Lang> {
+  const timeout = new Promise<null>((r) => setTimeout(() => r(null), 1500));
+  const saved = await Promise.race([AsyncStorage.getItem(KEY).catch(() => null), timeout]);
+  return saved === 'en' ? 'en' : 'ar';
 }
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang | null>(null);
 
   useEffect(() => {
-    (async () => {
-      const saved = ((await AsyncStorage.getItem(KEY).catch(() => null)) as Lang | null) ?? 'ar';
-      const needsReload = await applyDirection(saved);
-      if (needsReload) { await reload(); return; }
-      setLangState(saved);
-    })();
+    let alive = true;
+    readSavedLang().then((l) => {
+      if (!alive) return;
+      applyNativeDirection(l);
+      setLangState(l);
+    });
+    return () => { alive = false; };
   }, []);
 
   const setLang = useCallback(async (l: Lang) => {
-    await AsyncStorage.setItem(KEY, l);
-    const needsReload = await applyDirection(l);
-    if (needsReload) await reload();
-    else setLangState(l);
+    await AsyncStorage.setItem(KEY, l).catch(() => {});
+    applyNativeDirection(l);
+    setLangState(l);
   }, []);
 
   const value = useMemo<Ctx | null>(() => {
@@ -87,8 +93,12 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     };
   }, [lang, setLang]);
 
-  if (!value) return null; // splash screen stays visible until the language is resolved
-  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+  if (!value) return null; // resolved within 1.5 s at most; the native splash covers this
+  return (
+    <I18nContext.Provider value={value}>
+      <View style={{ flex: 1, direction: value.isRTL ? 'rtl' : 'ltr' }}>{children}</View>
+    </I18nContext.Provider>
+  );
 }
 
 export function useI18n(): Ctx {
