@@ -17,3 +17,5 @@ app/android/
 *.mobileprovision
 *.keystore
 google-services*.json
+__pycache__/
+*.pyc
