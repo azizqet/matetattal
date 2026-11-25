@@ -22,7 +22,7 @@ function Markdown({ text }: { text: string }) {
         if (line.startsWith('## ')) return <T key={i} v="h3" style={{ marginTop: space.md }}>{strip(line.slice(3))}</T>;
         if (/^[-*] /.test(line)) return (
           <View key={i} style={{ flexDirection: 'row', gap: space.sm }}>
-            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.accent, marginTop: 10 }} />
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.primary, marginTop: 10 }} />
             <T style={{ flex: 1 }}>{strip(line.slice(2))}</T>
           </View>
         );

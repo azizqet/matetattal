@@ -39,7 +39,7 @@ export function BannerStrip({ placement, categoryId }: { placement: 'home_top' |
       contentContainerStyle={{ paddingHorizontal: space.lg, gap: space.md }}
       renderItem={({ item }) => (
         <Pressable onPress={() => open(item.link_url, item.id)} accessibilityRole="link" accessibilityLabel={item.title}
-          style={{ width: w, aspectRatio: 2.35, borderTopStartRadius: radius.crown, borderTopEndRadius: radius.lg, borderBottomEndRadius: radius.lg, borderBottomStartRadius: radius.socket, overflow: 'hidden', backgroundColor: c.surface }}>
+          style={{ width: w, aspectRatio: 2.35, borderRadius: radius.md, overflow: 'hidden', backgroundColor: c.surface }}>
           <Image source={{ uri: publicUrl('banners', item.image_path) }} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={200} />
         </Pressable>
       )}
@@ -47,19 +47,19 @@ export function BannerStrip({ placement, categoryId }: { placement: 'home_top' |
   );
 }
 
-/** Category tile: icon in a crown-cornered plate with the accent spark. */
-export function CategoryTile({ cat, size = 72, onPress }: { cat: Category; size?: number; onPress?: () => void }) {
+/** Category tile: turquoise outline icon on a soft turquoise plate, name below. */
+export function CategoryTile({ cat, width = 84, onPress }: { cat: Category; width?: number; onPress?: () => void }) {
   const { c } = useTheme();
   const { pick } = useI18n();
   const name = pick(cat.name_ar, cat.name_en);
+  const plate = Math.min(64, width - 12);
   return (
     <Press onPress={onPress ?? (() => router.push(`/category/${cat.slug}`))} accessibilityRole="button" accessibilityLabel={name}
-      style={{ width: size + 12, alignItems: 'center', gap: 8 }} testID={`cat-${cat.slug}`}>
-      <View style={{ width: size, height: size, backgroundColor: c.surface, borderTopStartRadius: size * 0.36, borderTopEndRadius: size * 0.36, borderBottomEndRadius: size * 0.22, borderBottomStartRadius: 6,
-        alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.line }}>
-        <Icon name={cat.icon} size={size * 0.46} color={c.primary} />
+      style={{ width, alignItems: 'center', gap: 6 }} testID={`cat-${cat.slug}`}>
+      <View style={{ width: plate, height: plate, borderRadius: radius.lg, backgroundColor: c.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={cat.icon} size={plate * 0.5} color={c.primary} />
       </View>
-      <Text numberOfLines={2} style={{ fontFamily: font.medium, fontSize: 12, lineHeight: 17, color: c.text, textAlign: 'center' }}>{name}</Text>
+      <Text numberOfLines={2} style={{ width: '100%', paddingHorizontal: 2, fontFamily: font.medium, fontSize: 12, lineHeight: 16, color: c.text, textAlign: 'center' }}>{name}</Text>
     </Press>
   );
 }

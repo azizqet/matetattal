@@ -7,7 +7,7 @@ import { publicUrl } from '../lib/supabase';
 import type { AdImage } from '../lib/types';
 import { useTheme } from '../theme/ThemeProvider';
 import { font, radius, space } from '../theme/tokens';
-import { BulbMark } from './Brand';
+import { PhotoPlaceholder } from './Brand';
 import { Icon } from './Icon';
 
 export function Gallery({ images, height }: { images: AdImage[]; height: number }) {
@@ -21,7 +21,7 @@ export function Gallery({ images, height }: { images: AdImage[]; height: number 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => setIndex(Math.round(Math.abs(e.nativeEvent.contentOffset.x) / width));
 
   if (!images.length) {
-    return <View style={{ height, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' }}><BulbMark size={56} lit={false} color={c.lineStrong} /></View>;
+    return <View style={{ height, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' }}><PhotoPlaceholder size={56} /></View>;
   }
   return (
     <View>
@@ -40,7 +40,7 @@ export function Gallery({ images, height }: { images: AdImage[]; height: number 
       />
       {images.length > 1 && (
         <View style={{ position: 'absolute', bottom: 28, alignSelf: 'center', flexDirection: 'row', gap: 5 }}>
-          {images.slice(0, 15).map((_, i) => <View key={i} style={{ width: i === index ? 18 : 6, height: 6, borderRadius: 3, backgroundColor: i === index ? c.accent : 'rgba(255,255,255,0.75)' }} />)}
+          {images.slice(0, 15).map((_, i) => <View key={i} style={{ width: i === index ? 18 : 6, height: 6, borderRadius: 3, backgroundColor: i === index ? c.primaryBright : 'rgba(255,255,255,0.75)' }} />)}
         </View>
       )}
       <View style={{ position: 'absolute', bottom: 22, end: space.lg, backgroundColor: 'rgba(14,15,19,0.6)', borderRadius: radius.socket, paddingHorizontal: 8, paddingVertical: 4 }}>
@@ -63,7 +63,7 @@ export function Gallery({ images, height }: { images: AdImage[]; height: number 
           />
           <Pressable onPress={() => setViewer(null)} accessibilityRole="button" accessibilityLabel={t('common.close')}
             style={{ position: 'absolute', top: insets.top + 10, end: space.lg, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="close" color="#FFF" spark={false} />
+            <Icon name="close" color="#FFF" />
           </Pressable>
         </View>
       </Modal>

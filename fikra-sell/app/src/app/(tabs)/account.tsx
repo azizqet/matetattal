@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BulbMark } from '../../components/Brand';
+import { Lockup } from '../../components/Brand';
 import { Confirm } from '../../components/feedback';
 import { Avatar, Badge, Button, Card, Divider, Row, T } from '../../components/ui';
 import { useCounters } from '../../hooks/data';
@@ -27,7 +27,7 @@ export default function Account() {
 
       {userId && profile ? (
         <View style={{ marginHorizontal: space.lg, padding: space.lg, gap: space.md, backgroundColor: c.surface,
-          borderTopStartRadius: radius.crown, borderTopEndRadius: radius.lg, borderBottomEndRadius: radius.lg, borderBottomStartRadius: radius.socket }}>
+          borderRadius: radius.lg }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
             <Avatar path={profile.avatar_path} name={profile.full_name} size={64} />
             <View style={{ flex: 1, gap: 2 }}>
@@ -42,8 +42,8 @@ export default function Account() {
           <Button small kind="secondary" title={t('account.editProfile')} icon="edit" onPress={() => router.push('/profile-edit')} testID="edit-profile" />
         </View>
       ) : (
-        <View style={{ marginHorizontal: space.lg, padding: space.xl, gap: space.md, alignItems: 'center', backgroundColor: c.accentSoft, borderRadius: radius.lg }}>
-          <BulbMark size={40} />
+        <View style={{ marginHorizontal: space.lg, padding: space.xl, gap: space.md, alignItems: 'center', backgroundColor: c.primarySoft, borderRadius: radius.lg }}>
+          <Lockup height={30} />
           <T v="h3" center>{t('account.guestTitle')}</T>
           <T muted center>{t('account.guestBody')}</T>
           <View style={{ flexDirection: 'row', gap: space.md, alignSelf: 'stretch' }}>

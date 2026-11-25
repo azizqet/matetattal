@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useI18n } from '../i18n';
 import { useTheme } from '../theme/ThemeProvider';
 import { space } from '../theme/tokens';
-import { BulbMark, Lockup } from './Brand';
+import { Lockup } from './Brand';
 import { IconButton, T } from './ui';
 
 export function AuthShell({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
@@ -19,10 +19,7 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
       </View>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.xl, paddingBottom: insets.bottom + 40, gap: space.xl }}>
         <View style={{ alignItems: 'center', gap: space.lg, paddingBottom: space.sm }}>
-          <View style={{ width: 92, height: 92, borderRadius: 46, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-            <BulbMark size={44} />
-          </View>
-          <Lockup height={30} />
+          <Lockup height={36} showLatin />
         </View>
         <View style={{ gap: 6 }}>
           <T v="h1">{title}</T>

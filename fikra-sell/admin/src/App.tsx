@@ -116,7 +116,7 @@ export default function App() {
     <MeContext.Provider value={me}>
       <div className="shell">
         <aside className={`side ${menu ? 'open' : ''}`} onClick={() => setMenu(false)}>
-          <div className="brand"><span style={{ width: 10, height: 10, borderRadius: 5, background: 'var(--accent)' }} /><div>سيـ فكرة ـل<small>ADMIN</small></div></div>
+          <div className="brand"><span style={{ width: 10, height: 10, borderRadius: 5, background: 'var(--primary)' }} /><div>سيـ فكرة ـل<small>ADMIN</small></div></div>
           <nav className="nav">
             {allowed.map((r) => (
               <a key={r.path} href={`#/${r.path}`} className={current.path === r.path ? 'on' : ''}>

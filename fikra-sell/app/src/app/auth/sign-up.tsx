@@ -63,7 +63,7 @@ export default function SignUp() {
           keyboardType="email-address" autoComplete="email" textContentType="emailAddress" returnKeyType="next" onSubmitEditing={() => passRef.current?.focus()} error={errors.email} icon="mail" />
         <Input ref={passRef} testID="signup-password" label={t('auth.choosePassword')} value={password} onChangeText={setPassword} secureTextEntry={!show}
           autoComplete="new-password" textContentType="newPassword" returnKeyType="done" onSubmitEditing={submit} error={errors.password} hint={t('auth.passwordHint')} icon="lock"
-          right={<Pressable onPress={() => setShow(!show)} hitSlop={10} accessibilityLabel="toggle"><Icon name={show ? 'hide' : 'eye'} size={20} color={c.textMuted} spark={false} /></Pressable>} />
+          right={<Pressable onPress={() => setShow(!show)} hitSlop={10} accessibilityLabel="toggle"><Icon name={show ? 'hide' : 'eye'} size={20} color={c.textMuted} /></Pressable>} />
         {errors.form && <T v="small" color={c.danger} testID="signup-error">{errors.form}</T>}
         <Button testID="signup-submit" title={t('auth.createAccount')} onPress={submit} loading={busy} />
         <T v="small" faint center>

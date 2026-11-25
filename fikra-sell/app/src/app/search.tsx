@@ -24,7 +24,7 @@ function useDebounced<T>(v: T, ms = 220): T {
 }
 
 export default function Search() {
-  const params = useLocalSearchParams<{ q?: string; category?: string; featured?: string; sort?: string; lat?: string; lng?: string; filters?: string }>();
+  const params = useLocalSearchParams<{ q?: string; category?: string; featured?: string; sort?: string; lat?: string; lng?: string; filters?: string; gov?: string; area?: string }>();
   const { c } = useTheme();
   const { t, isRTL, pick } = useI18n();
   const insets = useSafeAreaInsets();
@@ -37,6 +37,8 @@ export default function Search() {
     const f: SearchFilters = {};
     if (params.q) f.q = params.q;
     if (params.category) f.category_id = Number(params.category);
+    if (params.gov) f.governorate_id = Number(params.gov);
+    if (params.area) f.area_id = Number(params.area);
     if (params.featured) f.featured_only = true;
     if (params.sort === 'nearest' && params.lat && params.lng) { f.sort = 'nearest'; f.lat = Number(params.lat); f.lng = Number(params.lng); f.radius_km = 25; }
     return f;
@@ -68,7 +70,7 @@ export default function Search() {
       <View style={{ paddingTop: insets.top + 6, paddingHorizontal: space.sm, flexDirection: 'row', alignItems: 'center', gap: space.xs, paddingBottom: space.sm }}>
         <IconButton name="back" label={t('common.back')} onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
         <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, height: 48, borderRadius: radius.lg, backgroundColor: c.surface, paddingHorizontal: space.md, borderWidth: 1.5, borderColor: c.primary }}>
-          <Icon name="search" size={20} color={c.primary} spark={false} />
+          <Icon name="search" size={20} color={c.primary} />
           <TextInput
             ref={inputRef}
             testID="search-input"
@@ -82,7 +84,7 @@ export default function Search() {
             style={[{ flex: 1, fontFamily: font.regular, fontSize: 16, color: c.text, textAlign: isRTL ? 'right' : 'left' }, webNoOutline]}
             accessibilityLabel={t('search.placeholder')}
           />
-          {text.length > 0 && <Pressable hitSlop={10} onPress={() => { setText(''); setSubmitted(false); inputRef.current?.focus(); }} accessibilityLabel={t('common.clear')}><Icon name="close" size={18} color={c.textMuted} spark={false} /></Pressable>}
+          {text.length > 0 && <Pressable hitSlop={10} onPress={() => { setText(''); setSubmitted(false); inputRef.current?.focus(); }} accessibilityLabel={t('common.clear')}><Icon name="close" size={18} color={c.textMuted} /></Pressable>}
         </View>
       </View>
 
@@ -104,9 +106,9 @@ export default function Search() {
               {sugg.data!.map((s, i) => (
                 <Pressable key={`${s.kind}-${i}`} testID={`suggestion-${i}`} onPress={() => (s.kind === 'category' && s.category_id ? submit('', { category_id: s.category_id }) : submit(s.label))}
                   style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.xl, paddingVertical: 13, backgroundColor: pressed ? c.surface : 'transparent' })}>
-                  <Icon name={s.kind === 'category' ? 'grid' : s.kind === 'term' ? 'search' : 'tag'} size={18} color={c.textMuted} spark={false} />
+                  <Icon name={s.kind === 'category' ? 'grid' : s.kind === 'term' ? 'search' : 'tag'} size={18} color={c.textMuted} />
                   <T style={{ flex: 1 }} numberOfLines={1}>{s.kind === 'category' ? s.label.split(' / ')[isRTL ? 0 : 1] : s.label}</T>
-                  <Icon name={isRTL ? 'back' : 'forward'} size={16} color={c.textFaint} spark={false} />
+                  <Icon name={isRTL ? 'back' : 'forward'} size={16} color={c.textFaint} />
                 </Pressable>
               ))}
             </View>

@@ -76,20 +76,22 @@ export default function AdScreen() {
     try { const conv = await startConversation(ad.id); router.push(`/chat/${conv}`); } catch (e) { toast.error(e); } finally { setChatBusy(false); }
   });
 
-  const statusTone: Record<string, 'neutral' | 'accent' | 'success' | 'danger' | 'primary'> = { pending: 'accent', rejected: 'danger', expired: 'neutral', sold: 'primary', hidden: 'neutral', active: 'success' };
+  const statusTone: Record<string, 'neutral' | 'accent' | 'success' | 'danger' | 'primary'> = { pending: 'neutral', rejected: 'danger', expired: 'neutral', sold: 'primary', hidden: 'neutral', active: 'success' };
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
         <Gallery images={ad.ad_images ?? []} height={Math.min(width * 0.95, 520)} />
-        {/* Sheet-like body overlapping the gallery with a crown radius */}
-        <View style={{ marginTop: -18, backgroundColor: c.bg, borderTopStartRadius: radius.crown, borderTopEndRadius: radius.crown, paddingTop: space.xl, gap: space.xl }}>
+        <View style={{ backgroundColor: c.bg, paddingTop: space.lg, gap: space.xl }}>
           <View style={{ paddingHorizontal: space.lg, gap: space.sm }}>
-            {(mine || ad.status !== 'active') && <Badge label={t(`ad.${ad.status}`)} tone={statusTone[ad.status]} />}
+            <View style={{ flexDirection: 'row', gap: space.sm }}>
+              {!!ad.featured_until && new Date(ad.featured_until) > new Date() && <Badge label={t('ad.featured')} tone="accent" />}
+              {(mine || ad.status !== 'active') && <Badge label={t(`ad.${ad.status}`)} tone={statusTone[ad.status]} />}
+            </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, flexWrap: 'wrap' }}>
               <Text testID="ad-price" style={{ fontFamily: font.bold, fontSize: 28, lineHeight: 38, color: c.primary }}>{priceText}</Text>
               {priceKind !== 'price' && ad.price !== null && <T v="small" muted>{priceKind === 'salary' || priceKind === 'rent' ? t('ad.perMonth') : ''}</T>}
-              {ad.price_type === 'negotiable' && <Badge label={t('ad.negotiable')} tone="accent" />}
+              {ad.price_type === 'negotiable' && <Badge label={t('ad.negotiable')} tone="primary" />}
             </View>
             <T v="h2" testID="ad-title">{ad.title}</T>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md, alignItems: 'center' }}>
@@ -134,19 +136,19 @@ export default function AdScreen() {
                   </View>
                   <T v="small" muted>{t('ad.memberSince', { date: shortDate(seller.data.created_at, lang) })} · {t('account.activeAds', { n: seller.data.active_ads_count })}</T>
                 </View>
-                <Icon name="forward" size={18} color={c.textFaint} spark={false} />
+                <Icon name="forward" size={18} color={c.textFaint} />
               </Press>
             </Section>
           )}
 
           <View style={{ marginHorizontal: space.lg, flexDirection: 'row', gap: space.md, padding: space.md, borderRadius: radius.md, borderWidth: 1, borderColor: c.line, borderStyle: 'dashed' }}>
-            <Icon name="shield" size={20} color={c.success} spark={false} />
+            <Icon name="shield" size={20} color={c.success} />
             <T v="small" muted style={{ flex: 1 }}>{t('ad.safety')}</T>
           </View>
 
           {!mine && (
             <Press onPress={() => guard('report', () => setReportOpen('ad'))} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'center', padding: space.sm }} accessibilityRole="button" testID="report-ad">
-              <Icon name="flag" size={16} color={c.textMuted} spark={false} />
+              <Icon name="flag" size={16} color={c.textMuted} />
               <T v="small" muted>{t('ad.reportAd')}</T>
             </Press>
           )}
@@ -211,7 +213,7 @@ function Meta({ icon, text }: { icon: 'location' | 'clock' | 'eye'; text: string
   if (!text) return null;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-      <Icon name={icon} size={15} color={c.textFaint} spark={false} />
+      <Icon name={icon} size={15} color={c.textFaint} />
       <T v="small" faint>{text}</T>
     </View>
   );

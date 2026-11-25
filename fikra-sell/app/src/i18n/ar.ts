@@ -14,8 +14,9 @@ const ar = {
     nearby: 'قريب منك', nearbyEnable: 'اعرض الإعلانات القريبة منك', nearbyHint: 'نستخدم موقعك التقريبي فقط ولن نتتبعك.',
     nearbyAllow: 'السماح بالموقع', suggested: 'مقترح لك', categories: 'الأقسام', grid: 'شبكة', list: 'قائمة',
     greetingGuest: 'أهلاً بك', greeting: 'أهلاً {name}',
+    allKuwait: 'كل الكويت', chooseLocation: 'اختر المحافظة والمنطقة', allOfGov: 'كل مناطق {name}', browseAll: 'تصفح كل الأقسام',
   },
-  categories: { title: 'الأقسام', allIn: 'كل {name}', subcategories: 'الأقسام الفرعية', adsCount: '{n} إعلان' },
+  categories: { title: 'الأقسام', allIn: 'كل {name}', subcategories: 'الأقسام الفرعية', adsCount: '{n} إعلان', subsCount: '{n} أقسام فرعية' },
   ad: {
     negotiable: 'قابل للتفاوض', contactForPrice: 'تواصل لمعرفة السعر', free: 'مجاناً', new: 'جديد', used: 'مستعمل',
     featured: 'مميز', pinned: 'مثبّت', sold: 'تم البيع', views: '{n} مشاهدة', adNumber: 'رقم الإعلان', postedAt: 'نُشر',
@@ -28,8 +29,8 @@ const ar = {
     perMonth: 'شهرياً', pending: 'قيد المراجعة', rejected: 'مرفوض', expired: 'منتهي', hidden: 'مخفي', active: 'نشط',
   },
   post: {
-    title: 'أضف إعلانك', editTitle: 'تعديل الإعلان', stepCategory: 'القسم', stepPhotos: 'الصور', stepDetails: 'التفاصيل',
-    stepPrice: 'السعر', stepContact: 'التواصل', stepPreview: 'المعاينة', chooseCategory: 'اختر القسم المناسب',
+    title: 'أضف إعلانك', editTitle: 'تعديل الإعلان', stepCategory: 'القسم', stepPhotos: 'الصور', stepDetails: 'الصور والتفاصيل',
+    stepPrice: 'السعر', stepContact: 'التواصل', stepPreview: 'المعاينة', stepPublish: 'السعر والنشر', chooseCategory: 'اختر القسم المناسب',
     chooseSub: 'اختر القسم الفرعي', photosHint: 'أضف حتى {max} صورة. الصورة الأولى هي الرئيسية، ويمكنك تغيير الترتيب بالأسهم.',
     addPhotos: 'إضافة صور', takePhoto: 'التقاط صورة', fromLibrary: 'من الألبوم', makeCover: 'اجعلها الرئيسية',
     cover: 'الرئيسية', adTitle: 'عنوان الإعلان', adTitlePh: 'مثال: تويوتا كامري 2021 نظيفة جداً', description: 'الوصف',

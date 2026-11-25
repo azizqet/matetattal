@@ -46,7 +46,7 @@ export default function MyAds() {
   const Action = ({ icon, label, onPress, danger, testID }: { icon: IconName; label: string; onPress: () => void; danger?: boolean; testID?: string }) => (
     <Pressable onPress={onPress} testID={testID} accessibilityRole="button" accessibilityLabel={label}
       style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, height: 34, borderRadius: radius.pill, backgroundColor: pressed ? c.line : c.surface })}>
-      <Icon name={icon} size={15} color={danger ? c.danger : c.text} spark={false} />
+      <Icon name={icon} size={15} color={danger ? c.danger : c.text} />
       <Text style={{ fontFamily: font.medium, fontSize: 12, color: danger ? c.danger : c.text }}>{label}</Text>
     </Pressable>
   );
@@ -70,14 +70,14 @@ export default function MyAds() {
         renderItem={({ item: ad }) => (
           <View testID={`myad-${ad.id}`} style={{ borderRadius: radius.lg, borderWidth: 1, borderColor: c.line, padding: space.md, gap: space.md, opacity: busyId === ad.id ? 0.5 : 1 }}>
             <Pressable onPress={() => router.push(`/ad/${ad.id}`)} style={{ flexDirection: 'row', gap: space.md }}>
-              <View style={{ width: 84, height: 84, borderTopStartRadius: 22, borderTopEndRadius: radius.sm, borderBottomEndRadius: radius.sm, borderBottomStartRadius: 5, overflow: 'hidden', backgroundColor: c.surface }}>
+              <View style={{ width: 84, height: 84, borderRadius: radius.md, overflow: 'hidden', backgroundColor: c.surface }}>
                 {ad.cover_path && <Image source={{ uri: publicUrl('ad-images', ad.cover_path) }} style={{ width: 84, height: 84 }} contentFit="cover" />}
               </View>
               <View style={{ flex: 1, gap: 3 }}>
                 <T v="bodyStrong" numberOfLines={2}>{ad.title}</T>
                 <Text style={{ fontFamily: font.bold, color: c.primary, fontSize: 15 }}>{priceLabel(ad, lang)}</Text>
                 <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <Badge label={t(`ad.${ad.status}`)} tone={ad.status === 'active' ? 'success' : ad.status === 'rejected' ? 'danger' : ad.status === 'pending' ? 'accent' : 'neutral'} />
+                  <Badge label={t(`ad.${ad.status}`)} tone={ad.status === 'active' ? 'success' : ad.status === 'rejected' ? 'danger' : 'neutral'} />
                   {ad.status === 'active' && ad.expires_at && <T v="caption" faint>{t('myAds.expiresIn', { when: relativeTime(ad.expires_at, lang) })}</T>}
                 </View>
                 <T v="caption" faint>{t('myAds.stats', { views: ad.views_count, favs: ad.favorites_count })}</T>

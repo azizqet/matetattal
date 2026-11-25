@@ -47,7 +47,7 @@ insert into public.staff_permissions (user_id, permission) values (:mod, 'report
 -- ═══════════════════════════ GUEST (anon) ═══════════════════════════════
 set role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', false);
-select t.ok((select count(*) = 19 from public.categories where parent_id is null), 'guest reads 19 main categories');
+select t.ok((select count(*) = 12 from public.categories where parent_id is null), 'guest reads 12 main categories');
 select t.ok((select count(*) = 6 from public.governorates), 'guest reads 6 governorates');
 select t.ok((select count(*) = 107 from public.areas), 'guest reads 107 areas');
 select t.ok((select count(*) = 3 from public.pages), 'guest reads legal pages');
@@ -121,7 +121,7 @@ select t.fails(format('select public.bump_ad(%s)', (select id from public.ads wh
 insert into public.ads (category_id, title, price, price_type, condition, governorate_id, contact_phone, allow_call, allow_whatsapp, attributes)
 select id, 'مطلوب محاسب', null, 'contact', 'new', 1, null, false, false, '{"job_type":"full_time"}' from public.categories where slug = 'jobs-vacancies';
 select t.ok((select condition is null and price is null from public.ads where title = 'مطلوب محاسب'), 'condition dropped for jobs; contact-for-price');
-select t.fails($$insert into public.ads (category_id, title, price, governorate_id, allow_call, allow_whatsapp, allow_chat) select id, 'بدون تواصل', 5, 1, false, false, false from public.categories where slug = 'misc'$$,
+select t.fails($$insert into public.ads (category_id, title, price, governorate_id, allow_call, allow_whatsapp, allow_chat) select id, 'بدون تواصل', 5, 1, false, false, false from public.categories where slug = 'misc-other'$$,
   'contact_method_required', 'at least one contact method');
 reset role;
 
@@ -214,9 +214,9 @@ select public.admin_resolve_report((select id from public.reports where target_t
 select set_config('request.jwt.claims', json_build_object('sub', :admin, 'role', 'authenticated')::text, false);
 select t.ok((select (public.admin_stats() ->> 'users_total')::int = 5), 'owner stats');
 select t.ok((select count(*) = 5 from public.admin_list_users()), 'owner lists users with e-mails');
-insert into public.categories (slug, name_ar, name_en, icon, sort) values ('boats', 'القوارب', 'Boats', 'boat', 50);
-update public.categories set sort = 99 where slug = 'boats';
-delete from public.categories where slug = 'boats';
+insert into public.categories (slug, name_ar, name_en, icon, sort) values ('qa-temp-cat', 'قسم مؤقت', 'QA temp', 'grid', 50);
+update public.categories set sort = 99 where slug = 'qa-temp-cat';
+delete from public.categories where slug = 'qa-temp-cat';
 select t.ok((select count(*) = 3 from public.audit_log where target_type = 'categories'), 'category changes audited');
 update public.app_settings set value = 'true' where key = 'require_ad_review';
 select public.admin_set_ad_status((select id from public.ads where title = 'مطلوب محاسب'), 'rejected', 'نص غير واضح');
@@ -242,7 +242,7 @@ reset role;
 -- Banned user cannot post or chat
 set role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', :other, 'role', 'authenticated')::text, false);
-select t.fails($$insert into public.ads (category_id, title, price, governorate_id, contact_phone) select id, 'محاولة', 5, 1, '99990000' from public.categories where slug = 'misc'$$,
+select t.fails($$insert into public.ads (category_id, title, price, governorate_id, contact_phone) select id, 'محاولة', 5, 1, '99990000' from public.categories where slug = 'misc-other'$$,
   'account_banned', 'banned user cannot post');
 select t.fails($$select public.start_conversation(100001)$$, 'account_banned', 'banned user cannot start chat');
 reset role;
@@ -279,11 +279,11 @@ select set_config('request.jwt.claims', json_build_object('sub', :buyer, 'role',
 do $$ declare i int; begin
   for i in 1..3 loop
     insert into public.ads (category_id, title, price, governorate_id, contact_phone)
-    select id, 'سلعة رقم ' || i, 5, 1, '99990000' from public.categories where slug = 'misc';
+    select id, 'سلعة رقم ' || i, 5, 1, '99990000' from public.categories where slug = 'misc-other';
   end loop;
   begin
     insert into public.ads (category_id, title, price, governorate_id, contact_phone)
-    select id, 'سلعة رابعة', 5, 1, '99990000' from public.categories where slug = 'misc';
+    select id, 'سلعة رابعة', 5, 1, '99990000' from public.categories where slug = 'misc-other';
     raise exception 'FAIL: new-account daily limit not enforced';
   exception when others then
     if sqlerrm not in ('daily_ad_limit', 'posting_too_fast') then raise; end if;

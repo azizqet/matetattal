@@ -71,14 +71,14 @@ export function Button({ title, onPress, kind = 'primary', icon, loading, disabl
       disabled={off}
       onPress={() => { haptic.light(); onPress?.(); }}
       style={[{
-        height: small ? 40 : 54, borderRadius: small ? radius.md : radius.lg, backgroundColor: bg, opacity: off && !loading ? 0.45 : 1,
+        height: small ? 40 : 52, borderRadius: radius.md, backgroundColor: bg, opacity: off && !loading ? 0.45 : 1,
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, paddingHorizontal: small ? space.lg : space.xl,
         borderWidth: kind === 'secondary' ? 1 : 0, borderColor: c.line,
       }, style]}
     >
       {loading ? <ActivityIndicator color={fg} /> : (
         <>
-          {icon && <Icon name={icon} size={small ? 18 : 20} color={fg} spark={false} />}
+          {icon && <Icon name={icon} size={small ? 18 : 20} color={fg} />}
           <Text style={{ fontFamily: font.semibold, fontSize: small ? 14 : 16, color: fg }}>{title}</Text>
         </>
       )}
@@ -95,10 +95,10 @@ export function IconButton({ name, onPress, label, size = 22, badge, tone, style
   return (
     <Press testID={testID} accessibilityRole="button" accessibilityLabel={label} hitSlop={8} onPress={() => { haptic.light(); onPress?.(); }}
       style={[{ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: bg }, style]}>
-      <Icon name={name} size={size} color={fg} spark={false} />
+      <Icon name={name} size={size} color={fg} />
       {!!badge && badge > 0 && (
-        <View style={{ position: 'absolute', top: 4, end: 2, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: c.bg }}>
-          <Text style={{ fontFamily: font.bold, fontSize: 10, color: c.onAccent }}>{badge > 99 ? '99+' : badge}</Text>
+        <View style={{ position: 'absolute', top: 4, end: 2, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: c.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: c.bg }}>
+          <Text style={{ fontFamily: font.bold, fontSize: 10, color: '#FFFFFF' }}>{badge > 99 ? '99+' : badge}</Text>
         </View>
       )}
     </Press>
@@ -116,10 +116,10 @@ export const Input = forwardRef<TextInputInstance, TextInputProps & { label?: st
         {label && <T v="small" style={{ fontFamily: font.medium }} muted>{label}</T>}
         <View style={{
           flexDirection: 'row', alignItems: multiline ? 'flex-start' : 'center', gap: space.sm, backgroundColor: c.surface,
-          borderRadius: radius.md, borderWidth: 1.5, borderColor: error ? c.danger : focus ? c.primary : 'transparent',
+          borderRadius: radius.md, borderWidth: 1.5, borderColor: error ? c.danger : focus ? c.primary : c.line,
           paddingHorizontal: space.lg, minHeight: multiline ? 120 : 52, paddingVertical: multiline ? space.md : 0,
         }}>
-          {icon && <Icon name={icon} size={20} color={c.textMuted} spark={false} />}
+          {icon && <Icon name={icon} size={20} color={c.textMuted} />}
           <TextInput
             ref={ref}
             placeholderTextColor={c.textFaint}
@@ -144,8 +144,8 @@ export function Chip({ label, active, onPress, icon, testID }: { label: string; 
   return (
     <Press testID={testID} onPress={() => { haptic.light(); onPress?.(); }} accessibilityRole="button" accessibilityState={{ selected: !!active }}
       style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 38, paddingHorizontal: 14, borderRadius: radius.pill,
-        backgroundColor: active ? c.primary : c.surface, borderWidth: 1, borderColor: active ? c.primary : c.line }}>
-      {icon && <Icon name={icon} size={16} color={active ? c.onPrimary : c.text} spark={false} />}
+        backgroundColor: active ? c.primary : c.bg, borderWidth: 1, borderColor: active ? c.primary : c.lineStrong }}>
+      {icon && <Icon name={icon} size={16} color={active ? c.onPrimary : c.text} />}
       <Text style={{ fontFamily: font.medium, fontSize: 14, color: active ? c.onPrimary : c.text }}>{label}</Text>
     </Press>
   );
@@ -191,14 +191,14 @@ export function Row({ icon, label, value, onPress, danger, badge, testID }: { ic
     <Pressable testID={testID} onPress={onPress} accessibilityRole="button" accessibilityLabel={label}
       style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 14, paddingHorizontal: space.lg, backgroundColor: pressed ? c.surface : 'transparent' })}>
       {icon && (
-        <View style={{ width: 38, height: 38, borderRadius: radius.sm, backgroundColor: danger ? c.dangerSoft : c.surface, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name={icon} size={20} color={danger ? c.danger : c.text} spark={false} />
+        <View style={{ width: 38, height: 38, borderRadius: radius.sm, backgroundColor: danger ? c.dangerSoft : c.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name={icon} size={20} color={danger ? c.danger : c.primary} />
         </View>
       )}
       <T v="bodyStrong" style={{ flex: 1 }} color={danger ? c.danger : undefined}>{label}</T>
-      {!!badge && <View style={{ minWidth: 22, height: 22, borderRadius: 11, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 }}><Text style={{ fontFamily: font.bold, fontSize: 11, color: c.onAccent }}>{badge}</Text></View>}
+      {!!badge && <View style={{ minWidth: 22, height: 22, borderRadius: 11, backgroundColor: c.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 }}><Text style={{ fontFamily: font.bold, fontSize: 11, color: '#FFFFFF' }}>{badge}</Text></View>}
       {value && <T v="small" muted>{value}</T>}
-      {onPress && <Icon name="forward" size={18} color={c.textFaint} spark={false} />}
+      {onPress && <Icon name="forward" size={18} color={c.textFaint} />}
     </Pressable>
   );
 }
@@ -209,7 +209,6 @@ export function Section({ title, action, onAction, children, style }: { title?: 
     <View style={[{ gap: space.md }, style]}>
       {title && (
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.lg, gap: space.sm }}>
-          <View style={{ width: 4, height: 18, borderRadius: 2, backgroundColor: c.accent }} />
           <T v="h3" style={{ flex: 1 }}>{title}</T>
           {action && <Pressable hitSlop={10} onPress={onAction} accessibilityRole="button"><T v="small" color={c.primary} style={{ fontFamily: font.semibold }}>{action}</T></Pressable>}
         </View>

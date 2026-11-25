@@ -2,7 +2,7 @@
 // FIKRA DESIGN SYSTEM · asset builder
 // Renders every app / store asset from vector sources with headless Chromium.
 // If brand/source/fikra-logo.png exists it is embedded UNCHANGED (original
-// pixels, original colours); otherwise the interim bulb mark is used.
+// pixels, original colours); otherwise the interim «فكرة» wordmark is used.
 //
 //   node brand/tools/build_assets.mjs
 import { createRequire } from 'node:module';
@@ -21,7 +21,6 @@ for (const d of [OUT_APP, OUT_BRAND, OUT_STORE]) fs.mkdirSync(d, { recursive: tr
 const tokens = fs.readFileSync(path.join(ROOT, 'app/src/theme/brand.generated.ts'), 'utf8');
 const pickColor = (k) => tokens.match(new RegExp(`${k}: '(#[0-9A-Fa-f]{6})'`))[1];
 const PRIMARY = pickColor('primary');
-const ACCENT = pickColor('accent');
 const INK = pickColor('ink');
 
 const fontDir = path.join(ROOT, 'app/node_modules/@expo-google-fonts/readex-pro');
@@ -39,27 +38,22 @@ if (hasLogo) {
   fs.copyFileSync(logoPath, path.join(OUT_BRAND, 'fikra-logo-original.png'));
 }
 
-const bulb = ({ stroke = PRIMARY, glow = ACCENT, lit = true, w = 6, halo = true }) => `
-<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
-  <defs><radialGradient id="h" cx="50" cy="46" r="46" gradientUnits="userSpaceOnUse">
-    <stop offset="0" stop-color="${glow}" stop-opacity="${lit && halo ? 0.5 : 0}"/><stop offset="1" stop-color="${glow}" stop-opacity="0"/></radialGradient></defs>
-  ${halo ? '<circle cx="50" cy="46" r="46" fill="url(#h)"/>' : ''}
-  <path d="M50 8 L77 18 L90 44 L82 66 L68 80 L68 92 L32 92 L32 80 L18 66 L10 44 L23 18 Z" fill="none" stroke="${stroke}" stroke-width="${w}" stroke-linejoin="round"/>
-  <path d="M40 80 V60 L46 50 L50 58 L54 50 L60 60 V80" fill="none" stroke="${lit ? glow : stroke}" stroke-width="${w * 0.8}" stroke-linejoin="round" stroke-linecap="round"/>
-  <line x1="36" y1="102" x2="64" y2="102" stroke="${stroke}" stroke-width="${w}" stroke-linecap="round"/>
-  <line x1="42" y1="112" x2="58" y2="112" stroke="${stroke}" stroke-width="${w}" stroke-linecap="round"/>
-</svg>`;
+const BRIGHT = pickColor('primaryBright');
 
-const mark = (size, opts = {}) => (LOGO && !opts.forceBulb
+// Interim mark (until the official logo file is added): the «فكرة» wordmark in turquoise.
+const wordmark = (size, color = PRIMARY) =>
+  `<div style="font-family:Readex;font-weight:700;font-size:${size * 0.42}px;line-height:1;color:${color};direction:rtl">فكرة</div>`;
+
+const mark = (size, opts = {}) => (LOGO && !opts.mono
   ? `<img src="${LOGO}" style="max-width:${size}px;max-height:${size}px;object-fit:contain"/>`
-  : `<div style="width:${size / 1.2}px;height:${size}px">${bulb(opts)}</div>`);
+  : `<div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center">${wordmark(size, opts.color ?? PRIMARY)}</div>`);
 
-const lockup = (h, ink = INK) => `
+const lockup = (h, ink = INK) => LOGO ? `<img src="${LOGO}" style="height:${h * 1.4}px"/>` : `
 <div style="display:flex;flex-direction:row-reverse;align-items:center;font-family:Readex;font-weight:700;direction:ltr">
   <span style="font-size:${h * 0.78}px;color:${ink};line-height:1">سيـ</span>
-  <span style="width:${h * 0.38}px;height:${Math.max(3, h * 0.07)}px;background:${ACCENT};border-radius:3px;margin-top:${h * 0.18}px"></span>
-  ${LOGO ? `<img src="${LOGO}" style="height:${h}px"/>` : `<span style="display:flex;align-items:center;gap:${h * 0.1}px;flex-direction:row-reverse"><span style="font-size:${h * 0.72}px;color:${PRIMARY};line-height:1">فكرة</span><span style="width:${h * 0.52}px;height:${h * 0.62}px">${bulb({ halo: false })}</span></span>`}
-  <span style="width:${h * 0.38}px;height:${Math.max(3, h * 0.07)}px;background:${ACCENT};border-radius:3px;margin-top:${h * 0.18}px"></span>
+  <span style="width:${h * 0.32}px;height:${Math.max(3, h * 0.075)}px;background:${BRIGHT};border-radius:3px;margin-top:${h * 0.2}px"></span>
+  <span style="font-size:${h * 0.78}px;color:${PRIMARY};line-height:1">فكرة</span>
+  <span style="width:${h * 0.32}px;height:${Math.max(3, h * 0.075)}px;background:${BRIGHT};border-radius:3px;margin-top:${h * 0.2}px"></span>
   <span style="font-size:${h * 0.78}px;color:${ink};line-height:1">ـل</span>
 </div>`;
 
@@ -69,25 +63,25 @@ html,body{margin:0;width:${w}px;height:${h}px;background:${bg};overflow:hidden}
 <body><div class="c">${body}</div></body></html>`;
 
 const jobs = [
-  // App icon: white field, soft accent halo, mark at ~62%
+  // App icon: white field, mark at ~62%
   ['app', 'icon.png', 1024, 1024, page(1024, 1024, mark(640), '#FFFFFF'), false],
   // Android adaptive icon: content inside the 66% safe zone
   ['app', 'adaptive-foreground.png', 1024, 1024, page(1024, 1024, mark(560)), true],
-  ['app', 'adaptive-monochrome.png', 1024, 1024, page(1024, 1024, mark(560, { stroke: '#FFFFFF', glow: '#FFFFFF', halo: false, forceBulb: true })), true],
+  ['app', 'adaptive-monochrome.png', 1024, 1024, page(1024, 1024, mark(560, { color: '#FFFFFF', mono: true })), true],
   ['app', 'splash-icon.png', 512, 512, page(512, 512, mark(400)), true],
-  ['app', 'splash-icon-dark.png', 512, 512, page(512, 512, mark(400, { stroke: '#FFFFFF' })), true],
-  ['app', 'notification-icon.png', 96, 96, page(96, 96, mark(84, { stroke: '#FFFFFF', glow: '#FFFFFF', halo: false, w: 8, forceBulb: true })), true],
-  ['app', 'favicon.png', 64, 64, page(64, 64, mark(58, { halo: false, w: 8 }), '#FFFFFF'), false],
+  ['app', 'splash-icon-dark.png', 512, 512, page(512, 512, mark(400, { color: '#FFFFFF' })), true],
+  ['app', 'notification-icon.png', 96, 96, page(96, 96, mark(84, { color: '#FFFFFF', mono: true })), true],
+  ['app', 'favicon.png', 64, 64, page(64, 64, mark(58), '#FFFFFF'), false],
   // Brand exports
   ['brand', 'lockup-light.png', 1600, 600, page(1600, 600, lockup(220), '#FFFFFF'), false],
-  ['brand', 'lockup-dark.png', 1600, 600, page(1600, 600, lockup(220, '#F3F3F6'), '#0E0F13'), false],
+  ['brand', 'lockup-dark.png', 1600, 600, page(1600, 600, lockup(220, '#F2F4F4'), '#0C0E0E'), false],
   ['brand', 'lockup-transparent.png', 1600, 600, page(1600, 600, lockup(220)), true],
   ['brand', 'mark-1024.png', 1024, 1024, page(1024, 1024, mark(900)), true],
   // Google Play feature graphic 1024×500
   ['store', 'play-feature-graphic.png', 1024, 500, page(1024, 500, `
      <div style="display:flex;flex-direction:column;align-items:center;gap:26px">${lockup(110)}
-     <div style="font-family:Readex;font-weight:500;font-size:30px;color:#676A76;direction:rtl">بيع وشراء بفكرة أذكى · FIKRA SELL</div>
-     <div style="width:120px;height:4px;background:${ACCENT};border-radius:2px"></div></div>`, '#FFFFFF'), false],
+     <div style="font-family:Readex;font-weight:500;font-size:30px;color:#5E6766;direction:rtl">بيع وشراء بفكرة أذكى · FIKRA SELL</div>
+     <div style="width:120px;height:4px;background:${PRIMARY};border-radius:2px"></div></div>`, '#FFFFFF'), false],
 ];
 
 const browser = await chromium.launch();
@@ -102,7 +96,6 @@ for (const [dir, name, w, h, html, transparent] of jobs) {
   await p.close();
   console.log('✓', path.relative(ROOT, out));
 }
-fs.writeFileSync(path.join(OUT_BRAND, 'mark.svg'), bulb({}).trim() + '\n');
 await browser.close();
 
 // Logo module for the app (exact original file + aspect ratio)

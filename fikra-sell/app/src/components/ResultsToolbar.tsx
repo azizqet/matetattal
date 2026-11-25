@@ -28,7 +28,7 @@ export function ResultsToolbar({ filters, base, onOpenFilters, layout, setLayout
   const pill = (label: string, icon: Parameters<typeof Icon>[0]['name'], onPress: () => void, active = false, testID?: string) => (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} testID={testID}
       style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 38, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: active ? c.primary : c.line, backgroundColor: active ? c.primarySoft : c.bg }}>
-      <Icon name={icon} size={17} color={active ? c.primary : c.text} spark={false} />
+      <Icon name={icon} size={17} color={active ? c.primary : c.text} />
       <Text style={{ fontFamily: font.medium, fontSize: 13, color: active ? c.primary : c.text }}>{label}</Text>
     </Pressable>
   );
@@ -41,7 +41,7 @@ export function ResultsToolbar({ filters, base, onOpenFilters, layout, setLayout
         <View style={{ flex: 1 }} />
         <Pressable onPress={() => setLayout(layout === 'grid' ? 'list' : 'grid')} accessibilityRole="button" accessibilityLabel={layout === 'grid' ? t('home.list') : t('home.grid')} hitSlop={8}
           style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface }}>
-          <Icon name={layout === 'grid' ? 'list' : 'grid'} size={18} color={c.text} spark={false} />
+          <Icon name={layout === 'grid' ? 'list' : 'grid'} size={18} color={c.text} />
         </Pressable>
       </View>
       <Sheet visible={saveOpen} onClose={() => setSaveOpen(false)} title={t('search.saveSearch')} scroll={false}

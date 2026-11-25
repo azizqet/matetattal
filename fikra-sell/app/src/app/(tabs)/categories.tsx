@@ -9,7 +9,7 @@ import { useCatalog } from '../../hooks/data';
 import { useI18n } from '../../i18n';
 import type { Category } from '../../lib/types';
 import { useTheme } from '../../theme/ThemeProvider';
-import { radius, space } from '../../theme/tokens';
+import { font, radius, space } from '../../theme/tokens';
 
 export default function Categories() {
   const { c } = useTheme();
@@ -17,24 +17,21 @@ export default function Categories() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const catalog = useCatalog();
-  const cols = width >= 700 ? 3 : 2;
-  const w = (width - space.lg * 2 - space.md * (cols - 1)) / cols;
+  const cols = width >= 700 ? 4 : 3;
+  const w = (width - space.lg * 2 - space.sm * (cols - 1)) / cols;
 
   const Tile = ({ item }: { item: Category }) => {
     const subs = catalog.subsOf(item.id);
     return (
       <Press testID={`category-${item.slug}`} onPress={() => router.push(`/category/${item.slug}`)} accessibilityRole="button" accessibilityLabel={pick(item.name_ar, item.name_en)}
-        style={{ width: w, padding: space.lg, gap: space.md, backgroundColor: c.card, borderWidth: 1, borderColor: c.line,
-          borderTopStartRadius: radius.crown, borderTopEndRadius: radius.lg, borderBottomEndRadius: radius.lg, borderBottomStartRadius: radius.socket }}>
-        <View style={{ width: 52, height: 52, borderRadius: 18, backgroundColor: c.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name={item.icon} size={28} color={c.primary} />
+        style={{ width: w, paddingVertical: space.lg, paddingHorizontal: space.sm, gap: space.sm, alignItems: 'center', backgroundColor: c.card, borderWidth: 1, borderColor: c.line, borderRadius: radius.lg }}>
+        <View style={{ width: 56, height: 56, borderRadius: radius.lg, backgroundColor: c.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name={item.icon} size={30} color={c.primary} />
         </View>
-        <View style={{ gap: 2 }}>
-          <T v="bodyStrong" numberOfLines={1}>{pick(item.name_ar, item.name_en)}</T>
-          <T v="caption" faint numberOfLines={1}>
-            {item.ads_count > 0 ? t('categories.adsCount', { n: item.ads_count }) : subs.slice(0, 2).map((s) => pick(s.name_ar, s.name_en)).join('، ')}
-          </T>
-        </View>
+        <T v="small" center numberOfLines={2} style={{ width: '100%', fontFamily: font.semibold, minHeight: 38 }}>{pick(item.name_ar, item.name_en)}</T>
+        <T v="caption" faint center numberOfLines={1}>
+          {item.ads_count > 0 ? t('categories.adsCount', { n: item.ads_count }) : t('categories.subsCount', { n: subs.length })}
+        </T>
       </Press>
     );
   };
@@ -51,12 +48,12 @@ export default function Categories() {
           data={catalog.mains}
           numColumns={cols}
           keyExtractor={(x) => String(x.id)}
-          columnWrapperStyle={{ gap: space.md, paddingHorizontal: space.lg }}
-          contentContainerStyle={{ gap: space.md, paddingBottom: 120 }}
+          columnWrapperStyle={{ gap: space.sm, paddingHorizontal: space.lg }}
+          contentContainerStyle={{ gap: space.sm, paddingBottom: 120 }}
           renderItem={({ item }) => <Tile item={item} />}
           ListEmptyComponent={catalog.isLoading ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md, paddingHorizontal: space.lg }}>
-              {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} w={w} h={132} r={radius.lg} />)}
+              {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} w={w} h={150} r={radius.lg} />)}
             </View>) : undefined}
         />
       )}

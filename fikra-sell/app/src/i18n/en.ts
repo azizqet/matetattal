@@ -16,8 +16,9 @@ const en: Dict = {
     nearby: 'Near you', nearbyEnable: 'See ads near you', nearbyHint: 'We only use your approximate location and never track you.',
     nearbyAllow: 'Allow location', suggested: 'Suggested for you', categories: 'Categories', grid: 'Grid', list: 'List',
     greetingGuest: 'Welcome', greeting: 'Hi {name}',
+    allKuwait: 'All Kuwait', chooseLocation: 'Choose governorate & area', allOfGov: 'All of {name}', browseAll: 'Browse all categories',
   },
-  categories: { title: 'Categories', allIn: 'All {name}', subcategories: 'Subcategories', adsCount: '{n} ads' },
+  categories: { title: 'Categories', allIn: 'All {name}', subcategories: 'Subcategories', adsCount: '{n} ads', subsCount: '{n} subcategories' },
   ad: {
     negotiable: 'Negotiable', contactForPrice: 'Contact for price', free: 'Free', new: 'New', used: 'Used',
     featured: 'Featured', pinned: 'Pinned', sold: 'Sold', views: '{n} views', adNumber: 'Ad no.', postedAt: 'Posted',
@@ -30,8 +31,8 @@ const en: Dict = {
     perMonth: 'per month', pending: 'In review', rejected: 'Rejected', expired: 'Expired', hidden: 'Hidden', active: 'Active',
   },
   post: {
-    title: 'Post your ad', editTitle: 'Edit ad', stepCategory: 'Category', stepPhotos: 'Photos', stepDetails: 'Details',
-    stepPrice: 'Price', stepContact: 'Contact', stepPreview: 'Preview', chooseCategory: 'Choose a category',
+    title: 'Post your ad', editTitle: 'Edit ad', stepCategory: 'Category', stepPhotos: 'Photos', stepDetails: 'Photos & details',
+    stepPrice: 'Price', stepContact: 'Contact', stepPreview: 'Preview', stepPublish: 'Price & publish', chooseCategory: 'Choose a category',
     chooseSub: 'Choose a subcategory', photosHint: 'Add up to {max} photos. The first one is the main photo; use the arrows to reorder.',
     addPhotos: 'Add photos', takePhoto: 'Take photo', fromLibrary: 'From library', makeCover: 'Make main photo',
     cover: 'Main', adTitle: 'Ad title', adTitlePh: 'e.g. Toyota Camry 2021, excellent condition', description: 'Description',

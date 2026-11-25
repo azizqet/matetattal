@@ -23,6 +23,27 @@ const server = http.createServer((req, res) => {
 
 const fixture = (t) => JSON.parse(fs.readFileSync(path.join(FIX, `${t}.json`), 'utf8'));
 
+// Visual-only sample cards (SAMPLE_ADS=1): never written anywhere, used to check card layout in screenshots.
+const SAMPLE_PHOTO = process.env.SAMPLE_PHOTO;
+function sampleAds() {
+  const cats = fixture('categories'); const areas = fixture('areas');
+  const bySlug = (s) => cats.find((c) => c.slug === s);
+  const rows = [
+    ['cars-sale', 'تويوتا لاندكروزر 2022 فل أوبشن', 14500, 'negotiable', 'used', true],
+    ['phones-iphone', 'آيفون 15 برو ماكس 256 جيجا', 320, 'fixed', 'used', true],
+    ['re-apartments-rent', 'شقة 3 غرف للإيجار في السالمية', 450, 'fixed', null, false],
+    ['livestock-sheep', 'خراف نعيمي للبيع', 95, 'fixed', null, false],
+    ['furn-living', 'كنب زاوية جديد', 180, 'negotiable', 'new', false],
+    ['camp-tents', 'خيمة كشتة كبيرة مع ملحقات', null, 'contact', 'used', false],
+  ];
+  return rows.map(([slug, title, price, price_type, condition, featured], i) => {
+    const a = areas[(i * 17) % areas.length];
+    return { id: 9000 + i, title, price, price_type, condition, category_id: bySlug(slug).id, governorate_id: a.governorate_id, area_id: a.id,
+      cover_path: SAMPLE_PHOTO ? `sample/${i}.jpg` : null, images_count: 3 + i, is_featured: featured, is_pinned: false, status: 'active',
+      created_at: new Date(Date.now() - i * 3.6e6).toISOString(), bumped_at: new Date(Date.now() - i * 3.6e6).toISOString(), distance_km: null, favorites_count: 0, user_id: '00000000-0000-0000-0000-000000000000' };
+  });
+}
+
 (async () => {
   const browser = await chromium.launch();
   const results = [];
@@ -36,6 +57,12 @@ const fixture = (t) => JSON.parse(fs.readFileSync(path.join(FIX, `${t}.json`), '
       const u = new URL(route.request().url());
       const m = u.pathname.match(/\/rest\/v1\/(\w+)/);
       const rpc = u.pathname.match(/\/rest\/v1\/rpc\/(\w+)/);
+      if (u.pathname.includes('/storage/v1/object/public/ad-images/') && SAMPLE_PHOTO) return route.fulfill({ body: fs.readFileSync(SAMPLE_PHOTO), contentType: 'image/jpeg' });
+      if (rpc && rpc[1] === 'search_ads' && process.env.SAMPLE_ADS) {
+        let list = sampleAds();
+        try { const b = JSON.parse(route.request().postData() || '{}'); if (b.p && b.p.featured_only) list = list.filter((x) => x.is_featured); } catch { /* ignore */ }
+        return route.fulfill({ json: list });
+      }
       if (rpc) return route.fulfill({ json: rpc[1] === 'search_suggestions' ? [] : rpc[1] === 'search_ads' ? [] : null });
       if (m && fs.existsSync(path.join(FIX, `${m[1]}.json`))) {
         let rows = fixture(m[1]);

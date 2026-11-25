@@ -1,19 +1,18 @@
 import NetInfo from '@react-native-community/netinfo';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, type DimensionValue, type ViewStyle } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, type DimensionValue, type ViewStyle } from 'react-native';
 import Animated, {
-  Easing, FadeInDown, FadeOutDown, interpolate, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming,
+  Easing, FadeInDown, FadeOutDown, interpolate, useAnimatedStyle, useSharedValue, withRepeat, withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useI18n, type TKey } from '../i18n';
 import { toAppError } from '../lib/errors';
 import { useTheme } from '../theme/ThemeProvider';
 import { font, radius, space } from '../theme/tokens';
-import { BulbMark } from './Brand';
 import { Icon } from './Icon';
 import { Button, T } from './ui';
 
-// ── Skeleton with filament shimmer ─────────────────────────────────────
+// ── Skeleton shimmer ─────────────────────────────────────
 export function Skeleton({ w = '100%', h = 16, r = radius.sm, style }: { w?: DimensionValue; h?: DimensionValue; r?: number; style?: ViewStyle }) {
   const { c } = useTheme();
   const p = useSharedValue(0);
@@ -33,20 +32,18 @@ export function AdCardSkeleton({ list }: { list?: boolean }) {
   }
   return (
     <View style={{ flex: 1, gap: 10 }}>
-      <Skeleton h={168} r={radius.crown} />
+      <Skeleton h={150} r={radius.md} />
       <Skeleton w="85%" /><Skeleton w="45%" h={20} />
     </View>
   );
 }
 
-// ── Bulb loader: the filament pulses like a warming bulb ───────────────
+// ── Loader ───────────────────────────────────────────────────────────
 export function BulbLoader({ size = 44, label }: { size?: number; label?: string }) {
-  const p = useSharedValue(0);
-  useEffect(() => { p.set(withRepeat(withSequence(withTiming(1, { duration: 700 }), withTiming(0.35, { duration: 700 })), -1)); }, [p]);
-  const a = useAnimatedStyle(() => ({ opacity: p.value, transform: [{ scale: interpolate(p.value, [0.35, 1], [0.96, 1.04]) }] }));
+  const { c } = useTheme();
   return (
     <View style={{ alignItems: 'center', gap: space.md, padding: space.xl }} accessibilityRole="progressbar" accessibilityLabel={label}>
-      <Animated.View style={a}><BulbMark size={size} /></Animated.View>
+      <ActivityIndicator size={size > 36 ? 'large' : 'small'} color={c.primary} />
       {label && <T v="small" muted>{label}</T>}
     </View>
   );
@@ -57,8 +54,8 @@ export function EmptyState({ title, body, action, onAction, icon, lit = false }:
   const { c } = useTheme();
   return (
     <View style={{ alignItems: 'center', paddingHorizontal: space.xxxl, paddingVertical: space.huge, gap: space.md }}>
-      <View style={{ width: 112, height: 112, borderRadius: 56, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center', marginBottom: space.sm }}>
-        {icon ? <Icon name={icon} size={46} color={c.textMuted} /> : <BulbMark size={44} lit={lit} color={c.textMuted} />}
+      <View style={{ width: 112, height: 112, borderRadius: 56, backgroundColor: c.primarySoft, alignItems: 'center', justifyContent: 'center', marginBottom: space.sm }}>
+        <Icon name={icon ?? (lit ? 'search' : 'list')} size={46} color={c.primary} />
       </View>
       <T v="h3" center>{title}</T>
       {body && <T v="body" muted center>{body}</T>}
@@ -134,7 +131,7 @@ export function Sheet({ visible, onClose, title, children, footer, scroll = true
           {title && (
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.xl, paddingVertical: space.md }}>
               <T v="h3" style={{ flex: 1 }}>{title}</T>
-              <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="close"><Icon name="close" size={22} color={c.textMuted} spark={false} /></Pressable>
+              <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="close"><Icon name="close" size={22} color={c.textMuted} /></Pressable>
             </View>
           )}
           {scroll ? <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: space.xl, paddingBottom: space.md }}>{children}</ScrollView>
@@ -173,7 +170,7 @@ export function OfflineBanner() {
   return (
     <Animated.View entering={FadeInDown} style={{ position: 'absolute', top: insets.top + 6, start: space.lg, end: space.lg, zIndex: 998, flexDirection: 'row', alignItems: 'center', gap: 8,
       backgroundColor: c.ink, borderRadius: radius.pill, paddingVertical: 8, paddingHorizontal: 14, alignSelf: 'center' }}>
-      <Icon name="wifiOff" size={16} color="#FFFFFF" spark={false} />
+      <Icon name="wifiOff" size={16} color="#FFFFFF" />
       <Text style={{ color: '#FFFFFF', fontFamily: font.medium, fontSize: 12 }}>{t('offline.banner')}</Text>
     </Animated.View>
   );

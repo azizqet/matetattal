@@ -4,10 +4,9 @@ import { useI18n } from '../i18n';
 import { useTheme } from '../theme/ThemeProvider';
 
 /**
- * FIKRA icon set — drawn on a 24 grid with straight geometric segments
- * (echoing the logo's line work), 1.75 stroke, round joins.
- * Category icons carry a single "spark" dot in the brand accent: the light
- * of the bulb. UI icons stay monochrome.
+ * FIKRA SELL icon set — one consistent outline family on a 24 grid,
+ * 1.75 stroke, round caps/joins, single colour. Category icons share the
+ * same weight so the 12-section grid reads as one system.
  */
 export type IconName =
   | 'home' | 'grid' | 'plus' | 'chat' | 'user' | 'search' | 'bell' | 'heart' | 'heartFill' | 'filter' | 'sort'
@@ -17,19 +16,21 @@ export type IconName =
   | 'block' | 'location' | 'down' | 'bookmark' | 'package' | 'sold' | 'hide' | 'wifiOff' | 'crown'
   // categories
   | 'car' | 'motorcycle' | 'gear' | 'building' | 'mobile' | 'tv' | 'gamepad' | 'sofa' | 'appliance' | 'watch'
-  | 'hanger' | 'paw' | 'excavator' | 'tent' | 'briefcase' | 'wrench' | 'store' | 'spark' | 'misc' | 'boat';
+  | 'hanger' | 'paw' | 'excavator' | 'tent' | 'briefcase' | 'wrench' | 'store' | 'spark' | 'misc' | 'boat' | 'sheep';
 
+/** `spark` is accepted for backwards compatibility and ignored (single-colour icons). */
 type P = { name: IconName | string; size?: number; color?: string; spark?: string | false; strokeWidth?: number };
 
-const CATEGORY_ALIASES: Record<string, IconName> = { phone: 'mobile', grid: 'misc' };
+const CATEGORY_ALIASES: Record<string, IconName> = { phone: 'mobile' };
 
 export function Icon({ name, size = 24, color, spark, strokeWidth = 1.75 }: P) {
   const { c } = useTheme();
   const { isRTL } = useI18n();
   const col = color ?? c.text;
-  const sparkCol = spark === false ? undefined : spark ?? c.accent;
+  void spark;
+  const sparkCol: string | undefined = undefined;
   const s = { stroke: col, strokeWidth, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, fill: 'none' };
-  const dot = (cx: number, cy: number, r = 1.9) => (sparkCol ? <Circle cx={cx} cy={cy} r={r} fill={sparkCol} /> : null);
+  const dot = (_cx: number, _cy: number, _r = 1.9) => null;
   const flip = isRTL && (name === 'back' || name === 'forward' || name === 'send');
 
   let body: React.ReactNode;
@@ -92,7 +93,7 @@ export function Icon({ name, size = 24, color, spark, strokeWidth = 1.75 }: P) {
     // ── Categories (each with a spark) ──────────────────────────────────
     case 'car': body = <><Path d="M3 16.5v-4l2.2-5h13.6l2.2 5v4zM3 16.5V19h3v-2.5M18 16.5V19h3v-2.5M3 12.5h18" {...s} /><Circle cx="7" cy="14.5" r=".6" fill={col} /><Circle cx="17" cy="14.5" r=".6" fill={col} />{dot(12, 4.2)}</>; break;
     case 'motorcycle': body = <><Circle cx="5.5" cy="16" r="3.2" {...s} /><Circle cx="18.5" cy="16" r="3.2" {...s} /><Path d="M5.5 16 9 9.5h5l4.5 6.5M14 9.5l-1.5-3H15M9 9.5l3 6.5h-6.5" {...s} />{dot(20, 7)}</>; break;
-    case 'gear': body = <><Path d="M12 3.5l2 2.2 3-.4.6 2.9 2.6 1.5-1.2 2.8 1.2 2.8-2.6 1.5-.6 2.9-3-.4-2 2.2-2-2.2-3 .4-.6-2.9-2.6-1.5L4 12.5l-1.2-2.8 2.6-1.5.6-2.9 3 .4z" {...s} /><Circle cx="12" cy="12.5" r="2.4" fill={sparkCol ?? 'none'} stroke={sparkCol ? 'none' : col} /></>; break;
+    case 'gear': body = <><Path d="M12 3.5l2 2.2 3-.4.6 2.9 2.6 1.5-1.2 2.8 1.2 2.8-2.6 1.5-.6 2.9-3-.4-2 2.2-2-2.2-3 .4-.6-2.9-2.6-1.5L4 12.5l-1.2-2.8 2.6-1.5.6-2.9 3 .4z" {...s} /><Circle cx="12" cy="12.5" r="2.4" fill={sparkCol ?? 'none'} stroke={col} {...{ strokeWidth }} /></>; break;
     case 'building': body = <><Path d="M4 20.5V8l7-4.5V20.5M11 9.5h9v11M2.5 20.5h19M7 9.5v.01M7 13v.01M7 16.5v.01M14.5 13h2M14.5 16.5h2" {...s} />{dot(17.5, 6.2)}</>; break;
     case 'mobile': body = <><Rect x="6.5" y="2.5" width="11" height="19" rx="2.5" {...s} /><Path d="M10.5 5.5h3" {...s} />{dot(12, 18)}</>; break;
     case 'tv': body = <><Rect x="2.5" y="5" width="19" height="12.5" rx="2" {...s} /><Path d="M8 21h8M12 17.5V21M8.5 2.5 12 5l3.5-2.5" {...s} />{dot(18.5, 14.5, 1.5)}</>; break;
@@ -108,12 +109,13 @@ export function Icon({ name, size = 24, color, spark, strokeWidth = 1.75 }: P) {
     case 'wrench': body = <><Path d="M14.5 3.5a5 5 0 0 0-4.6 6.9L3.5 16.8 7.2 20.5l6.4-6.4a5 5 0 0 0 6.9-4.6l-3 1.5-3-3z" {...s} />{dot(6, 18, 1.2)}</>; break;
     case 'store': body = <><Path d="M3.5 9.5 5 4h14l1.5 5.5M3.5 9.5h17a2.8 2.8 0 0 1-5.6 0 2.8 2.8 0 0 1-5.6 0 2.8 2.8 0 0 1-5.8 0zM5 11.5v9h14v-9M9.5 20.5v-5h5v5" {...s} />{dot(12, 6.7, 1.4)}</>; break;
     case 'spark': body = <><Path d="M12 2.5l2.2 6.3 6.3 2.2-6.3 2.2L12 19.5l-2.2-6.3L3.5 11l6.3-2.2z" {...s} />{dot(19, 19)}</>; break;
+    case 'sheep': body = <><Path d="M7 9.5a2.6 2.6 0 0 1 4-2.2 2.6 2.6 0 0 1 4.3.6 2.6 2.6 0 0 1 3 3.2 2.6 2.6 0 0 1-.8 4.4 2.6 2.6 0 0 1-3.8 1.4 2.6 2.6 0 0 1-4.1-.4 2.6 2.6 0 0 1-3.4-2.4A2.6 2.6 0 0 1 7 9.5z" {...s} /><Path d="M6.5 11.5H4.2a1.7 1.7 0 0 1-1.7-1.7V9l2-1.5M3.5 9.8h0M9 17v3.5M15.5 17v3.5" {...s} /></>; break;
     case 'boat': body = <><Path d="M3 15.5h18l-2.5 4.5h-13zM6 15.5V11h12v4.5M12 11V4l5 4h-5" {...s} />{dot(7, 6.5)}</>; break;
     case 'misc':
     default: {
       const alias = CATEGORY_ALIASES[name];
       if (alias) return <Icon name={alias} size={size} color={color} spark={spark} strokeWidth={strokeWidth} />;
-      body = <><Rect x="3.5" y="3.5" width="7" height="7" rx="1.5" {...s} /><Rect x="13.5" y="13.5" width="7" height="7" rx="1.5" {...s} /><Rect x="3.5" y="13.5" width="7" height="7" rx="1.5" {...s} />{dot(17, 7, 2.4)}</>;
+      body = <><Rect x="3.5" y="3.5" width="7" height="7" rx="1.5" {...s} /><Rect x="13.5" y="13.5" width="7" height="7" rx="1.5" {...s} /><Rect x="3.5" y="13.5" width="7" height="7" rx="1.5" {...s} /><Circle cx="17" cy="7" r="3.5" {...s} /></>;
     }
   }
   return (

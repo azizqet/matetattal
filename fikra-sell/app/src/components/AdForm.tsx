@@ -33,7 +33,7 @@ const EMPTY: Form = {
   lat: null, lng: null, attributes: {}, phone: '', allowCall: true, allowWhatsapp: true, allowChat: true, photos: [],
 };
 const DRAFT_KEY = 'fikra.postDraft';
-const STEPS = ['stepCategory', 'stepPhotos', 'stepDetails', 'stepPrice', 'stepPreview'] as const;
+const STEPS = ['stepCategory', 'stepDetails', 'stepPublish'] as const;
 let keySeq = 0;
 const nextKey = () => `p${Date.now()}${keySeq++}`;
 
@@ -100,12 +100,12 @@ export function AdForm({ existing }: { existing?: Ad }) {
     const e: Record<string, string> = {};
     if (s === 0 && !f.categoryId) e.category = t('post.chooseCategory');
     if (s === 1 && f.photos.length === 0) e.photos = t('post.minPhotos');
-    if (s === 2) {
+    if (s === 1) {
       if (f.title.trim().length < 3) e.title = t('post.titleTooShort');
       if (main?.has_condition && !f.condition) e.condition = t('post.fieldRequired', { field: t('post.condition') });
       fields.forEach((fd) => { if (fd.is_required && !f.attributes[fd.key]) e[`attr_${fd.key}`] = t('post.fieldRequired', { field: pick(fd.label_ar, fd.label_en) }); });
     }
-    if (s === 3) {
+    if (s === 2) {
       if ((f.priceType === 'fixed' || f.priceType === 'negotiable') && !(Number(f.price) > 0)) e.price = t('post.priceRequired');
       if (!f.governorateId) e.governorate = t('post.fieldRequired', { field: t('post.governorate') });
       if (!f.allowCall && !f.allowWhatsapp && !f.allowChat) e.contact = t('post.contactRequired');
@@ -149,7 +149,7 @@ export function AdForm({ existing }: { existing?: Ad }) {
   });
 
   async function publish() {
-    if (![0, 1, 2, 3].every((s) => validate(s))) return;
+    if (![0, 1, 2].every((s) => validate(s))) return;
     setBusy(t('post.publishing'));
     try {
       let adId = createdId.current;
@@ -221,7 +221,7 @@ export function AdForm({ existing }: { existing?: Ad }) {
           <View style={{ width: 42 }} />
         </View>
         <View style={{ height: 3, backgroundColor: c.line, borderRadius: 2, marginHorizontal: space.sm, marginBottom: space.sm, overflow: 'hidden' }}>
-          <Animated.View style={[{ height: 3, backgroundColor: c.accent, borderRadius: 2 }, progress]} />
+          <Animated.View style={[{ height: 3, backgroundColor: c.primary, borderRadius: 2 }, progress]} />
         </View>
       </View>
 
@@ -231,11 +231,11 @@ export function AdForm({ existing }: { existing?: Ad }) {
             <T v="h2">{mainPick ? t('post.chooseSub') : t('post.chooseCategory')}</T>
             {mainPick && (
               <Press onPress={() => setMainPick(null)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} accessibilityRole="button">
-                <Icon name="back" size={18} color={c.primary} spark={false} />
+                <Icon name="back" size={18} color={c.primary} />
                 <T color={c.primary} style={{ fontFamily: font.medium }}>{catalog.catName(mainPick)}</T>
               </Press>
             )}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
               {(mainPick ? catalog.subsOf(mainPick) : catalog.mains).map((x) => {
                 const selected = f.categoryId === x.id;
                 return (
@@ -244,10 +244,13 @@ export function AdForm({ existing }: { existing?: Ad }) {
                       if (!mainPick && catalog.subsOf(x.id).length) { setMainPick(x.id); return; }
                       set({ categoryId: x.id, attributes: {}, condition: x.has_condition ? f.condition : null }); setErrors({}); go(1);
                     }}
-                    style={{ width: (width - space.lg * 2 - space.md) / 2, flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: radius.lg,
-                      backgroundColor: selected ? c.primarySoft : c.surface, borderWidth: 1.5, borderColor: selected ? c.primary : 'transparent' }}>
-                    <Icon name={x.icon} size={24} color={c.primary} />
-                    <T v="bodyStrong" numberOfLines={2} style={{ flex: 1, fontSize: 14 }}>{pick(x.name_ar, x.name_en)}</T>
+                    style={mainPick ? { width: '100%', flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 14, paddingHorizontal: space.md, borderRadius: radius.md,
+                      backgroundColor: selected ? c.primarySoft : c.bg, borderWidth: 1, borderColor: selected ? c.primary : c.line }
+                      : { width: (width - space.lg * 2 - space.sm * 2) / 3, alignItems: 'center', gap: space.sm, paddingVertical: space.lg, paddingHorizontal: 6, borderRadius: radius.lg,
+                      backgroundColor: selected ? c.primarySoft : c.bg, borderWidth: 1, borderColor: selected ? c.primary : c.line }}>
+                    {!mainPick && <View style={{ width: 48, height: 48, borderRadius: radius.md, backgroundColor: c.primarySoft, alignItems: 'center', justifyContent: 'center' }}><Icon name={x.icon} size={26} color={c.primary} /></View>}
+                    <T v={mainPick ? 'bodyStrong' : 'small'} center={!mainPick} numberOfLines={2} style={mainPick ? { flex: 1 } : { fontFamily: font.semibold, minHeight: 38 }}>{pick(x.name_ar, x.name_en)}</T>
+                    {mainPick && <Icon name="forward" size={16} color={c.textFaint} />}
                   </Press>
                 );
               })}
@@ -261,17 +264,17 @@ export function AdForm({ existing }: { existing?: Ad }) {
             {errors.photos && <T v="small" color={c.danger}>{errors.photos}</T>}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md }}>
               {f.photos.map((p, i) => (
-                <View key={p.key} style={{ width: thumb, height: thumb, borderRadius: radius.md, overflow: 'hidden', backgroundColor: c.surface, borderWidth: i === 0 ? 2 : 0, borderColor: c.accent }}>
+                <View key={p.key} style={{ width: thumb, height: thumb, borderRadius: radius.md, overflow: 'hidden', backgroundColor: c.surface, borderWidth: i === 0 ? 2 : 0, borderColor: c.primary }}>
                   <Image source={{ uri: p.uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-                  {i === 0 && <View style={{ position: 'absolute', top: 6, start: 6 }}><Badge label={t('post.cover')} tone="accent" /></View>}
+                  {i === 0 && <View style={{ position: 'absolute', top: 6, start: 6 }}><Badge label={t('post.cover')} tone="primary" /></View>}
                   <Pressable onPress={() => removePhoto(i)} hitSlop={6} accessibilityLabel={t('common.delete')} testID={`remove-photo-${i}`}
                     style={{ position: 'absolute', top: 6, end: 6, width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(14,15,19,0.7)', alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon name="close" size={14} color="#FFF" spark={false} strokeWidth={2.4} />
+                    <Icon name="close" size={14} color="#FFF" strokeWidth={2.4} />
                   </Pressable>
                   <View style={{ position: 'absolute', bottom: 0, start: 0, end: 0, flexDirection: 'row', justifyContent: 'space-between', backgroundColor: 'rgba(14,15,19,0.55)' }}>
-                    <Pressable onPress={() => move(i, -1)} hitSlop={4} accessibilityLabel="‹" style={{ padding: 6 }}><Icon name="back" size={16} color="#FFF" spark={false} /></Pressable>
-                    {i !== 0 && <Pressable onPress={() => makeCover(i)} accessibilityLabel={t('post.makeCover')} style={{ padding: 6 }}><Icon name="star" size={16} color="#FFF" spark={false} /></Pressable>}
-                    <Pressable onPress={() => move(i, 1)} hitSlop={4} accessibilityLabel="›" style={{ padding: 6 }}><Icon name="forward" size={16} color="#FFF" spark={false} /></Pressable>
+                    <Pressable onPress={() => move(i, -1)} hitSlop={4} accessibilityLabel="‹" style={{ padding: 6 }}><Icon name="back" size={16} color="#FFF" /></Pressable>
+                    {i !== 0 && <Pressable onPress={() => makeCover(i)} accessibilityLabel={t('post.makeCover')} style={{ padding: 6 }}><Icon name="star" size={16} color="#FFF" /></Pressable>}
+                    <Pressable onPress={() => move(i, 1)} hitSlop={4} accessibilityLabel="›" style={{ padding: 6 }}><Icon name="forward" size={16} color="#FFF" /></Pressable>
                   </View>
                 </View>
               ))}
@@ -286,7 +289,7 @@ export function AdForm({ existing }: { existing?: Ad }) {
           </View>
         )}
 
-        {step === 2 && (
+        {step === 1 && (
           <View style={{ gap: space.lg }}>
             <Input testID="ad-title-input" label={t('post.adTitle')} placeholder={t('post.adTitlePh')} value={f.title} onChangeText={(v) => set({ title: v })} maxLength={90} error={errors.title} hint={`${f.title.length}/90`} />
             {main?.has_condition && (
@@ -326,7 +329,7 @@ export function AdForm({ existing }: { existing?: Ad }) {
           </View>
         )}
 
-        {step === 3 && (
+        {step === 2 && (
           <View style={{ gap: space.xl }}>
             <View style={{ gap: space.sm }}>
               <T v="small" muted style={{ fontFamily: font.medium }}>{t('post.priceType')}</T>
@@ -349,7 +352,7 @@ export function AdForm({ existing }: { existing?: Ad }) {
                   const near = [...govs].sort((a, b) => Math.hypot(a.lat - co.lat, a.lng - co.lng) - Math.hypot(b.lat - co.lat, b.lng - co.lng))[0];
                   set({ lat: co.lat, lng: co.lng, governorateId: near?.id ?? f.governorateId, areaId: near?.id === f.governorateId ? f.areaId : null });
                 }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Icon name="location" size={16} color={f.lat ? c.success : c.primary} spark={false} />
+                  <Icon name="location" size={16} color={f.lat ? c.success : c.primary} />
                   <T v="small" color={f.lat ? c.success : c.primary} style={{ fontFamily: font.medium }}>{t('post.useMyLocation')}</T>
                 </Pressable>
               </View>
@@ -376,18 +379,17 @@ export function AdForm({ existing }: { existing?: Ad }) {
           </View>
         )}
 
-        {step === 4 && (
-          <View style={{ gap: space.lg }}>
+        {step === 2 && (
+          <View style={{ gap: space.md }}>
             <T v="h3">{t('post.preview')}</T>
-            <View style={{ borderTopStartRadius: radius.crown, borderTopEndRadius: radius.crown, borderBottomEndRadius: radius.lg, borderBottomStartRadius: radius.socket, overflow: 'hidden', borderWidth: 1, borderColor: c.line }}>
-              {f.photos[0] && <Image source={{ uri: f.photos[0].uri }} style={{ width: '100%', aspectRatio: 1.25 }} contentFit="cover" />}
-              <View style={{ padding: space.lg, gap: space.sm }}>
-                <Text style={{ fontFamily: font.bold, fontSize: 24, color: c.primary }}>
+            <View style={{ flexDirection: 'row', borderRadius: radius.md, overflow: 'hidden', borderWidth: 1, borderColor: c.line }}>
+              {f.photos[0] && <Image source={{ uri: f.photos[0].uri }} style={{ width: 112, minHeight: 112 }} contentFit="cover" />}
+              <View style={{ flex: 1, padding: space.md, gap: 4 }}>
+                <Text style={{ fontFamily: font.bold, fontSize: 18, color: c.primary }}>
                   {f.priceType === 'contact' ? t('ad.contactForPrice') : f.priceType === 'free' ? t('ad.free') : formatKwd(f.price, lang)}
                 </Text>
-                <T v="h3">{f.title}</T>
+                <T v="bodyStrong" numberOfLines={2}>{f.title}</T>
                 <T v="small" muted>{[catalog.catName(f.categoryId), catalog.placeName(f.governorateId, f.areaId), f.condition ? t(`ad.${f.condition}`) : ''].filter(Boolean).join(' · ')}</T>
-                {!!f.description && <T numberOfLines={6}>{f.description}</T>}
                 <T v="caption" faint>{t('ad.photos', { n: f.photos.length })}</T>
               </View>
             </View>
@@ -399,7 +401,7 @@ export function AdForm({ existing }: { existing?: Ad }) {
       {/* Footer */}
       <View style={{ position: 'absolute', bottom: 0, start: 0, end: 0, flexDirection: 'row', gap: space.md, paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: insets.bottom + space.md, backgroundColor: c.bg, borderTopWidth: 1, borderTopColor: c.line }}>
         {step > 0 && <Button title={t('common.back')} kind="secondary" style={{ flex: 1 }} onPress={() => go(step - 1)} disabled={!!busy} />}
-        {step < 4 ? (step > 0 && <Button title={t('common.next')} style={{ flex: 2 }} onPress={next} testID="post-next" />)
+        {step < STEPS.length - 1 ? (step > 0 && <Button title={t('common.next')} style={{ flex: 2 }} onPress={next} testID="post-next" />)
           : <Button title={busy ?? (existing ? t('post.saveChanges') : t('post.publish'))} kind="primary" style={{ flex: 2 }} onPress={publish} loading={!!busy && !busy.includes('/')} disabled={!!busy} testID="post-publish" />}
       </View>
       <Confirm visible={discard} title={t('post.discardTitle')} body={t('post.discardBody')} confirm={t('post.discard')} danger onClose={() => setDiscard(false)}
@@ -413,7 +415,7 @@ function AddTile({ size, icon, label, onPress, testID }: { size: number; icon: '
   return (
     <Press onPress={onPress} testID={testID} accessibilityRole="button" accessibilityLabel={label}
       style={{ width: size, height: size, borderRadius: radius.md, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.primary, alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.primarySoft }}>
-      <Icon name={icon} size={26} color={c.primary} spark={false} />
+      <Icon name={icon} size={26} color={c.primary} />
       <T v="caption" color={c.primary} center>{label}</T>
     </Press>
   );

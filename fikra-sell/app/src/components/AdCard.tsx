@@ -9,7 +9,7 @@ import { publicUrl } from '../lib/supabase';
 import type { AdCard as AdCardT } from '../lib/types';
 import { useTheme } from '../theme/ThemeProvider';
 import { font, radius, space } from '../theme/tokens';
-import { BulbMark } from './Brand';
+import { PhotoPlaceholder } from './Brand';
 import { Icon } from './Icon';
 import { haptic, Press, T } from './ui';
 
@@ -20,51 +20,61 @@ function Photo({ path, style }: { path: string | null; style: object }) {
   const url = publicUrl('ad-images', path);
   return (
     <View style={[{ backgroundColor: c.surface, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, style]}>
-      {url ? <Image source={{ uri: url }} recyclingKey={path ?? undefined} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={180} cachePolicy="memory-disk" />
-        : <BulbMark size={34} lit={false} color={c.lineStrong} />}
+      {url ? <Image source={{ uri: url }} recyclingKey={path ?? undefined} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={150} cachePolicy="memory-disk" />
+        : <PhotoPlaceholder />}
     </View>
   );
 }
 
-function Heart({ id }: { id: number }) {
+function Heart({ id, small }: { id: number; small?: boolean }) {
+  const { c } = useTheme();
   const { isFav, toggle } = useFavorites();
   const { t } = useI18n();
   const on = isFav(id);
+  const d = small ? 30 : 34;
   return (
     <Pressable hitSlop={10} accessibilityRole="button" accessibilityLabel={t('account.favorites')} accessibilityState={{ selected: on }}
       onPress={() => { haptic.medium(); toggle(id); }}
-      style={{ position: 'absolute', top: 10, end: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.94)', alignItems: 'center', justifyContent: 'center' }}>
-      <Icon name={on ? 'heartFill' : 'heart'} size={19} color={on ? '#E0453A' : '#15161C'} spark={false} />
+      style={{ position: 'absolute', top: 8, end: 8, width: d, height: d, borderRadius: d / 2, backgroundColor: 'rgba(255,255,255,0.95)', alignItems: 'center', justifyContent: 'center' }}>
+      <Icon name={on ? 'heartFill' : 'heart'} size={small ? 16 : 18} color={on ? c.danger : '#111111'} />
     </Pressable>
   );
 }
 
-/** The price "socket": dark tag anchored to the photo, like the bulb's base. */
-function PriceSocket({ ad }: { ad: AdCardT }) {
+/** Yellow «مميز» for featured ads (the only place yellow is used), black for sold. */
+function Flag({ ad }: { ad: AdCardT }) {
   const { c } = useTheme();
-  const { lang } = useI18n();
-  const label = priceLabel(ad, lang);
-  const isPrice = ad.price_type === 'fixed' || ad.price_type === 'negotiable';
+  const { t } = useI18n();
+  const sold = ad.status === 'sold';
+  if (!ad.is_featured && !ad.is_pinned && !sold) return null;
+  const bg = sold ? c.ink : ad.is_featured ? c.featured : c.primary;
+  const fg = sold ? '#FFFFFF' : ad.is_featured ? c.onFeatured : c.onPrimary;
   return (
-    <View style={{ position: 'absolute', bottom: 0, start: 0, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.scheme === 'dark' ? '#0E0F13' : c.ink,
-      paddingHorizontal: 11, paddingVertical: 6, borderTopEndRadius: radius.md, borderBottomStartRadius: radius.socket }}>
-      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.accent }} />
-      <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: isPrice ? 15 : 12, color: '#FFFFFF' }}>{label}</Text>
+    <View style={{ position: 'absolute', top: 8, start: 8, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: bg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.socket }}>
+      <Icon name={sold ? 'sold' : ad.is_featured ? 'star' : 'pin'} size={12} color={fg} strokeWidth={2.2} />
+      <Text style={{ fontFamily: font.bold, fontSize: 11, color: fg }}>{sold ? t('ad.sold') : ad.is_featured ? t('ad.featured') : t('ad.pinned')}</Text>
     </View>
   );
 }
 
-function Flags({ ad }: { ad: AdCardT }) {
-  const { c } = useTheme();
-  const { t } = useI18n();
-  if (!ad.is_featured && !ad.is_pinned && ad.status !== 'sold') return null;
-  const label = ad.status === 'sold' ? t('ad.sold') : ad.is_featured ? t('ad.featured') : t('ad.pinned');
+function Count({ n }: { n: number }) {
+  if (n < 2) return null;
   return (
-    <View style={{ position: 'absolute', top: 10, start: 10, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: ad.status === 'sold' ? c.ink : c.accent,
-      paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.socket }}>
-      <Icon name={ad.status === 'sold' ? 'sold' : ad.is_featured ? 'star' : 'pin'} size={12} color={ad.status === 'sold' ? '#FFF' : c.onAccent} spark={false} strokeWidth={2.2} />
-      <Text style={{ fontFamily: font.bold, fontSize: 11, color: ad.status === 'sold' ? '#FFF' : c.onAccent }}>{label}</Text>
+    <View style={{ position: 'absolute', bottom: 8, end: 8, flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: radius.socket, paddingHorizontal: 6, paddingVertical: 2 }}>
+      <Icon name="camera" size={12} color="#FFF" />
+      <Text style={{ color: '#FFF', fontFamily: font.medium, fontSize: 11 }}>{n}</Text>
     </View>
+  );
+}
+
+function Price({ ad, size = 16 }: { ad: AdCardT; size?: number }) {
+  const { c } = useTheme();
+  const { lang } = useI18n();
+  const isPrice = ad.price_type === 'fixed' || ad.price_type === 'negotiable';
+  return (
+    <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: isPrice ? size : size - 3, color: isPrice ? c.primary : c.textMuted }}>
+      {priceLabel(ad, lang)}
+    </Text>
   );
 }
 
@@ -73,47 +83,50 @@ function AdCardBase({ ad, layout = 'grid', width }: Props) {
   const { lang, t } = useI18n();
   const { placeName } = useCatalog();
   const open = () => router.push(`/ad/${ad.id}`);
-  const meta = [placeName(ad.governorate_id, ad.area_id), relativeTime(ad.bumped_at, lang)].filter(Boolean).join(' · ');
-  const ring = ad.is_featured ? { borderWidth: 1.5, borderColor: c.accent } : null;
+  const place = placeName(ad.governorate_id, ad.area_id);
+  const when = relativeTime(ad.bumped_at, lang);
+  const border = ad.is_featured ? { borderWidth: 1.5, borderColor: c.featured } : { borderWidth: 1, borderColor: c.line };
+  const label = `${ad.title}, ${priceLabel(ad, lang)}`;
 
   if (layout === 'list') {
     return (
-      <Press onPress={open} accessibilityRole="button" accessibilityLabel={`${ad.title}, ${priceLabel(ad, lang)}`} scale={0.985}
-        style={[{ flexDirection: 'row', gap: space.md, padding: space.sm, borderRadius: radius.lg, backgroundColor: c.card }, ring]}>
+      <Press onPress={open} accessibilityRole="button" accessibilityLabel={label} scale={0.985}
+        style={[{ flexDirection: 'row', borderRadius: radius.md, backgroundColor: c.card, overflow: 'hidden' }, border]}>
         <View>
-          <Photo path={ad.cover_path} style={{ width: 118, height: 118, borderTopStartRadius: radius.crown, borderBottomStartRadius: radius.socket, borderTopEndRadius: radius.md, borderBottomEndRadius: radius.md }} />
-          <Flags ad={ad} />
+          <Photo path={ad.cover_path} style={{ width: 132, height: 116 }} />
+          <Flag ad={ad} />
+          <Count n={ad.images_count} />
         </View>
-        <View style={{ flex: 1, paddingVertical: 4, gap: 4 }}>
-          <T v="bodyStrong" numberOfLines={2}>{ad.title}</T>
-          <Text numberOfLines={1} style={{ fontFamily: font.bold, fontSize: 17, color: c.primary }}>{priceLabel(ad, lang)}</Text>
-          {ad.condition && <T v="caption" muted>{t(`ad.${ad.condition}`)}</T>}
-          <T v="small" faint numberOfLines={1} style={{ marginTop: 'auto' }}>{meta}</T>
+        <View style={{ flex: 1, padding: space.md, gap: 4 }}>
+          <T v="bodyStrong" numberOfLines={2} style={{ fontSize: 14, lineHeight: 21, paddingEnd: 30 }}>{ad.title}</T>
+          <Price ad={ad} />
+          <View style={{ marginTop: 'auto', flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            {!!place && <Icon name="location" size={12} color={c.textFaint} />}
+            <T v="caption" faint numberOfLines={1} style={{ flexShrink: 1 }}>{[place, when].filter(Boolean).join(' · ')}</T>
+            {ad.condition && <T v="caption" muted style={{ marginStart: 'auto' }}>{t(`ad.${ad.condition}`)}</T>}
+          </View>
         </View>
-        <Heart id={ad.id} />
+        <Heart id={ad.id} small />
       </Press>
     );
   }
 
-  const w = width;
   return (
-    <Press onPress={open} accessibilityRole="button" accessibilityLabel={`${ad.title}, ${priceLabel(ad, lang)}`} scale={0.975}
-      style={[{ width: w, flex: w ? undefined : 1, gap: space.sm }]}>
-      <View style={[{ borderTopStartRadius: radius.crown, borderTopEndRadius: radius.crown, borderBottomEndRadius: radius.md, borderBottomStartRadius: radius.socket, overflow: 'hidden' }, ring]}>
-        <Photo path={ad.cover_path} style={{ width: '100%', aspectRatio: layout === 'rail' ? 1.1 : 0.95 }} />
-        <PriceSocket ad={ad} />
-        <Flags ad={ad} />
+    <Press onPress={open} accessibilityRole="button" accessibilityLabel={label} scale={0.98}
+      style={[{ width, flex: width ? undefined : 1, borderRadius: radius.md, backgroundColor: c.card, overflow: 'hidden' }, border]}>
+      <View>
+        <Photo path={ad.cover_path} style={{ width: '100%', aspectRatio: layout === 'rail' ? 1.25 : 1.1 }} />
+        <Flag ad={ad} />
         <Heart id={ad.id} />
-        {ad.images_count > 1 && (
-          <View style={{ position: 'absolute', bottom: 8, end: 8, flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(14,15,19,0.6)', borderRadius: radius.socket, paddingHorizontal: 6, paddingVertical: 3 }}>
-            <Icon name="image" size={12} color="#FFF" spark={false} />
-            <Text style={{ color: '#FFF', fontFamily: font.medium, fontSize: 11 }}>{ad.images_count}</Text>
-          </View>
-        )}
+        <Count n={ad.images_count} />
       </View>
-      <View style={{ paddingHorizontal: 2, gap: 2 }}>
-        <T v="bodyStrong" numberOfLines={2} style={{ fontSize: 14, lineHeight: 21 }}>{ad.title}</T>
-        <T v="caption" faint numberOfLines={1}>{meta}</T>
+      <View style={{ padding: space.sm + 2, gap: 3 }}>
+        <Price ad={ad} size={17} />
+        <T v="body" numberOfLines={2} style={{ fontSize: 13.5, lineHeight: 20, minHeight: 40 }}>{ad.title}</T>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+          {!!place && <Icon name="location" size={11} color={c.textFaint} />}
+          <T v="caption" faint numberOfLines={1} style={{ flexShrink: 1 }}>{place || when}</T>
+        </View>
       </View>
     </Press>
   );

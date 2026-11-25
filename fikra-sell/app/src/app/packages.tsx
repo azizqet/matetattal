@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import React from 'react';
 import { ScrollView, View } from 'react-native';
-import { BulbMark } from '../components/Brand';
 import { ErrorState, Skeleton } from '../components/feedback';
 import { Icon, type IconName } from '../components/Icon';
 import { Badge, Header, T } from '../components/ui';
@@ -30,8 +29,8 @@ export default function Packages() {
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <Header title={t('packages.title')} />
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.lg, paddingBottom: 60 }}>
-        <View style={{ padding: space.xl, gap: space.sm, alignItems: 'center', backgroundColor: c.accentSoft, borderRadius: radius.lg }}>
-          <BulbMark size={40} />
+        <View style={{ padding: space.xl, gap: space.sm, alignItems: 'center', backgroundColor: c.primarySoft, borderRadius: radius.lg }}>
+          <Icon name="star" size={36} color={c.primary} />
           <T v="h3" center>{t('packages.freeNow')}</T>
           <T muted center>{t('packages.freeBody')}</T>
         </View>
@@ -40,7 +39,7 @@ export default function Packages() {
           return (
             <View key={p.id} style={{ flexDirection: 'row', gap: space.md, padding: space.lg, borderRadius: radius.lg, borderWidth: 1, borderColor: c.line, alignItems: 'center' }}>
               <View style={{ width: 46, height: 46, borderRadius: 16, backgroundColor: c.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name={KIND_ICON[p.kind] ?? 'package'} size={22} color={c.primary} spark={false} />
+                <Icon name={KIND_ICON[p.kind] ?? 'package'} size={22} color={c.primary} />
               </View>
               <View style={{ flex: 1, gap: 2 }}>
                 <T v="bodyStrong">{pick(p.name_ar, p.name_en)}</T>

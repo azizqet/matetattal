@@ -59,7 +59,7 @@ export default function Notifications() {
           renderItem={({ item: n }) => (
             <Pressable onPress={() => open(n)} style={({ pressed }) => ({ flexDirection: 'row', gap: space.md, padding: space.lg, backgroundColor: pressed ? c.surface : n.read_at ? 'transparent' : c.primarySoft })}>
               <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: c.bg, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name={ICONS[n.type] ?? 'bell'} size={20} color={n.type === 'ad_rejected' ? c.danger : c.primary} spark={false} />
+                <Icon name={ICONS[n.type] ?? 'bell'} size={20} color={n.type === 'ad_rejected' ? c.danger : c.primary} />
               </View>
               <View style={{ flex: 1, gap: 2 }}>
                 <T v="bodyStrong">{pick(n.title_ar, n.title_en)}</T>

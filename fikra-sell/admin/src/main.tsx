@@ -8,7 +8,8 @@ import './styles.css';
 // Brand colours come from the tokens extracted from the original logo.
 const root = document.documentElement;
 root.style.setProperty('--primary', brand.primary);
-root.style.setProperty('--accent', brand.accent);
+root.style.setProperty('--accent', brand.featured);
+root.style.setProperty('--danger', brand.alert);
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

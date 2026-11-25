@@ -47,7 +47,7 @@ export default function SignIn() {
     <AuthShell title={t('auth.signIn')}>
       {reason && REASON[reason] && (
         <View style={{ padding: space.md, borderRadius: radius.md, backgroundColor: c.primarySoft, flexDirection: 'row', gap: space.sm, alignItems: 'center' }}>
-          <Icon name="lock" size={18} color={c.primary} spark={false} />
+          <Icon name="lock" size={18} color={c.primary} />
           <T v="small" color={c.primary} style={{ flex: 1 }}>{t('auth.guestPrompt', { action: t(REASON[reason]) })}</T>
         </View>
       )}
@@ -56,7 +56,7 @@ export default function SignIn() {
           autoComplete="email" textContentType="emailAddress" returnKeyType="next" onSubmitEditing={() => passRef.current?.focus()} icon="mail" />
         <Input ref={passRef} testID="signin-password" label={t('auth.password')} value={password} onChangeText={setPassword} secureTextEntry={!show}
           autoComplete="current-password" textContentType="password" returnKeyType="go" onSubmitEditing={submit} icon="lock"
-          right={<Pressable onPress={() => setShow(!show)} hitSlop={10} accessibilityLabel="toggle"><Icon name={show ? 'hide' : 'eye'} size={20} color={c.textMuted} spark={false} /></Pressable>} />
+          right={<Pressable onPress={() => setShow(!show)} hitSlop={10} accessibilityLabel="toggle"><Icon name={show ? 'hide' : 'eye'} size={20} color={c.textMuted} /></Pressable>} />
         <Pressable onPress={() => router.push('/auth/forgot')} style={{ alignSelf: 'flex-end' }} testID="go-forgot"><T v="small" color={c.primary} style={{ fontFamily: font.medium }}>{t('auth.forgot')}</T></Pressable>
         {error && <T v="small" color={c.danger} testID="signin-error">{error}</T>}
         <Button testID="signin-submit" title={t('auth.signIn')} onPress={submit} loading={busy} />

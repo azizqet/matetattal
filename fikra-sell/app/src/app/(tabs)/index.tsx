@@ -1,61 +1,40 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
-import { FlatList, Pressable, View } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
+import { FlatList, Pressable, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AdCard } from '../../components/AdCard';
 import { AdFeed, useFeedLayout } from '../../components/AdFeed';
 import { BannerStrip, CategoryTile } from '../../components/Blocks';
 import { Lockup } from '../../components/Brand';
-import { AdCardSkeleton } from '../../components/feedback';
+import { AdCardSkeleton, Skeleton } from '../../components/feedback';
 import { Icon } from '../../components/Icon';
-import { Button, IconButton, Section, Segmented, T } from '../../components/ui';
+import { PlacePill, usePlace } from '../../components/PlacePicker';
+import { IconButton, Section, T } from '../../components/ui';
 import { useCatalog, useCounters } from '../../hooks/data';
 import { useI18n } from '../../i18n';
 import { searchAds } from '../../lib/api';
-import { useAuth } from '../../lib/auth';
-import { currentCoords, locationGranted, type Coords } from '../../lib/location';
-import { topViewedCategory } from '../../lib/recent';
 import type { AdCard as AdCardT, SearchFilters } from '../../lib/types';
 import { useTheme } from '../../theme/ThemeProvider';
-import { font, radius, space } from '../../theme/tokens';
+import { radius, space } from '../../theme/tokens';
 
-function Rail({ title, filters, onSeeAll, testID }: { title: string; filters: SearchFilters; onSeeAll?: () => void; testID?: string }) {
+function FeaturedRail({ filters, onSeeAll }: { filters: SearchFilters; onSeeAll: () => void }) {
   const { t } = useI18n();
   const q = useQuery({ queryKey: ['rail', filters], queryFn: () => searchAds(filters, 0, 10), staleTime: 2 * 60_000 });
   if (q.isSuccess && !q.data.length) return null;
   return (
-    <Section title={title} action={onSeeAll ? t('common.seeAll') : undefined} onAction={onSeeAll}>
+    <Section title={t('home.featured')} action={t('common.seeAll')} onAction={onSeeAll}>
       <FlatList
-        testID={testID}
+        testID="rail-featured"
         horizontal
         data={q.data ?? []}
         keyExtractor={(a: AdCardT) => String(a.id)}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: space.lg, gap: space.md }}
-        renderItem={({ item }) => <AdCard ad={item} layout="rail" width={168} />}
-        ListEmptyComponent={q.isLoading ? <View style={{ flexDirection: 'row', gap: space.md }}>{[0, 1].map((i) => <View key={i} style={{ width: 168 }}><AdCardSkeleton /></View>)}</View> : undefined}
+        renderItem={({ item }) => <AdCard ad={item} layout="rail" width={220} />}
+        ListEmptyComponent={q.isLoading ? <View style={{ flexDirection: 'row', gap: space.md }}>{[0, 1].map((i) => <View key={i} style={{ width: 220 }}><AdCardSkeleton /></View>)}</View> : undefined}
       />
     </Section>
-  );
-}
-
-function NearbyCard({ onGranted }: { onGranted: (c: Coords) => void }) {
-  const { c } = useTheme();
-  const { t } = useI18n();
-  const [busy, setBusy] = useState(false);
-  return (
-    <View style={{ marginHorizontal: space.lg, padding: space.lg, borderRadius: radius.lg, backgroundColor: c.primarySoft, flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-      <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <Icon name="location" size={22} color={c.primary} spark={false} />
-      </View>
-      <View style={{ flex: 1, gap: 2 }}>
-        <T v="bodyStrong">{t('home.nearbyEnable')}</T>
-        <T v="small" muted>{t('home.nearbyHint')}</T>
-      </View>
-      <Button small title={t('home.nearbyAllow')} loading={busy} testID="allow-location"
-        onPress={async () => { setBusy(true); const co = await currentCoords(true); setBusy(false); if (co) onGranted(co); }} />
-    </View>
   );
 }
 
@@ -63,79 +42,66 @@ export default function Home() {
   const { c } = useTheme();
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
-  const { profile } = useAuth();
+  const { width } = useWindowDimensions();
   const catalog = useCatalog();
   const counters = useCounters();
   const [layout, setLayout] = useFeedLayout();
-  const [coords, setCoords] = useState<Coords | null>(null);
-  const [locAsked, setLocAsked] = useState<boolean | null>(null);
-  const [suggestCat, setSuggestCat] = useState<number | null>(null);
+  const [place, setPlace] = usePlace();
   const featuredOn = catalog.setting('featured_section_enabled', true);
+  const cols = width >= 700 ? 6 : 4;
+  const tileW = (width - space.lg * 2) / cols;
+  const placeFilters = useMemo<SearchFilters>(() => ({ governorate_id: place.governorate_id, area_id: place.area_id }), [place.governorate_id, place.area_id]);
+  const feedFilters = useMemo<SearchFilters>(() => ({ ...placeFilters, sort: 'newest' }), [placeFilters]);
+  const featuredFilters = useMemo<SearchFilters>(() => ({ ...placeFilters, featured_only: true }), [placeFilters]);
 
-  useEffect(() => {
-    locationGranted().then(async (g) => { setLocAsked(g); if (g) setCoords(await currentCoords(false)); });
-    topViewedCategory().then(setSuggestCat);
-  }, []);
-
-  const refreshExtras = useCallback(() => { catalog.refetch(); counters.refetch(); topViewedCategory().then(setSuggestCat); }, [catalog, counters]);
+  const refreshExtras = useCallback(() => { catalog.refetch(); counters.refetch(); }, [catalog, counters]);
+  const placeParams = { ...(place.governorate_id ? { gov: String(place.governorate_id) } : {}), ...(place.area_id ? { area: String(place.area_id) } : {}) };
 
   const header = (
-    <View style={{ gap: space.xxl, paddingBottom: space.lg }}>
-      {/* Top bar */}
-      <View style={{ paddingTop: insets.top + 8, paddingHorizontal: space.lg, gap: space.lg }}>
+    <View style={{ gap: space.xl, paddingBottom: space.md }}>
+      {/* Logo + actions, search, place */}
+      <View style={{ paddingTop: insets.top + 6, paddingHorizontal: space.lg, gap: space.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <View style={{ flex: 1, alignItems: 'flex-start' }}><Lockup height={30} /></View>
+          <View style={{ flex: 1, alignItems: 'flex-start' }}><Lockup height={28} /></View>
           <IconButton name="heart" label={t('account.favorites')} onPress={() => router.push('/favorites')} testID="home-favorites" />
           <IconButton name="bell" label={t('notifications.title')} badge={counters.data?.unread_notifications} onPress={() => router.push('/notifications')} testID="home-notifications" />
         </View>
-        <T v="h2">{profile ? t('home.greeting', { name: profile.full_name.split(' ')[0] }) : t('home.greetingGuest')}</T>
-        <Pressable onPress={() => router.push('/search')} accessibilityRole="search" accessibilityLabel={t('home.searchPlaceholder')} testID="home-search"
-          style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, height: 54, borderRadius: radius.lg, backgroundColor: c.surface, paddingHorizontal: space.lg, borderWidth: 1, borderColor: c.line }}>
-          <Icon name="search" size={21} color={c.primary} spark={false} />
-          <T muted style={{ flex: 1 }}>{t('home.searchPlaceholder')}</T>
-          <View style={{ width: 1.5, height: 22, backgroundColor: c.line }} />
-          <Icon name="filter" size={20} color={c.textMuted} spark={false} />
+        <Pressable onPress={() => router.push({ pathname: '/search', params: placeParams })} accessibilityRole="search" accessibilityLabel={t('home.searchPlaceholder')} testID="home-search"
+          style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, height: 50, borderRadius: radius.md, backgroundColor: c.bg, paddingStart: space.lg, paddingEnd: 5, borderWidth: 1.5, borderColor: c.primary }}>
+          <Icon name="search" size={20} color={c.primary} />
+          <T muted style={{ flex: 1 }} numberOfLines={1}>{t('home.searchPlaceholder')}</T>
+          <View style={{ height: 40, paddingHorizontal: 16, borderRadius: radius.sm, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' }}>
+            <T v="small" color={c.onPrimary} style={{ fontWeight: '600' }}>{t('common.search')}</T>
+          </View>
         </Pressable>
+        <PlacePill value={place} onChange={setPlace} />
       </View>
 
-      {/* Categories */}
+      {/* Category grid */}
       <Section title={t('home.categories')} action={t('common.seeAll')} onAction={() => router.push('/categories')}>
-        <FlatList
-          horizontal
-          data={catalog.mains}
-          keyExtractor={(x) => String(x.id)}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: space.lg, gap: space.sm }}
-          renderItem={({ item }) => <CategoryTile cat={item} />}
-        />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: space.lg, rowGap: space.lg }}>
+          {catalog.mains.length ? catalog.mains.map((cat) => <CategoryTile key={cat.id} cat={cat} width={tileW} />)
+            : Array.from({ length: 8 }).map((_, i) => <View key={i} style={{ width: tileW, alignItems: 'center', gap: 6 }}><Skeleton w={56} h={56} r={radius.lg} /><Skeleton w={50} h={10} /></View>)}
+        </View>
       </Section>
 
       <BannerStrip placement="home_top" />
 
-      {featuredOn && <Rail title={t('home.featured')} filters={{ featured_only: true }} onSeeAll={() => router.push({ pathname: '/search', params: { featured: '1' } })} testID="rail-featured" />}
-
-      {coords ? (
-        <Rail title={t('home.nearby')} filters={{ sort: 'nearest', lat: coords.lat, lng: coords.lng, radius_km: 12 }}
-          onSeeAll={() => router.push({ pathname: '/search', params: { sort: 'nearest', lat: String(coords.lat), lng: String(coords.lng) } })} />
-      ) : locAsked === false ? <NearbyCard onGranted={setCoords} /> : null}
-
-      {suggestCat && <Rail title={t('home.suggested')} filters={{ category_id: suggestCat }} onSeeAll={() => { const cat = catalog.byId.get(suggestCat); if (cat) router.push(`/category/${cat.slug}`); }} />}
+      {featuredOn && <FeaturedRail filters={featuredFilters} onSeeAll={() => router.push({ pathname: '/search', params: { featured: '1', ...placeParams } })} />}
 
       <BannerStrip placement="home_middle" />
 
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.lg, gap: space.md }}>
-        <View style={{ width: 4, height: 18, borderRadius: 2, backgroundColor: c.accent }} />
-        <T v="h3" style={{ flex: 1, fontFamily: font.semibold }}>{t('home.latest')}</T>
-        <View style={{ width: 150 }}>
-          <Segmented value={layout} onChange={setLayout} options={[{ value: 'grid', label: t('home.grid') }, { value: 'list', label: t('home.list') }]} />
-        </View>
+        <T v="h3" style={{ flex: 1 }}>{t('home.latest')}</T>
+        <IconButton name={layout === 'grid' ? 'list' : 'grid'} label={layout === 'grid' ? t('home.list') : t('home.grid')} tone="surface" size={19}
+          onPress={() => setLayout(layout === 'grid' ? 'list' : 'grid')} testID="toggle-layout" />
       </View>
     </View>
   );
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <AdFeed filters={{ sort: 'newest' }} header={header} layout={layout} onRefreshExtra={refreshExtras}
+      <AdFeed filters={feedFilters} header={header} layout={layout} onRefreshExtra={refreshExtras}
         emptyTitle={t('myAds.empty')} emptyBody={t('myAds.emptyBody')} emptyAction={t('tabs.post')} onEmptyAction={() => router.push('/post/new')} />
     </View>
   );

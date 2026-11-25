@@ -80,7 +80,7 @@ export default function Chats() {
             <Pressable testID={`conv-${item.id}`} onPress={() => router.push(`/chat/${item.id}`)} accessibilityRole="button"
               style={({ pressed }) => ({ flexDirection: 'row', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md, backgroundColor: pressed ? c.surface : 'transparent', alignItems: 'center' })}>
               <View>
-                <View style={{ width: 58, height: 58, borderTopStartRadius: 20, borderTopEndRadius: 20, borderBottomEndRadius: 14, borderBottomStartRadius: 5, overflow: 'hidden', backgroundColor: c.surface }}>
+                <View style={{ width: 58, height: 58, borderRadius: radius.md, overflow: 'hidden', backgroundColor: c.surface }}>
                   {cover && <Image source={{ uri: cover }} style={{ width: 58, height: 58 }} contentFit="cover" />}
                 </View>
                 <View style={{ position: 'absolute', bottom: -4, end: -4, borderWidth: 2, borderColor: c.bg, borderRadius: 14 }}>
@@ -98,8 +98,8 @@ export default function Chats() {
                     {item.last_sender_id === userId ? `${t('chat.you')}: ` : ''}{item.last_message_preview === '📷' ? t('chat.photo') : item.last_message_preview}
                   </T>
                   {unread > 0 && (
-                    <View style={{ minWidth: 22, height: 22, borderRadius: radius.pill, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 }}>
-                      <Text style={{ fontFamily: font.bold, fontSize: 11, color: c.onAccent }}>{unread}</Text>
+                    <View style={{ minWidth: 22, height: 22, borderRadius: radius.pill, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 }}>
+                      <Text style={{ fontFamily: font.bold, fontSize: 11, color: c.onPrimary }}>{unread}</Text>
                     </View>
                   )}
                 </View>

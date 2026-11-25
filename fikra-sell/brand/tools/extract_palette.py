@@ -67,19 +67,42 @@ def extract(path: pathlib.Path):
                           lightness=round(l, 3), chroma=chroma))
     found.sort(key=lambda c: -c["share"])
 
-    chromatic = [c for c in found if c["chroma"] >= 40 and c["share"] >= 0.01]
+    chromatic = [c for c in found if c["chroma"] >= 40 and c["share"] >= 0.005]
+    def hue_in(c, lo, hi):
+        h = c["hue"]
+        return lo <= h <= hi if lo <= hi else (h >= lo or h <= hi)
+    def pick(lo, hi):
+        return next((c for c in chromatic if hue_in(c, lo, hi)), None)
+    turquoise = pick(150, 200)
+    yellow = pick(38, 65)
+    red = pick(340, 15)
     neutrals = [c for c in found if c["chroma"] < 40]
-    primary = chromatic[0] if chromatic else found[0]
-    accent = next((c for c in chromatic[1:] if min(abs(c["hue"] - primary["hue"]), 360 - abs(c["hue"] - primary["hue"])) > 25), None)
     dark = min(neutrals, key=lambda c: lum(c["rgb"])) if neutrals else None
+    primary_bright = (turquoise or (chromatic[0] if chromatic else found[0]))["hex"]
     return dict(
         source=str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path),
         sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
         background=hexc(bg),
         colors=found,
-        roles=dict(primary=primary["hex"], accent=(accent or primary)["hex"],
-                   ink=(dark["hex"] if dark and lum(dark["rgb"]) < 0.08 else "#15161C")),
+        roles=dict(
+            primaryBright=primary_bright,
+            primary=darken_for_white_text(primary_bright),
+            featured=(yellow or {"hex": "#FFC629"})["hex"],
+            alert=(red or {"hex": "#D32F2F"})["hex"],
+            ink=(dark["hex"] if dark and lum(dark["rgb"]) < 0.08 else "#111111"),
+        ),
     )
+
+
+def darken_for_white_text(hex_):
+    """Same hue, darkened only as much as needed for 4.5:1 with white text."""
+    r, g, b = (int(hex_[i:i + 2], 16) for i in (1, 3, 5))
+    for k in range(0, 60):
+        f = 1 - k / 100
+        rgb = (round(r * f), round(g * f), round(b * f))
+        if (1.05) / (lum(rgb) + 0.05) >= 4.5:
+            return hexc(rgb)
+    return hex_
 
 
 def write_outputs(report):
@@ -91,7 +114,9 @@ def write_outputs(report):
         "export const brand = {\n"
         f"  source: 'logo' as 'logo' | 'interim',\n"
         f"  primary: '{roles['primary']}',\n"
-        f"  accent: '{roles['accent']}',\n"
+        f"  primaryBright: '{roles['primaryBright']}',\n"
+        f"  featured: '{roles['featured']}',\n"
+        f"  alert: '{roles['alert']}',\n"
         f"  ink: '{roles['ink']}',\n"
         f"  logoColors: {json.dumps([c['hex'] for c in report['colors']])},\n"
         "} as const;\n"

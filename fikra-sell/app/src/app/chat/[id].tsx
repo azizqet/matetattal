@@ -118,7 +118,7 @@ export default function ChatScreen() {
             {cv.ad_cover_path && <Image source={{ uri: publicUrl('ad-images', cv.ad_cover_path) }} style={{ width: 40, height: 40 }} />}
           </View>
           <T v="small" numberOfLines={1} style={{ flex: 1, fontFamily: font.medium }}>{cv.ad_id ? cv.ad_title : t('chat.adUnavailable')}</T>
-          {cv.ad_id && <Icon name="forward" size={16} color={c.textFaint} spark={false} />}
+          {cv.ad_id && <Icon name="forward" size={16} color={c.textFaint} />}
         </Pressable>
       </View>
 
@@ -146,7 +146,7 @@ export default function ChatScreen() {
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, paddingHorizontal: 4 }}>
                 <T v="caption" faint>{clockTime(item.created_at, lang)}</T>
-                {mine && item.id === lastMineRead?.id && <Icon name={item.read_at ? 'checks' : 'check'} size={14} color={item.read_at ? c.primary : c.textFaint} spark={false} />}
+                {mine && item.id === lastMineRead?.id && <Icon name={item.read_at ? 'checks' : 'check'} size={14} color={item.read_at ? c.primary : c.textFaint} />}
                 {mine && item.id === lastMineRead?.id && <T v="caption" faint>{item.read_at ? t('chat.seen') : t('chat.sent')}</T>}
               </View>
             </View>
@@ -175,7 +175,7 @@ export default function ChatScreen() {
           />
           <Pressable testID="chat-send" onPress={send} disabled={!text.trim() || sending} accessibilityRole="button" accessibilityLabel={t('common.send')}
             style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: text.trim() ? c.primary : c.line, alignItems: 'center', justifyContent: 'center' }}>
-            {sending ? <ActivityIndicator color={c.onPrimary} /> : <Icon name="send" size={20} color={text.trim() ? c.onPrimary : c.textFaint} spark={false} />}
+            {sending ? <ActivityIndicator color={c.onPrimary} /> : <Icon name="send" size={20} color={text.trim() ? c.onPrimary : c.textFaint} />}
           </Pressable>
         </View>
       )}
