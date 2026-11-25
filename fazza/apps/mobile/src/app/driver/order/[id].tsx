@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { Alert, Linking, View } from "react-native";
+import { Linking, View } from "react-native";
+import { Alert } from "@/lib/alert";
 import { useTranslation } from "react-i18next";
 import { bpsToPercentString, driverNetFils, formatDistance, formatKwd, nextDriverStatus, parseKwdToFils, errorMessage } from "@fazza/shared";
 import { MapView, Marker, PROVIDER_DEFAULT } from "@/components/map/Map";

@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Linking, View } from "react-native";
+import { Linking, View } from "react-native";
+import { Alert } from "@/lib/alert";
 import { useTranslation } from "react-i18next";
 import { type SortKey, formatDistance, formatKwd, sortOffers } from "@fazza/shared";
 import { OffersScene } from "@/components/illustrations/Illustrations";
@@ -12,7 +13,7 @@ import { RouteLine } from "@/features/OrderCard";
 import { publicUrl, rpc } from "@/lib/api";
 import { useErrorAlert, useLang, useRealtimeInvalidate } from "@/lib/hooks";
 import { etaMinutes, haversineM } from "@/lib/location";
-import { supabase } from "@/lib/supabase";
+import { channelName, supabase } from "@/lib/supabase";
 import type { OfferCard, OrderDetail } from "@/lib/types";
 import { useTheme } from "@/theme/ThemeProvider";
 
@@ -30,7 +31,7 @@ function useDriverLocation(driverId: string | null | undefined, enabled: boolean
   useEffect(() => {
     if (!driverId || !enabled) return;
     supabase.from("driver_locations").select("lat,lng,updated_at").eq("driver_id", driverId).maybeSingle().then(({ data }) => data && setLoc(data));
-    const ch = supabase.channel(`loc-${driverId}`)
+    const ch = supabase.channel(channelName(`loc-${driverId}`))
       .on("postgres_changes", { event: "*", schema: "public", table: "driver_locations", filter: `driver_id=eq.${driverId}` },
         (p) => p.new && "lat" in p.new && setLoc(p.new as { lat: number; lng: number; updated_at: string }))
       .subscribe();

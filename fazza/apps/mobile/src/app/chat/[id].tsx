@@ -8,7 +8,7 @@ import { Header, Icon, T } from "@/components/ui";
 import { PhotoStrip } from "@/features/OrderParts";
 import { rpc } from "@/lib/api";
 import { useErrorAlert, useLang } from "@/lib/hooks";
-import { supabase } from "@/lib/supabase";
+import { channelName, supabase } from "@/lib/supabase";
 import type { OrderDetail } from "@/lib/types";
 import { chooseImageSource, pickImage, randomId, uploadImage } from "@/lib/upload";
 import { useAuth } from "@/providers/AuthProvider";
@@ -38,7 +38,7 @@ export default function Chat() {
 
   useEffect(() => {
     rpc("mark_messages_read", { p_order: id }).catch(() => undefined);
-    const ch = supabase.channel(`chat-${id}`)
+    const ch = supabase.channel(channelName(`chat-${id}`))
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `order_id=eq.${id}` }, (p) => {
         qc.setQueryData<Msg[]>(["messages", id], (old) => (old?.some((m) => m.id === (p.new as Msg).id) ? old : [...(old ?? []), p.new as Msg]));
         rpc("mark_messages_read", { p_order: id }).catch(() => undefined);

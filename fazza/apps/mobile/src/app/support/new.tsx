@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { Alert } from "react-native";
+import { Alert } from "@/lib/alert";
 import { useTranslation } from "react-i18next";
 import { Button, Chips, Header, Screen, T, TextField } from "@/components/ui";
 import { rpc } from "@/lib/api";

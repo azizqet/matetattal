@@ -1,5 +1,6 @@
 import { router } from "expo-router";
-import { Alert, Linking, View } from "react-native";
+import { Linking, View } from "react-native";
+import { Alert } from "@/lib/alert";
 import { useTranslation } from "react-i18next";
 import { displayKwPhone } from "@fazza/shared";
 import { Avatar, Badge, Card, Divider, Row, Screen, Segmented, T } from "@/components/ui";

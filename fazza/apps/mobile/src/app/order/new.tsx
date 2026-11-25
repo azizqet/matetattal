@@ -1,7 +1,8 @@
 import NetInfo from "@react-native-community/netinfo";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Alert, Pressable, ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
+import { Alert } from "@/lib/alert";
 import { useTranslation } from "react-i18next";
 import { ORDER_CATEGORIES, type OrderCategory, errorMessage, formatDistance, normalizeKwPhone, parseKwdToFils } from "@fazza/shared";
 import { Button, Card, Chips, Header, Icon, ImageTile, PhoneField, Screen, T, TextField } from "@/components/ui";

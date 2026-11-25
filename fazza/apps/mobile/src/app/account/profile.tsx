@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert, View } from "react-native";
+import { View } from "react-native";
+import { Alert } from "@/lib/alert";
 import { useTranslation } from "react-i18next";
 import { displayKwPhone } from "@fazza/shared";
 import { Avatar, Badge, Button, Header, Screen, T, TextField } from "@/components/ui";

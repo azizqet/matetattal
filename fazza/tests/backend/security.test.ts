@@ -120,6 +120,25 @@ describe("row level security & privileges", () => {
   });
 });
 
+describe("push dispatch webhook", () => {
+  it("rejects calls without the shared secret and skips users without devices", async () => {
+    const res = await fetch(`${URL}/functions/v1/push-dispatch`, { method: "POST", headers: { apikey: ANON, "Content-Type": "application/json" }, body: JSON.stringify({ notification_id: 1 }) });
+    expect(res.status).toBe(403);
+    const bad = await fetch(`${URL}/functions/v1/push-dispatch`, { method: "POST", headers: { apikey: ANON, "Content-Type": "application/json", "x-fazza-webhook-secret": "wrong" }, body: JSON.stringify({ notification_id: 1 }) });
+    expect(bad.status).toBe(403);
+    const u = await signup();
+    await sql("select public.notify_user($1, 'test', 'ع', 'e', '', '', '{}'::jsonb)", [u.id]);
+    const [n] = await sql("select id from public.notifications where user_id = $1", [u.id]);
+    const ok = await fetch(`${URL}/functions/v1/push-dispatch`, { method: "POST", headers: { apikey: ANON, "Content-Type": "application/json", "x-fazza-webhook-secret": "local-dev-push-secret" }, body: JSON.stringify({ notification_id: n.id }) });
+    expect(ok.status).toBe(200);
+    expect((await ok.json()).skipped).toBe(true);
+    // a user can register a push token only for themselves
+    expect((await u.client.rpc("register_push_token", { p_token: "ExponentPushToken[test-token-123]", p_platform: "ios" })).error).toBeNull();
+    const { data: mine } = await u.client.from("push_tokens").select("token");
+    expect(mine!.length).toBe(1);
+  });
+});
+
 describe("account deletion", () => {
   it("requires the password, blocks while orders are active, deletes data and carries driver dues", async () => {
     const c = await signup();

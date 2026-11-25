@@ -21,3 +21,10 @@ if (Platform.OS !== "web") {
     else supabase.auth.stopAutoRefresh();
   });
 }
+
+let channelSeq = 0;
+/** Unique realtime channel per subscription (reusing a subscribed channel name throws in supabase-js). */
+export function channelName(base: string): string {
+  channelSeq += 1;
+  return `${base}:${channelSeq}:${Math.random().toString(36).slice(2, 8)}`;
+}

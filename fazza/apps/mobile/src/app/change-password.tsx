@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { Alert } from "react-native";
+import { Alert } from "@/lib/alert";
 import { useTranslation } from "react-i18next";
 import { errorMessage, passwordIsStrong } from "@fazza/shared";
 import { Banner, Button, Header, Screen, T, TextField } from "@/components/ui";

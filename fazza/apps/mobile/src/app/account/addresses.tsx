@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { Alert, Pressable, View } from "react-native";
+import { Pressable, View } from "react-native";
+import { Alert } from "@/lib/alert";
 import { useTranslation } from "react-i18next";
 import { Button, Card, EmptyState, Header, Icon, Screen, T } from "@/components/ui";
 import { useErrorAlert } from "@/lib/hooks";

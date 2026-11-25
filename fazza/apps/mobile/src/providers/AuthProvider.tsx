@@ -4,7 +4,7 @@ import { normalizeKwPhone } from "@fazza/shared";
 import { FzError, callFunction, rpc } from "@/lib/api";
 import { flushOutbox } from "@/lib/outbox";
 import { registerForPush, unregisterPush } from "@/lib/push";
-import { supabase } from "@/lib/supabase";
+import { channelName, supabase } from "@/lib/supabase";
 import type { Driver, Profile } from "@/lib/types";
 import { queryClient } from "./QueryProvider";
 
@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const uid = session?.user.id;
   useEffect(() => {
     if (!uid) return;
-    const ch = supabase.channel(`me-${uid}`)
+    const ch = supabase.channel(channelName(`me-${uid}`))
       .on("postgres_changes", { event: "*", schema: "public", table: "drivers", filter: `user_id=eq.${uid}` }, (p) => {
         if (p.eventType === "DELETE") setDriver(null); else setDriver(p.new as Driver);
         queryClient.invalidateQueries({ queryKey: ["driver-dashboard"] });

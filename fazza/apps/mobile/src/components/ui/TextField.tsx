@@ -57,5 +57,5 @@ export function PhoneField(props: Omit<FieldProps, "prefix" | "keyboardType">) {
 
 const styles = StyleSheet.create({
   box: { flexDirection: "row", borderWidth: 1.5, paddingHorizontal: 14, gap: 10 },
-  input: { flex: 1, fontSize: 15.5, minHeight: 50, textAlign: "auto" },
+  input: { flex: 1, minWidth: 0, fontSize: 15.5, minHeight: 50, textAlign: "auto" },
 });

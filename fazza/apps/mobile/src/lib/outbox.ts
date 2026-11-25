@@ -66,6 +66,7 @@ export async function sendOrder(item: Pick<PendingOrder, "id" | "userId" | "payl
 
 export async function flushOutbox(userId: string | undefined): Promise<void> {
   if (flushing || !userId) return;
+  if (!(await load()).some((i) => i.userId === userId)) return;
   const net = await NetInfo.fetch();
   if (net.isConnected === false) return;
   flushing = true;

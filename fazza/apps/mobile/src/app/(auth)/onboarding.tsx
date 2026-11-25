@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { FlatList, Pressable, View, useWindowDimensions } from "react-native";
+import { FlatList, Platform, Pressable, View, useWindowDimensions } from "react-native";
 import { useTranslation } from "react-i18next";
 import { OffersScene, ParcelScene, TrackingScene } from "@/components/illustrations/Illustrations";
 import { Button, Screen, T } from "@/components/ui";
@@ -28,6 +28,12 @@ export default function Onboarding() {
     if (viewableItems[0]?.index != null) setIndex(viewableItems[0].index);
   }, []);
   const last = index === slides.length - 1;
+  const goNext = () => {
+    const next = Math.min(index + 1, slides.length - 1);
+    setIndex(next);
+    if (Platform.OS === "web") list.current?.scrollToOffset({ offset: next * width, animated: true });
+    else list.current?.scrollToIndex({ index: next, animated: true });
+  };
   return (
     <Screen scroll={false} padded={false}>
       <View style={{ flexDirection: "row", justifyContent: "flex-end", paddingHorizontal: 20, paddingTop: 8 }}>
@@ -42,6 +48,8 @@ export default function Onboarding() {
         keyExtractor={(s) => s.key}
         onViewableItemsChanged={onViewable}
         viewabilityConfig={{ viewAreaCoveragePercentThreshold: 60 }}
+        getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
+        onMomentumScrollEnd={(e) => setIndex(Math.round(Math.abs(e.nativeEvent.contentOffset.x) / width))}
         renderItem={({ item }) => (
           <View style={{ width, paddingHorizontal: 28, alignItems: "center", justifyContent: "center", gap: 18 }}>
             <item.Art width={Math.min(width - 40, 340)} />
@@ -57,7 +65,7 @@ export default function Onboarding() {
       </View>
       <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
         <Button testID="onboarding-next" title={last ? t("onboarding.start") : t("common.next")} icon={last ? "rocket-outline" : undefined}
-          onPress={() => (last ? finish() : list.current?.scrollToIndex({ index: index + 1 }))} />
+          onPress={() => (last ? finish() : goNext())} />
       </View>
     </Screen>
   );

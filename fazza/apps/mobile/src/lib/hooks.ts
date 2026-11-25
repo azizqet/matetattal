@@ -2,12 +2,12 @@ import NetInfo from "@react-native-community/netinfo";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert } from "react-native";
+import { Alert } from "@/lib/alert";
 import { errorMessage } from "@fazza/shared";
 import { useAuth } from "@/providers/AuthProvider";
 import { rpc, toFzError } from "./api";
 import { flushOutbox } from "./outbox";
-import { supabase } from "./supabase";
+import { channelName, supabase } from "./supabase";
 import type { AppSettings, Area, DriverDashboard, Governorate } from "./types";
 import { signedUrl } from "./upload";
 
@@ -73,9 +73,11 @@ export function useOutboxSync() {
   useEffect(() => {
     const uid = session?.user.id;
     if (!uid) return;
-    return NetInfo.addEventListener((s) => {
-      if (s.isConnected) flushOutbox(uid).then(() => qc.invalidateQueries({ queryKey: ["my-orders"] })).catch(() => undefined);
-    });
+    const flush = () => flushOutbox(uid).then(() => qc.invalidateQueries({ queryKey: ["my-orders"] })).catch(() => undefined);
+    const unsub = NetInfo.addEventListener((s) => { if (s.isConnected) flush(); });
+    // Safety net: some platforms don't emit reconnect events reliably; retry pending orders periodically.
+    const timer = setInterval(flush, 10_000);
+    return () => { unsub(); clearInterval(timer); };
   }, [session?.user.id, qc]);
 }
 
@@ -84,7 +86,7 @@ export function useRealtimeInvalidate(channel: string, table: string, filter: st
   const qc = useQueryClient();
   useEffect(() => {
     if (!enabled) return;
-    const ch = supabase.channel(channel)
+    const ch = supabase.channel(channelName(channel))
       .on("postgres_changes", { event: "*", schema: "public", table, ...(filter ? { filter } : {}) }, () => {
         keys.forEach((k) => qc.invalidateQueries({ queryKey: k }));
       })

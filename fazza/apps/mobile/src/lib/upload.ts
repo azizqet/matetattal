@@ -1,7 +1,8 @@
 import * as Crypto from "expo-crypto";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
-import { Alert, Platform } from "react-native";
+import { Platform } from "react-native";
+import { Alert } from "@/lib/alert";
 import { FzError } from "./api";
 import { supabase } from "./supabase";
 import i18n from "./i18n";

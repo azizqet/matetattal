@@ -1,5 +1,6 @@
 import * as Location from "expo-location";
-import { Alert, Linking, Platform } from "react-native";
+import { Linking, Platform } from "react-native";
+import { Alert } from "@/lib/alert";
 import i18n from "./i18n";
 
 export interface LatLng { latitude: number; longitude: number }

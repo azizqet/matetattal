@@ -1,7 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { Alert, View } from "react-native";
+import { View } from "react-native";
+import { Alert } from "@/lib/alert";
 import { useTranslation } from "react-i18next";
 import { errorMessage, filsToKwdString, formatKwd, parseKwdToFils } from "@fazza/shared";
 import { Banner, Button, Chips, Header, ImageTile, Screen, T, TextField } from "@/components/ui";

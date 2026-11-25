@@ -50,18 +50,18 @@ export default function Register() {
       <PhoneField testID="reg-phone" label={t("auth.phone")} value={phone} onChangeText={setPhone} placeholder="5000 0000" error={errors.phone} />
       <TextField testID="reg-password" label={t("auth.password")} value={pw} onChangeText={setPw} password hint={t("auth.passwordHint")} error={errors.pw} autoComplete="new-password" textContentType="newPassword" />
       <TextField testID="reg-password2" label={t("auth.confirmPassword")} value={pw2} onChangeText={setPw2} password error={errors.pw2} autoComplete="new-password" />
-      <Pressable testID="reg-terms" onPress={() => setAccept((a) => !a)} accessibilityRole="checkbox" accessibilityState={{ checked: accept }}
-        style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-        <View style={{ width: 24, height: 24, borderRadius: 7, borderWidth: 2, borderColor: accept ? colors.primary : colors.border, backgroundColor: accept ? colors.primary : "transparent", alignItems: "center", justifyContent: "center" }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <Pressable testID="reg-terms" onPress={() => setAccept((a) => !a)} accessibilityRole="checkbox" accessibilityState={{ checked: accept }} hitSlop={10}
+          style={{ width: 26, height: 26, borderRadius: 7, borderWidth: 2, borderColor: accept ? colors.primary : colors.border, backgroundColor: accept ? colors.primary : "transparent", alignItems: "center", justifyContent: "center" }}>
           {accept ? <Icon name="checkmark" size={16} color="#fff" /> : null}
-        </View>
+        </Pressable>
         <T style={{ flex: 1 }}>
-          {t("auth.acceptTerms")}{" "}
+          <T onPress={() => setAccept((a) => !a)}>{t("auth.acceptTerms")}</T>{" "}
           <Link href={{ pathname: "/legal", params: { doc: "terms" } }}><T w="bold" color="primary">{t("auth.terms")}</T></Link>
           {" "}{t("auth.and")}{" "}
           <Link href={{ pathname: "/legal", params: { doc: "privacy" } }}><T w="bold" color="primary">{t("auth.privacy")}</T></Link>
         </T>
-      </Pressable>
+      </View>
       {errors.terms ? <T v="caption" color="danger">{errors.terms}</T> : null}
       {errors.form ? <T color="danger" w="semibold">{errors.form}</T> : null}
       <Button testID="reg-submit" title={t("auth.register")} loading={busy} onPress={submit} />
