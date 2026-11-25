@@ -57,7 +57,7 @@ export default function Notifications() {
             : q.isError ? <ErrorState error={q.error} onRetry={() => q.refetch()} /> : <EmptyState icon="bell" title={t('notifications.empty')} body={t('notifications.emptyBody')} />}
           renderItem={({ item: n }) => (
             <Pressable onPress={() => open(n)} style={({ pressed }) => ({ flexDirection: 'row', gap: space.md, padding: space.lg, backgroundColor: pressed ? c.surface : n.read_at ? 'transparent' : c.primarySoft })}>
-              <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: c.bg, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: c.card, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center' }}>
                 <Icon name={ICONS[n.type] ?? 'bell'} size={20} color={n.type === 'ad_rejected' ? c.danger : c.primary} />
               </View>
               <View style={{ flex: 1, gap: 2 }}>

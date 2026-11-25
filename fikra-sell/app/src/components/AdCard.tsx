@@ -36,7 +36,7 @@ function Heart({ id, small }: { id: number; small?: boolean }) {
     <Pressable hitSlop={10} accessibilityRole="button" accessibilityLabel={t('account.favorites')} accessibilityState={{ selected: on }}
       onPress={() => { haptic.medium(); toggle(id); }}
       style={{ position: 'absolute', top: 8, end: 8, width: d, height: d, borderRadius: d / 2, backgroundColor: 'rgba(255,255,255,0.95)', alignItems: 'center', justifyContent: 'center' }}>
-      <Icon name={on ? 'heartFill' : 'heart'} size={small ? 16 : 18} color={on ? c.danger : '#111111'} />
+      <Icon name={on ? 'heartFill' : 'heart'} size={small ? 16 : 18} color={on ? c.primaryBright : '#111111'} />
     </Pressable>
   );
 }

@@ -60,7 +60,7 @@ export default function CategoryScreen() {
             return (
               <Press key={s.id} testID={`sub-${s.slug}`} accessibilityRole="button" accessibilityState={{ selected: on }}
                 onPress={() => setFilters({ ...filters, category_id: s.id, attrs: s.all ? {} : filters.attrs })}
-                style={{ minWidth: 92, paddingHorizontal: 14, paddingVertical: 10, borderRadius: radius.md, borderWidth: 1.5, borderColor: on ? c.primary : c.line, backgroundColor: on ? c.primarySoft : c.bg, gap: 2 }}>
+                style={{ minWidth: 92, paddingHorizontal: 14, paddingVertical: 10, borderRadius: radius.md, borderWidth: 1.5, borderColor: on ? c.primary : c.line, backgroundColor: on ? c.primarySoft : c.card, gap: 2 }}>
                 <T v="small" numberOfLines={1} color={on ? c.primary : c.text} style={{ fontFamily: font.semibold }}>{s.label}</T>
                 {s.n > 0 && <T v="caption" faint>{t('categories.adsCount', { n: s.n })}</T>}
               </Press>

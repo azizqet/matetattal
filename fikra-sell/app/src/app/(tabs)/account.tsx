@@ -21,11 +21,13 @@ export default function Account() {
   const version = Constants.expoConfig?.version ?? '1.0.0';
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: c.bg }} contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 140, gap: space.xl }}>
-      <T v="h1" style={{ paddingHorizontal: space.lg }}>{t('account.title')}</T>
+    <ScrollView style={{ flex: 1, backgroundColor: c.bg }} contentContainerStyle={{ paddingBottom: 140, gap: space.lg }}>
+      <View style={{ paddingTop: insets.top + 12, paddingBottom: space.md, paddingHorizontal: space.lg, backgroundColor: c.card, borderBottomWidth: 1, borderBottomColor: c.line }}>
+        <T v="h2" color={c.primary}>{t('account.title')}</T>
+      </View>
 
       {userId && profile ? (
-        <View style={{ marginHorizontal: space.lg, padding: space.lg, gap: space.md, backgroundColor: c.surface,
+        <View style={{ marginHorizontal: space.lg, padding: space.lg, gap: space.md, backgroundColor: c.card, borderWidth: 1, borderColor: c.line,
           borderRadius: radius.lg }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
             <Avatar path={profile.avatar_path} name={profile.full_name} size={64} />
@@ -40,7 +42,7 @@ export default function Account() {
           <Button small kind="secondary" title={t('account.editProfile')} icon="edit" onPress={() => router.push('/profile-edit')} testID="edit-profile" />
         </View>
       ) : (
-        <View style={{ marginHorizontal: space.lg, padding: space.xl, gap: space.md, alignItems: 'center', backgroundColor: c.primarySoft, borderRadius: radius.lg }}>
+        <View style={{ marginHorizontal: space.lg, padding: space.xl, gap: space.md, alignItems: 'center', backgroundColor: c.card, borderWidth: 1, borderColor: c.line, borderRadius: radius.lg }}>
           <Lockup height={30} />
           <T v="h3" center>{t('account.guestTitle')}</T>
           <T muted center>{t('account.guestBody')}</T>

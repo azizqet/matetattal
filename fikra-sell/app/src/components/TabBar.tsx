@@ -28,10 +28,10 @@ function AddButton({ label }: { label: string }) {
       onPress={() => { haptic.medium(); guard('post', () => router.push('/post/new')); }}
       style={({ pressed }) => ({ flex: 1, alignItems: 'center', gap: 3, opacity: pressed ? 0.85 : 1 })}>
       <View style={{ width: 46, height: 46, borderRadius: 23, marginTop: -16, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center',
-        borderWidth: 3, borderColor: c.bg, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 4 }}>
+        borderWidth: 3, borderColor: c.card, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 4 }}>
         <Icon name="plus" size={24} color={c.onPrimary} strokeWidth={2.6} />
       </View>
-      <Text style={{ fontFamily: font.semibold, fontSize: 11, color: c.primary }}>{label}</Text>
+      <Text style={{ fontFamily: font.semibold, fontSize: 11, color: c.textMuted }}>{label}</Text>
     </Pressable>
   );
 }
@@ -44,7 +44,7 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
   const unread = counters.data?.unread_messages ?? 0;
 
   return (
-    <View style={{ paddingBottom: Math.max(insets.bottom, 8), paddingTop: 6, backgroundColor: c.bg, borderTopWidth: 1, borderTopColor: c.line }}>
+    <View style={{ paddingBottom: Math.max(insets.bottom, 8), paddingTop: 6, backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.line }}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
         {state.routes.map((route, i) => {
           const meta = TABS[route.name];
@@ -52,7 +52,7 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
           if (route.name === 'post') return <AddButton key={route.key} label={t(meta.label)} />;
           const focused = state.index === i;
           const badge = route.name === 'chats' ? unread : 0;
-          const col = focused ? c.primary : c.textFaint;
+          const col = focused ? c.primaryBright : c.textMuted;
           return (
             <Pressable key={route.key} testID={`tab-${route.name}`} accessibilityRole="tab" accessibilityState={{ selected: focused }} accessibilityLabel={t(meta.label)}
               onPress={() => {
@@ -64,12 +64,12 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
               <View>
                 <Icon name={meta.icon} size={24} color={col} strokeWidth={focused ? 2.1 : 1.75} />
                 {badge > 0 && (
-                  <View style={{ position: 'absolute', top: -4, end: -10, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: c.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: c.bg }}>
+                  <View style={{ position: 'absolute', top: -4, end: -10, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: c.primaryBright, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: c.card }}>
                     <Text style={{ fontFamily: font.bold, fontSize: 10, color: '#FFFFFF' }}>{badge > 99 ? '99+' : badge}</Text>
                   </View>
                 )}
               </View>
-              <Text style={{ fontFamily: focused ? font.semibold : font.regular, fontSize: 11, color: focused ? c.primary : c.textMuted }}>{t(meta.label)}</Text>
+              <Text style={{ fontFamily: focused ? font.semibold : font.regular, fontSize: 11, color: focused ? c.primaryBright : c.textMuted }}>{t(meta.label)}</Text>
             </Pressable>
           );
         })}

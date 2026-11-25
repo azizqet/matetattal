@@ -39,9 +39,9 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   useEffect(() => { SplashScreen.hideAsync().catch(() => {}); }, []);
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, backgroundColor: '#FFFFFF', gap: 12 }}>
-      <Text style={{ fontSize: 20, fontWeight: '700', color: '#15161C', textAlign: 'center' }}>حدث خطأ غير متوقع</Text>
-      <Text style={{ fontSize: 14, color: '#676A76', textAlign: 'center' }}>Something went wrong. {error?.message}</Text>
-      <Pressable onPress={retry} accessibilityRole="button" style={{ marginTop: 8, backgroundColor: '#1D3FA6', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 14 }}>
+      <Text style={{ fontSize: 20, fontWeight: '700', color: '#111111', textAlign: 'center' }}>حدث خطأ غير متوقع</Text>
+      <Text style={{ fontSize: 14, color: '#808080', textAlign: 'center' }}>Something went wrong. {error?.message}</Text>
+      <Pressable onPress={retry} accessibilityRole="button" style={{ marginTop: 8, backgroundColor: '#1E305C', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 14 }}>
         <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '600' }}>إعادة المحاولة · Try again</Text>
       </Pressable>
     </View>

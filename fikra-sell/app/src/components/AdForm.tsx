@@ -268,10 +268,10 @@ export function AdForm({ existing }: { existing?: Ad }) {
                   <Image source={{ uri: p.uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
                   {i === 0 && <View style={{ position: 'absolute', top: 6, start: 6 }}><Badge label={t('post.cover')} tone="primary" /></View>}
                   <Pressable onPress={() => removePhoto(i)} hitSlop={6} accessibilityLabel={t('common.delete')} testID={`remove-photo-${i}`}
-                    style={{ position: 'absolute', top: 6, end: 6, width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(14,15,19,0.7)', alignItems: 'center', justifyContent: 'center' }}>
+                    style={{ position: 'absolute', top: 6, end: 6, width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(17,17,17,0.7)', alignItems: 'center', justifyContent: 'center' }}>
                     <Icon name="close" size={14} color="#FFF" strokeWidth={2.4} />
                   </Pressable>
-                  <View style={{ position: 'absolute', bottom: 0, start: 0, end: 0, flexDirection: 'row', justifyContent: 'space-between', backgroundColor: 'rgba(14,15,19,0.55)' }}>
+                  <View style={{ position: 'absolute', bottom: 0, start: 0, end: 0, flexDirection: 'row', justifyContent: 'space-between', backgroundColor: 'rgba(17,17,17,0.55)' }}>
                     <Pressable onPress={() => move(i, -1)} hitSlop={4} accessibilityLabel="‹" style={{ padding: 6 }}><Icon name="back" size={16} color="#FFF" /></Pressable>
                     {i !== 0 && <Pressable onPress={() => makeCover(i)} accessibilityLabel={t('post.makeCover')} style={{ padding: 6 }}><Icon name="star" size={16} color="#FFF" /></Pressable>}
                     <Pressable onPress={() => move(i, 1)} hitSlop={4} accessibilityLabel="›" style={{ padding: 6 }}><Icon name="forward" size={16} color="#FFF" /></Pressable>
@@ -399,7 +399,7 @@ export function AdForm({ existing }: { existing?: Ad }) {
       </ScrollView>
 
       {/* Footer */}
-      <View style={{ position: 'absolute', bottom: 0, start: 0, end: 0, flexDirection: 'row', gap: space.md, paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: insets.bottom + space.md, backgroundColor: c.bg, borderTopWidth: 1, borderTopColor: c.line }}>
+      <View style={{ position: 'absolute', bottom: 0, start: 0, end: 0, flexDirection: 'row', gap: space.md, paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: insets.bottom + space.md, backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.line }}>
         {step > 0 && <Button title={t('common.back')} kind="secondary" style={{ flex: 1 }} onPress={() => go(step - 1)} disabled={!!busy} />}
         {step < STEPS.length - 1 ? (step > 0 && <Button title={t('common.next')} style={{ flex: 2 }} onPress={next} testID="post-next" />)
           : <Button title={busy ?? (existing ? t('post.saveChanges') : t('post.publish'))} kind="primary" style={{ flex: 2 }} onPress={publish} loading={!!busy && !busy.includes('/')} disabled={!!busy} testID="post-publish" />}

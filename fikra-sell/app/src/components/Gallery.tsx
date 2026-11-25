@@ -43,7 +43,7 @@ export function Gallery({ images, height }: { images: AdImage[]; height: number 
           {images.slice(0, 15).map((_, i) => <View key={i} style={{ width: i === index ? 18 : 6, height: 6, borderRadius: 3, backgroundColor: i === index ? c.primaryBright : 'rgba(255,255,255,0.75)' }} />)}
         </View>
       )}
-      <View style={{ position: 'absolute', bottom: 22, end: space.lg, backgroundColor: 'rgba(14,15,19,0.6)', borderRadius: radius.socket, paddingHorizontal: 8, paddingVertical: 4 }}>
+      <View style={{ position: 'absolute', bottom: 22, end: space.lg, backgroundColor: 'rgba(17,17,17,0.6)', borderRadius: radius.socket, paddingHorizontal: 8, paddingVertical: 4 }}>
         <Text style={{ color: '#FFF', fontFamily: font.medium, fontSize: 12 }}>{t('ad.photos', { n: `${index + 1}/${images.length}` })}</Text>
       </View>
 

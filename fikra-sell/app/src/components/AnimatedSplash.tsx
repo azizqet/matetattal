@@ -19,7 +19,7 @@ export function AnimatedSplash({ onDone }: { onDone: () => void }) {
   const rootStyle = useAnimatedStyle(() => ({ opacity: out.value }));
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', zIndex: 1000 }, rootStyle]} pointerEvents="none">
+    <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: c.card, alignItems: 'center', justifyContent: 'center', zIndex: 1000 }, rootStyle]} pointerEvents="none">
       <Animated.View style={wordStyle}>
         <Lockup height={42} showLatin />
       </Animated.View>

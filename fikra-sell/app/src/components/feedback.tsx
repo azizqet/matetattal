@@ -107,8 +107,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         <Animated.View key={msg.id} entering={FadeInDown.springify().damping(18)} exiting={FadeOutDown} pointerEvents="box-none"
           style={{ position: 'absolute', start: space.lg, end: space.lg, bottom: insets.bottom + 96, zIndex: 999 }}>
           <Pressable onPress={() => setMsg(null)} accessibilityLiveRegion="polite" accessibilityRole="alert"
-            style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: c.scheme === 'dark' ? '#2A2B32' : c.ink, borderRadius: radius.lg, paddingVertical: 14, paddingHorizontal: space.lg }}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: msg.tone === 'error' ? '#FF6B61' : msg.tone === 'success' ? '#3CC48E' : c.accent }} />
+            style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: c.navyDark, borderRadius: radius.lg, paddingVertical: 14, paddingHorizontal: space.lg }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: msg.tone === 'error' ? '#FFFFFF' : msg.tone === 'success' ? '#FFFFFF' : '#808080' }} />
             <Text style={{ flex: 1, color: '#FFFFFF', fontFamily: font.medium, fontSize: 14, lineHeight: 21 }}>{msg.text}</Text>
           </Pressable>
         </Animated.View>
@@ -126,7 +126,7 @@ export function Sheet({ visible, onClose, title, children, footer, scroll = true
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: c.overlay }]} onPress={onClose} accessibilityLabel="close" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }} pointerEvents="box-none">
-        <View style={{ backgroundColor: c.bg, borderTopLeftRadius: radius.crown, borderTopRightRadius: radius.crown, maxHeight: '88%', paddingBottom: insets.bottom + space.md }}>
+        <View style={{ backgroundColor: c.card, borderTopLeftRadius: radius.crown, borderTopRightRadius: radius.crown, maxHeight: '88%', paddingBottom: insets.bottom + space.md }}>
           <View style={{ alignItems: 'center', paddingTop: 10 }}><View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: c.lineStrong }} /></View>
           {title && (
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.xl, paddingVertical: space.md }}>

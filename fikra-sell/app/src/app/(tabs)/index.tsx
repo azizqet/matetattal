@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import React, { useCallback, useMemo } from 'react';
-import { FlatList, Pressable, View, useWindowDimensions } from 'react-native';
+import { FlatList, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AdCard } from '../../components/AdCard';
 import { AdFeed, useFeedLayout } from '../../components/AdFeed';
-import { BannerStrip, CategoryTile } from '../../components/Blocks';
+import { BannerStrip } from '../../components/Blocks';
+import { CategoryList } from '../../components/CategoryList';
 import { FikraLogo } from '../../components/Brand';
 import { AdCardSkeleton, Skeleton } from '../../components/feedback';
 import { Icon } from '../../components/Icon';
@@ -42,14 +43,11 @@ export default function Home() {
   const { c } = useTheme();
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
   const catalog = useCatalog();
   const counters = useCounters();
   const [layout, setLayout] = useFeedLayout();
   const [place, setPlace] = usePlace();
   const featuredOn = catalog.setting('featured_section_enabled', true);
-  const cols = width >= 700 ? 6 : 4;
-  const tileW = (width - space.lg * 2) / cols;
   const placeFilters = useMemo<SearchFilters>(() => ({ governorate_id: place.governorate_id, area_id: place.area_id }), [place.governorate_id, place.area_id]);
   const feedFilters = useMemo<SearchFilters>(() => ({ ...placeFilters, sort: 'newest' }), [placeFilters]);
   const featuredFilters = useMemo<SearchFilters>(() => ({ ...placeFilters, featured_only: true }), [placeFilters]);
@@ -60,15 +58,15 @@ export default function Home() {
   const header = (
     <View style={{ gap: space.xl, paddingBottom: space.md }}>
       {/* Logo + actions, search, place */}
-      <View style={{ paddingTop: insets.top + 6, paddingHorizontal: space.lg, gap: space.md }}>
+      <View style={{ paddingTop: insets.top + 6, paddingHorizontal: space.lg, paddingBottom: space.lg, gap: space.md, backgroundColor: c.card, borderBottomWidth: 1, borderBottomColor: c.line }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View style={{ flex: 1, alignItems: 'flex-start' }}><FikraLogo height={52} /></View>
           <IconButton name="heart" label={t('account.favorites')} onPress={() => router.push('/favorites')} testID="home-favorites" />
           <IconButton name="bell" label={t('notifications.title')} badge={counters.data?.unread_notifications} onPress={() => router.push('/notifications')} testID="home-notifications" />
         </View>
         <Pressable onPress={() => router.push({ pathname: '/search', params: placeParams })} accessibilityRole="search" accessibilityLabel={t('home.searchPlaceholder')} testID="home-search"
-          style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, height: 50, borderRadius: radius.md, backgroundColor: c.bg, paddingStart: space.lg, paddingEnd: 5, borderWidth: 1.5, borderColor: c.primary }}>
-          <Icon name="search" size={20} color={c.primary} />
+          style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, height: 50, borderRadius: radius.md, backgroundColor: c.surface, paddingStart: space.lg, paddingEnd: 5, borderWidth: 1, borderColor: c.line }}>
+          <Icon name="search" size={20} color={c.textMuted} />
           <T muted style={{ flex: 1 }} numberOfLines={1}>{t('home.searchPlaceholder')}</T>
           <View style={{ height: 40, paddingHorizontal: 16, borderRadius: radius.sm, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' }}>
             <T v="small" color={c.onPrimary} style={{ fontWeight: '600' }}>{t('common.search')}</T>
@@ -79,9 +77,9 @@ export default function Home() {
 
       {/* Category grid */}
       <Section title={t('home.categories')} action={t('common.seeAll')} onAction={() => router.push('/categories')}>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: space.lg, rowGap: space.lg }}>
-          {catalog.mains.length ? catalog.mains.map((cat) => <CategoryTile key={cat.id} cat={cat} width={tileW} />)
-            : Array.from({ length: 8 }).map((_, i) => <View key={i} style={{ width: tileW, alignItems: 'center', gap: 6 }}><Skeleton w={56} h={56} r={radius.lg} /><Skeleton w={50} h={10} /></View>)}
+        <View style={{ paddingHorizontal: space.lg }}>
+          {catalog.mains.length ? <CategoryList />
+            : <View style={{ gap: space.sm }}>{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} h={64} r={radius.md} />)}</View>}
         </View>
       </Section>
 

@@ -102,7 +102,7 @@ export default function ChatScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* Header */}
-      <View style={{ paddingTop: insets.top + 4, paddingHorizontal: space.sm, borderBottomWidth: 1, borderBottomColor: c.line, backgroundColor: c.bg }}>
+      <View style={{ paddingTop: insets.top + 4, paddingHorizontal: space.sm, borderBottomWidth: 1, borderBottomColor: c.line, backgroundColor: c.card }}>
         <View style={{ height: 56, flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
           <IconButton name="back" label={t('common.back')} onPress={() => (router.canGoBack() ? router.back() : router.replace('/chats'))} />
           <Pressable style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, flex: 1 }} onPress={() => otherId && router.push(`/seller/${otherId}`)}>
@@ -160,7 +160,7 @@ export default function ChatScreen() {
           <T muted>{t('chat.blockedBanner')}</T>
         </View>
       ) : (
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.sm, paddingHorizontal: space.md, paddingTop: space.sm, paddingBottom: insets.bottom + space.sm, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.bg }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.sm, paddingHorizontal: space.md, paddingTop: space.sm, paddingBottom: insets.bottom + space.sm, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.card }}>
           <IconButton name="image" label={t('chat.photo')} onPress={sendImage} tone="surface" />
           <TextInput
             testID="chat-input"

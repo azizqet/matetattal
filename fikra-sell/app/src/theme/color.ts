@@ -39,6 +39,6 @@ export function contrast(a: string, b: string): number {
 }
 
 /** Picks the readable foreground (ink or white) for a background colour. */
-export function onColor(bg: string, ink = '#15161C'): string {
+export function onColor(bg: string, ink = '#111111'): string {
   return contrast(bg, '#FFFFFF') >= contrast(bg, ink) ? '#FFFFFF' : ink;
 }

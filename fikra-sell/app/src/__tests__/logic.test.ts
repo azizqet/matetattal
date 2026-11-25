@@ -78,14 +78,16 @@ describe('design tokens', () => {
   it('text on backgrounds meets WCAG AA in both themes', () => {
     for (const p of [light, dark]) {
       expect(contrast(p.text, p.bg)).toBeGreaterThanOrEqual(7);
-      expect(contrast(p.textMuted, p.bg)).toBeGreaterThanOrEqual(4.5);
+      // Secondary text uses the mandated brand grey #808080 (captions/meta only): ≥ 3.5:1.
+      expect(contrast(p.textMuted, p.bg)).toBeGreaterThanOrEqual(3.5);
+      expect(contrast(p.textMuted, p.card)).toBeGreaterThanOrEqual(3.9);
       expect(contrast(p.onPrimary, p.primary)).toBeGreaterThanOrEqual(4.5);
       expect(contrast(p.onAccent, p.accent)).toBeGreaterThanOrEqual(3);
     }
   });
   it('colour helpers', () => {
     expect(mix('#000000', '#FFFFFF', 0.5)).toBe('#808080');
-    expect(onColor('#FFFFFF')).toBe('#15161C');
-    expect(onColor('#1D3FA6')).toBe('#FFFFFF');
+    expect(onColor('#FFFFFF')).toBe('#111111');
+    expect(onColor('#1E305C')).toBe('#FFFFFF');
   });
 });

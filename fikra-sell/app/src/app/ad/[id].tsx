@@ -172,7 +172,7 @@ export default function AdScreen() {
       </View>
 
       {/* Sticky action bar */}
-      <View style={{ position: 'absolute', bottom: 0, start: 0, end: 0, paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: insets.bottom + space.md, backgroundColor: c.bg, borderTopWidth: 1, borderTopColor: c.line, flexDirection: 'row', gap: space.sm }}>
+      <View style={{ position: 'absolute', bottom: 0, start: 0, end: 0, paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: insets.bottom + space.md, backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.line, flexDirection: 'row', gap: space.sm }}>
         {mine ? (
           <>
             <Button title={t('common.edit')} icon="edit" kind="secondary" style={{ flex: 1 }} onPress={() => router.push(`/post/${ad.id}`)} testID="edit-ad" />

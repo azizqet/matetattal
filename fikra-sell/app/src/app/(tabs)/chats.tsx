@@ -49,7 +49,7 @@ export default function Chats() {
   const { userId } = useAuth();
   const q = useConversationList();
 
-  const header = <View style={{ paddingTop: insets.top + 8, paddingHorizontal: space.lg, paddingBottom: space.md }}><T v="h1">{t('chat.title')}</T></View>;
+  const header = <View style={{ paddingTop: insets.top + 12, paddingHorizontal: space.lg, paddingBottom: space.md, backgroundColor: c.card, borderBottomWidth: 1, borderBottomColor: c.line }}><T v="h2" color={c.primary}>{t('chat.title')}</T></View>;
 
   if (!userId) {
     return (

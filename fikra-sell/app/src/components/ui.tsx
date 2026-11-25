@@ -90,8 +90,8 @@ export function IconButton({ name, onPress, label, size = 22, badge, tone, style
   name: IconName; onPress?: () => void; label: string; size?: number; badge?: number; tone?: 'surface' | 'plain' | 'overlay'; style?: StyleProp<ViewStyle>; testID?: string;
 }) {
   const { c } = useTheme();
-  const bg = tone === 'surface' ? c.surface : tone === 'overlay' ? 'rgba(255,255,255,0.92)' : 'transparent';
-  const fg = tone === 'overlay' ? '#15161C' : c.text;
+  const bg = tone === 'surface' ? c.primarySoft : tone === 'overlay' ? 'rgba(255,255,255,0.92)' : 'transparent';
+  const fg = tone === 'overlay' ? '#111111' : c.text;
   return (
     <Press testID={testID} accessibilityRole="button" accessibilityLabel={label} hitSlop={8} onPress={() => { haptic.light(); onPress?.(); }}
       style={[{ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: bg }, style]}>
@@ -115,7 +115,7 @@ export const Input = forwardRef<TextInputInstance, TextInputProps & { label?: st
       <View style={[{ gap: 6 }, containerStyle]}>
         {label && <T v="small" style={{ fontFamily: font.medium }} muted>{label}</T>}
         <View style={{
-          flexDirection: 'row', alignItems: multiline ? 'flex-start' : 'center', gap: space.sm, backgroundColor: c.surface,
+          flexDirection: 'row', alignItems: multiline ? 'flex-start' : 'center', gap: space.sm, backgroundColor: c.card,
           borderRadius: radius.md, borderWidth: 1.5, borderColor: error ? c.danger : focus ? c.primary : c.line,
           paddingHorizontal: space.lg, minHeight: multiline ? 120 : 52, paddingVertical: multiline ? space.md : 0,
         }}>
@@ -209,8 +209,8 @@ export function Section({ title, action, onAction, children, style }: { title?: 
     <View style={[{ gap: space.md }, style]}>
       {title && (
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.lg, gap: space.sm }}>
-          <T v="h3" style={{ flex: 1 }}>{title}</T>
-          {action && <Pressable hitSlop={10} onPress={onAction} accessibilityRole="button"><T v="small" color={c.primary} style={{ fontFamily: font.semibold }}>{action}</T></Pressable>}
+          <T v="h3" style={{ flex: 1 }} color={c.primary}>{title}</T>
+          {action && <Pressable hitSlop={10} onPress={onAction} accessibilityRole="button"><T v="small" color={c.primaryBright} style={{ fontFamily: font.semibold }}>{action}</T></Pressable>}
         </View>
       )}
       {children}
@@ -229,7 +229,7 @@ export function Header({ title, right, back = true, transparent, onBack, large }
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
   return (
-    <View style={{ paddingTop: insets.top + 4, paddingHorizontal: space.sm, backgroundColor: transparent ? 'transparent' : c.bg, borderBottomWidth: transparent || large ? 0 : 1, borderBottomColor: c.line }}>
+    <View style={{ paddingTop: insets.top + 4, paddingHorizontal: space.sm, backgroundColor: transparent ? 'transparent' : c.card, borderBottomWidth: transparent || large ? 0 : 1, borderBottomColor: c.line }}>
       <View style={{ height: 52, flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
         {back && <IconButton name="back" label={t('common.back')} onPress={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/')))} testID="header-back" />}
         {!large && <T v="h3" numberOfLines={1} style={{ flex: 1, textAlign: back ? 'auto' : 'center', marginHorizontal: back ? 0 : space.lg }}>{title}</T>}
