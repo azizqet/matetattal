@@ -1,0 +1,3 @@
+-- Local development seed is intentionally empty: FAZZA ships no demo/test data.
+-- Reference data (governorates, areas, settings) is created by migrations.
+-- Test fixtures are created and removed by the test suites in /tests.
