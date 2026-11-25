@@ -32,11 +32,11 @@ returns text language sql immutable parallel safe set search_path = '' as $$
   select btrim(regexp_replace(
     regexp_replace(
       translate(
-        lower(regexp_replace(coalesce(input, ''), '[ً-ٰٟـ]', '', 'g')),
+        lower(regexp_replace(coalesce(input, ''), '[\u064B-\u065F\u0670\u0640]', '', 'g')),
         'أإآٱىةؤئ٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹',
         'اااايهوي01234567890123456789'),
       '(^|\s)(وال|بال|فال|كال|لل|ال)(\S{2,})', '\1\3', 'g'),
-    '[^0-9a-zء-ي]+', ' ', 'g'))
+    '[^0-9a-z\u0621-\u064A]+', ' ', 'g'))
 $$;
 
 -- Typo tolerance: true when some word of `txt` is within a small edit

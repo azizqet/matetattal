@@ -6,6 +6,11 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
  * (see .env.example). No secret ever belongs in this file.
  */
 const IS_DEV = process.env.APP_VARIANT === 'development';
+// Public client configuration (safe to ship: every permission is enforced by RLS).
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? 'https://zczwryruucliofnkqraa.supabase.co';
+const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_KEY ?? 'sb_publishable_hlky83lju1gItEAqtjqeHQ_JTo-S69X';
+// Expo Go only loads updates whose runtime is the SDK version.
+const FOR_EXPO_GO = process.env.EXPO_GO_PREVIEW === '1';
 const EAS_PROJECT_ID = process.env.EAS_PROJECT_ID ?? '2a70f95d-19f4-4a15-9ef6-ec2ccca4b9aa'; // @azizqet/fikra-sell
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
@@ -19,7 +24,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   icon: './assets/brand/icon.png',
   userInterfaceStyle: 'automatic',
   backgroundColor: '#FFFFFF',
-  runtimeVersion: { policy: 'appVersion' },
+  runtimeVersion: FOR_EXPO_GO ? { policy: 'sdkVersion' } : { policy: 'appVersion' },
   updates: EAS_PROJECT_ID ? { url: `https://u.expo.dev/${EAS_PROJECT_ID}`, checkAutomatically: 'ON_LOAD', fallbackToCacheTimeout: 0 } : undefined,
   ios: {
     bundleIdentifier: IS_DEV ? 'com.fikrasell.app.dev' : 'com.fikrasell.app',
@@ -91,6 +96,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   experiments: { typedRoutes: false },
   extra: {
     supportsRTL: true,
+    supabaseUrl: SUPABASE_URL,
+    supabaseKey: SUPABASE_KEY,
     eas: EAS_PROJECT_ID ? { projectId: EAS_PROJECT_ID } : undefined,
     router: { origin: false },
   },

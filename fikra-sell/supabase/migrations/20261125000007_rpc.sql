@@ -15,8 +15,7 @@ create type public.ad_card as (
 --  attrs {key: value | {min,max}}, sort (newest|oldest|price_asc|price_desc|nearest|relevance),
 --  lat, lng, radius_km, featured_only, seller_id, exclude_id, limit (≤50), offset
 create or replace function public.search_ads(p jsonb default '{}'::jsonb)
-returns setof public.ad_card language plpgsql stable security definer set search_path = ''
-set pg_trgm.word_similarity_threshold = 0.4 as $$
+returns setof public.ad_card language plpgsql stable security definer set search_path = '' as $$
 declare
   q text := public.normalize_ar(p ->> 'q');
   toks text[];
@@ -76,7 +75,7 @@ begin
       and ($10 is null or a.user_id = $10)
       and ($11 is null or a.id <> $11)
       and ($12 is null or (select bool_and(a.search_text like '%%' || t || '%%'
-             or (t operator(extensions.<%%) a.search_text and public.fuzzy_word_match(t, a.search_text))) from unnest($12) t))
+             or (extensions.word_similarity(t, a.search_text) >= 0.4 and public.fuzzy_word_match(t, a.search_text))) from unnest($12) t))
       %s
       and ($13 <> 'nearest' or ($1 is not null and 6371 * 2 * asin(sqrt(power(sin(radians(coalesce(a.lat, g.lat) - $1) / 2), 2) +
                cos(radians($1)) * cos(radians(coalesce(a.lat, g.lat))) * power(sin(radians(coalesce(a.lng, g.lng) - $2) / 2), 2))) <= $14))

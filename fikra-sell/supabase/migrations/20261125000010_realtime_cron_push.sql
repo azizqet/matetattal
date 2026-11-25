@@ -34,6 +34,6 @@ do $$ begin
     perform cron.schedule('fikra-housekeeping', '17 3 * * *', 'select private.housekeeping()');
   end if;
   if exists (select 1 from pg_available_extensions where name = 'pg_net') then
-    create extension if not exists pg_net;
+    create extension if not exists pg_net with schema extensions;
   end if;
 end $$;

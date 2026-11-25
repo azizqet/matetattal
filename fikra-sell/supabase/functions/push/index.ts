@@ -3,9 +3,9 @@
 // Sends it to the recipient's devices through the Expo Push API, honouring
 // the user's notification preferences, and prunes invalid tokens.
 //
-// Secrets (Dashboard → Edge Functions → Secrets):
-//   PUSH_WEBHOOK_SECRET   shared secret, also stored in private.config('push_secret')
-//   SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are injected automatically.
+// The caller must send x-push-secret; it is checked against private.config
+// through the service-role-only RPC verify_push_secret (migration 0013).
+// SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are injected automatically.
 import { createClient } from "npm:@supabase/supabase-js@2.119.2";
 
 const PREF_BY_TYPE: Record<string, string> = {
@@ -20,19 +20,14 @@ const PREF_BY_TYPE: Record<string, string> = {
   support: "general",
 };
 
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let r = 0;
-  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return r === 0;
-}
-
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("method not allowed", { status: 405 });
-  const secret = Deno.env.get("PUSH_WEBHOOK_SECRET") ?? "";
-  if (!secret || !timingSafeEqual(req.headers.get("x-push-secret") ?? "", secret)) {
-    return new Response("unauthorized", { status: 401 });
-  }
+  const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
+    auth: { persistSession: false },
+  });
+  const provided = req.headers.get("x-push-secret") ?? "";
+  const { data: ok } = provided ? await db.rpc("verify_push_secret", { p_secret: provided }) : { data: false };
+  if (ok !== true) return new Response("unauthorized", { status: 401 });
 
   let id: number;
   try {
@@ -41,10 +36,6 @@ Deno.serve(async (req) => {
   } catch {
     return new Response("bad request", { status: 400 });
   }
-
-  const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
-    auth: { persistSession: false },
-  });
 
   const { data: n } = await db.from("notifications").select("*").eq("id", id).single();
   if (!n || n.pushed_at) return Response.json({ skipped: true });
