@@ -4,7 +4,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Alert } from 'react-native';
 import { getProfile } from './api';
 import { supabase } from './supabase';
 import type { Profile } from './types';
@@ -23,8 +22,6 @@ type AuthCtx = {
   setNewPassword: (password: string) => Promise<void>;
   /** Seconds the user must wait before another sign-in attempt (client-side back-off). */
   lockedFor: () => Promise<number>;
-  /** Silent device account (no e-mail, no password): created on first use. */
-  ensureSession: () => Promise<string>;
 };
 
 const Ctx = createContext<AuthCtx | null>(null);
@@ -32,20 +29,6 @@ const FAIL_KEY = 'fikra.auth.failures';
 
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 export const passwordOk = (p: string) => p.length >= 8 && /[A-Za-z؀-ۿ]/.test(p) && /\d/.test(p);
-
-// One in-flight anonymous sign-in shared by every caller.
-let pendingAnon: Promise<string> | null = null;
-export function ensureDeviceSession(): Promise<string> {
-  if (pendingAnon) return pendingAnon;
-  pendingAnon = (async () => {
-    const { data } = await supabase.auth.getSession();
-    if (data.session) return data.session.user.id;
-    const r = await supabase.auth.signInAnonymously({ options: { data: { full_name: 'معلن', locale: 'ar' } } });
-    if (r.error || !r.data.user) throw r.error ?? new Error('anonymous_sign_in_failed');
-    return r.data.user.id;
-  })().finally(() => { pendingAnon = null; });
-  return pendingAnon;
-}
 
 async function failures(): Promise<number[]> {
   try { return JSON.parse((await AsyncStorage.getItem(FAIL_KEY)) ?? '[]'); } catch { return []; }
@@ -72,8 +55,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then(async ({ data }) => {
         setSession(data.session);
         if (data.session) loadProfile(data.session.user.id);
-        // No visible sign-in: every device gets a silent account in the background.
-        else ensureDeviceSession().catch(() => { /* retried on first action */ });
       })
       .catch(() => { /* corrupted storage → continue as guest */ })
       .finally(() => { clearTimeout(failsafe); done(); });
@@ -104,18 +85,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profile,
     refreshProfile: () => loadProfile(session?.user.id),
     async signUp(name, email, password, locale) {
-      const { data, error } = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
-        password,
-        options: { data: { full_name: name.trim(), locale } },
-      });
-      if (error) throw error;
-      // E-mail confirmation is disabled on the project, so a session is
-      // returned immediately. If it ever is not, sign in right away.
-      if (!data.session) {
-        const r = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
-        if (r.error) throw r.error;
+      // Instant sign-up: the "signup" Edge Function creates the account already
+      // confirmed (no confirmation e-mail, no OTP); we then sign in right away.
+      const addr = email.trim().toLowerCase();
+      const { error } = await supabase.functions.invoke('signup', { body: { name: name.trim(), email: addr, password, locale } });
+      if (error) {
+        let code = 'signup_failed';
+        try { const b = await (error as { context?: Response }).context?.json(); if (b?.code) code = b.code; } catch { /* network */ }
+        if (code === 'signup_failed' && /fetch|network/i.test(String(error.message))) throw error;
+        throw Object.assign(new Error(code), { code, status: code === 'signup_rate_limited' ? 429 : 400 });
       }
+      const r = await supabase.auth.signInWithPassword({ email: addr, password });
+      if (r.error) throw r.error;
     },
     async signIn(email, password) {
       const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
@@ -143,7 +124,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
     },
     lockedFor,
-    ensureSession: ensureDeviceSession,
   }), [ready, session, profile, loadProfile, lockedFor, qc]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -157,16 +137,13 @@ export function useAuth(): AuthCtx {
 
 export type GuardReason = 'post' | 'chat' | 'favorite' | 'report' | 'default';
 
-/** Runs `fn` with a session, creating the silent device account first if needed. */
+/** Runs `fn` when signed in; otherwise opens sign-in / instant sign-up explaining why. */
 export function useRequireAuth() {
   const { userId } = useAuth();
   return useCallback(
-    (_reason: GuardReason, fn: () => void) => {
-      if (userId) { fn(); return; }
-      ensureDeviceSession().then(() => fn()).catch((e: { code?: string; message?: string }) => {
-        const disabled = e?.code === 'anonymous_provider_disabled' || /anonymous sign-ins are disabled/i.test(e?.message ?? '');
-        Alert.alert('', disabled ? 'إضافة الإعلانات بدون تسجيل غير مفعّلة حالياً على الخادم. يرجى المحاولة لاحقاً.' : 'تعذّر الاتصال. تحقق من الإنترنت وحاول مرة أخرى.');
-      });
+    (reason: GuardReason, fn: () => void) => {
+      if (userId) fn();
+      else router.push({ pathname: '/auth/sign-up', params: { reason } });
     },
     [userId],
   );

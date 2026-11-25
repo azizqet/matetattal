@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect } from 'react';
@@ -7,7 +8,7 @@ import { Icon, type IconName } from '../components/Icon';
 import { Header, T } from '../components/ui';
 import { useI18n } from '../i18n';
 import { markAllNotificationsRead, markNotificationRead, notificationsList } from '../lib/api';
-import { ensureDeviceSession, useAuth } from '../lib/auth';
+import { useAuth } from '../lib/auth';
 import { relativeTime } from '../lib/format';
 import { routeFromNotificationData } from '../lib/push';
 import { supabase } from '../lib/supabase';
@@ -48,7 +49,7 @@ export default function Notifications() {
         <Pressable onPress={async () => { await markAllNotificationsRead(); q.refetch(); qc.invalidateQueries({ queryKey: ['counters'] }); }} hitSlop={8} style={{ paddingHorizontal: space.md }} testID="mark-all-read">
           <T v="small" color={c.primary} style={{ fontFamily: font.semibold }}>{t('notifications.markAll')}</T>
         </Pressable>) : undefined} />
-      {!userId ? <EmptyState icon="bell" title={t('common.signInRequired')} action={t('common.continue')} onAction={() => { ensureDeviceSession().catch(() => {}); }} /> : (
+      {!userId ? <EmptyState icon="bell" title={t('common.signInRequired')} action={t('auth.signUp')} onAction={() => router.push({ pathname: '/auth/sign-up', params: { reason: 'default' } })} /> : (
         <FlatList
           data={q.data ?? []}
           keyExtractor={(n) => String(n.id)}

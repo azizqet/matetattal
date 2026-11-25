@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, type TextInputInstance, View } from 'react-native';
 import { AuthShell } from '../../components/AuthShell';
@@ -20,6 +20,7 @@ export default function SignUp() {
   const { t, lang } = useI18n();
   const toast = useToast();
   const { signUp } = useAuth();
+  const { reason } = useLocalSearchParams<{ reason?: string }>();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,6 +47,7 @@ export default function SignUp() {
       toast.show(t('auth.welcome'), 'success');
       router.dismissAll();
       router.replace('/');
+      if (reason === 'post') setTimeout(() => router.push('/post/new'), 350);
     } catch (err) {
       const a = toAppError(err);
       setErrors({ form: t(a.key, a.vars) });

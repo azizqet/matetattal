@@ -6,7 +6,7 @@ const ar = {
     reset: 'مسح', loading: 'جارٍ التحميل…', seeAll: 'عرض الكل', share: 'مشاركة', report: 'إبلاغ', block: 'حظر',
     unblock: 'إلغاء الحظر', send: 'إرسال', optional: 'اختياري', required: 'مطلوب', continue: 'متابعة', or: 'أو',
     kwd: 'د.ك', copy: 'نسخ', copied: 'تم النسخ', choose: 'اختر', select: 'اختيار', clear: 'مسح', more: 'المزيد',
-    signInRequired: 'اضغط متابعة للبدء',
+    signInRequired: 'سجّل دخولك للمتابعة',
   },
   tabs: { home: 'الرئيسية', categories: 'الأقسام', post: 'أضف إعلان', chats: 'المحادثات', account: 'حسابي' },
   home: {
@@ -69,7 +69,7 @@ const ar = {
     haveAccount: 'لديك حساب؟', noAccount: 'ليس لديك حساب؟', forgot: 'نسيت كلمة المرور؟', resetTitle: 'استعادة كلمة المرور',
     resetBody: 'أدخل بريدك وسنرسل لك رابطاً لتعيين كلمة مرور جديدة.', sendLink: 'إرسال الرابط',
     resetSent: 'إذا كان البريد مسجلاً فستصلك رسالة خلال دقائق.', newPassword: 'كلمة المرور الجديدة', setPassword: 'حفظ كلمة المرور',
-    passwordUpdated: 'تم تحديث كلمة المرور', welcome: 'أهلاً بك في سيـ فكرة ـل', guestPrompt: 'اضغط متابعة لتتمكن من {action}',
+    passwordUpdated: 'تم تحديث كلمة المرور', welcome: 'أهلاً بك في سيـ فكرة ـل', guestPrompt: 'أنشئ حساباً بثوانٍ لتتمكن من {action}',
     actionPost: 'نشر إعلان', actionChat: 'مراسلة المعلنين', actionFavorite: 'حفظ المفضلة', actionReport: 'الإبلاغ',
     actionDefault: 'المتابعة', continueBrowsing: 'متابعة التصفح', terms: 'بإنشاء الحساب أنت توافق على {terms} و{privacy}.',
     termsLink: 'شروط الاستخدام', privacyLink: 'سياسة الخصوصية', invalidEmail: 'البريد الإلكتروني غير صحيح',
@@ -77,7 +77,7 @@ const ar = {
     tooManyAttempts: 'محاولات كثيرة. انتظر {s} ثانية ثم حاول مجدداً.', signOut: 'تسجيل الخروج', signOutConfirm: 'هل تريد تسجيل الخروج؟',
   },
   account: {
-    title: 'حسابي', guestTitle: 'أهلاً بك', guestBody: 'بدون تسجيل: انشر إعلانك وراسل المعلنين مباشرة من هذا الجهاز.',
+    title: 'حسابي', guestTitle: 'أهلاً بك', guestBody: 'أنشئ حساباً بالاسم والبريد وكلمة المرور، وادخل فوراً دون أي رسالة تأكيد.',
     myAds: 'إعلاناتي', favorites: 'المفضلة', savedSearches: 'عمليات البحث المحفوظة', notifications: 'الإشعارات',
     packages: 'الباقات والاشتراكات', settings: 'الإعدادات', support: 'التواصل مع الدعم', privacy: 'سياسة الخصوصية',
     terms: 'شروط الاستخدام', guidelines: 'إرشادات المجتمع', editProfile: 'تعديل الملف الشخصي', manage: 'إدارة الحساب',

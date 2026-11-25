@@ -53,3 +53,6 @@ enable_confirmations = false
 
 [functions.push]
 verify_jwt = false            # authenticated by the x-push-secret header instead
+
+[functions.signup]
+verify_jwt = false            # public sign-up endpoint (rate-limited per IP)

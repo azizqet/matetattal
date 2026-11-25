@@ -8,7 +8,7 @@ const en: Dict = {
     reset: 'Reset', loading: 'Loading…', seeAll: 'See all', share: 'Share', report: 'Report', block: 'Block',
     unblock: 'Unblock', send: 'Send', optional: 'Optional', required: 'Required', continue: 'Continue', or: 'or',
     kwd: 'KWD', copy: 'Copy', copied: 'Copied', choose: 'Choose', select: 'Select', clear: 'Clear', more: 'More',
-    signInRequired: 'Tap continue to start',
+    signInRequired: 'Sign in to continue',
   },
   tabs: { home: 'Home', categories: 'Categories', post: 'Post ad', chats: 'Chats', account: 'Account' },
   home: {
@@ -79,7 +79,7 @@ const en: Dict = {
     tooManyAttempts: 'Too many attempts. Wait {s} seconds and try again.', signOut: 'Sign out', signOutConfirm: 'Sign out of your account?',
   },
   account: {
-    title: 'Account', guestTitle: 'Welcome', guestBody: 'Create a free account to post ads and message sellers.',
+    title: 'Account', guestTitle: 'Welcome', guestBody: 'Sign up with name, e-mail and password and you are in instantly — no confirmation e-mail.',
     myAds: 'My ads', favorites: 'Favourites', savedSearches: 'Saved searches', notifications: 'Notifications',
     packages: 'Plans & subscriptions', settings: 'Settings', support: 'Contact support', privacy: 'Privacy Policy',
     terms: 'Terms of Use', guidelines: 'Community Guidelines', editProfile: 'Edit profile', manage: 'Manage account',

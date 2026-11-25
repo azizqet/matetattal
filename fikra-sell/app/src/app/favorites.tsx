@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import React from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
@@ -7,7 +8,7 @@ import { Header } from '../components/ui';
 import { useFavorites } from '../hooks/data';
 import { useI18n } from '../i18n';
 import { getAdsByIds } from '../lib/api';
-import { ensureDeviceSession, useAuth } from '../lib/auth';
+import { useAuth } from '../lib/auth';
 import type { AdCard as Card } from '../lib/types';
 import { useTheme } from '../theme/ThemeProvider';
 import { space } from '../theme/tokens';
@@ -36,7 +37,7 @@ export default function Favorites() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <Header title={t('account.favorites')} />
-      {!userId ? <EmptyState icon="heart" title={t('auth.guestPrompt', { action: t('auth.actionFavorite') })} action={t('common.continue')} onAction={() => { ensureDeviceSession().catch(() => {}); }} /> : (
+      {!userId ? <EmptyState icon="heart" title={t('auth.guestPrompt', { action: t('auth.actionFavorite') })} action={t('auth.signUp')} onAction={() => router.push({ pathname: '/auth/sign-up', params: { reason: 'favorite' } })} /> : (
         <FlatList
           data={q.data ?? []}
           keyExtractor={(a) => String(a.id)}
