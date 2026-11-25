@@ -1,19 +1,23 @@
 import type { ExpoConfig, ConfigContext } from "expo/config";
 
 const IS_PROD = process.env.APP_VARIANT !== "development";
+const EAS_PROJECT_ID = process.env.EAS_PROJECT_ID ?? "12b7eae0-e687-46e2-888f-fe48651e0f2e";
+// Previews in the Expo Go app need an SDK-based runtime version; store builds use the app version.
+const EXPO_GO_PREVIEW = process.env.FAZZA_EXPO_GO === "1";
 const BUNDLE_ID = IS_PROD ? "kw.fazza.app" : "kw.fazza.app.dev";
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: IS_PROD ? "فزّاع FAZZA" : "FAZZA Dev",
   slug: "fazza",
+  owner: "azizqet",
   scheme: "fazza",
   version: "1.0.0",
   orientation: "portrait",
   icon: "./assets/brand/icon.png",
   userInterfaceStyle: "automatic",
-  runtimeVersion: { policy: "appVersion" },
-  updates: process.env.EAS_PROJECT_ID ? { url: `https://u.expo.dev/${process.env.EAS_PROJECT_ID}` } : undefined,
+  runtimeVersion: EXPO_GO_PREVIEW ? "exposdk:58.0.0" : { policy: "appVersion" },
+  updates: { url: `https://u.expo.dev/${EAS_PROJECT_ID}` },
   ios: {
     bundleIdentifier: BUNDLE_ID,
     buildNumber: "1",
@@ -101,7 +105,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ],
   experiments: { typedRoutes: true },
   extra: {
-    eas: process.env.EAS_PROJECT_ID ? { projectId: process.env.EAS_PROJECT_ID } : undefined,
+    eas: { projectId: EAS_PROJECT_ID },
     supportUrl: "https://fazza.kw/support",
   },
 });
