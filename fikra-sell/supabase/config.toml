@@ -1,0 +1,55 @@
+# FIKRA SELL · Supabase configuration (used by `supabase link` + `supabase config push`)
+project_id = "fikra-sell"
+
+[api]
+enabled = true
+schemas = ["public"]          # "private" is never exposed
+extra_search_path = ["extensions"]
+max_rows = 200
+
+[db]
+major_version = 17
+
+[realtime]
+enabled = true
+
+[storage]
+enabled = true
+file_size_limit = "6MiB"
+
+[auth]
+enabled = true
+site_url = "fikrasell://"
+additional_redirect_urls = ["fikrasell://reset-password", "exp://**", "https://*.expo.app/**"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+enable_anonymous_sign_ins = false
+minimum_password_length = 8
+password_requirements = "letters_digits"
+
+[auth.rate_limit]
+# Per-IP limits enforced by Supabase Auth (anti brute-force / mass sign-up)
+email_sent = 30
+sign_in_sign_ups = 20        # per 5 minutes per IP
+token_refresh = 150
+token_verifications = 30
+
+[auth.email]
+enable_signup = true
+# Instant access: users are signed in right after sign-up. No confirmation
+# e-mail, no OTP, no activation link. The address is treated as UNVERIFIED.
+enable_confirmations = false
+double_confirm_changes = true
+secure_password_change = false
+max_frequency = "60s"
+otp_length = 6
+otp_expiry = 3600
+
+[auth.sms]
+enable_signup = false
+enable_confirmations = false
+
+[functions.push]
+verify_jwt = false            # authenticated by the x-push-secret header instead
