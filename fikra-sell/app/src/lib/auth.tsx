@@ -163,7 +163,10 @@ export function useRequireAuth() {
   return useCallback(
     (_reason: GuardReason, fn: () => void) => {
       if (userId) { fn(); return; }
-      ensureDeviceSession().then(() => fn()).catch(() => Alert.alert('', 'تعذّر الاتصال. تحقق من الإنترنت وحاول مرة أخرى.'));
+      ensureDeviceSession().then(() => fn()).catch((e: { code?: string; message?: string }) => {
+        const disabled = e?.code === 'anonymous_provider_disabled' || /anonymous sign-ins are disabled/i.test(e?.message ?? '');
+        Alert.alert('', disabled ? 'إضافة الإعلانات بدون تسجيل غير مفعّلة حالياً على الخادم. يرجى المحاولة لاحقاً.' : 'تعذّر الاتصال. تحقق من الإنترنت وحاول مرة أخرى.');
+      });
     },
     [userId],
   );
