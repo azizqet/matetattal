@@ -18,3 +18,5 @@ apps/mobile/android/
 google-services.json
 GoogleService-Info.plist
 coverage/
+dist-native/
+dist-web/
