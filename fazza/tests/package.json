@@ -3,14 +3,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run unit backend e2e",
     "test:unit": "vitest run unit",
-    "test:backend": "vitest run backend"
+    "test:backend": "vitest run backend",
+    "test:e2e": "vitest run e2e",
+    "test:backup": "vitest run backup",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@supabase/supabase-js": "^2.119.2",
     "@types/pg": "^8.23.1",
     "pg": "^8.23.1",
+    "playwright": "^1.63.0",
     "typescript": "^7.0.2",
     "vitest": "^3.2.7"
   }

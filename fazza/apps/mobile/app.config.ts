@@ -30,7 +30,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       CFBundleAllowMixedLocalizations: true,
       CFBundleLocalizations: ["ar", "en"],
       CFBundleDevelopmentRegion: "ar",
-      ITSAppUsesNonExemptEncryption: false,
     },
     privacyManifests: {
       NSPrivacyTracking: false,

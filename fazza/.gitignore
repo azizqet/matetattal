@@ -21,3 +21,4 @@ coverage/
 dist-native/
 dist-web/
 store/raw/
+apps/site/dist/

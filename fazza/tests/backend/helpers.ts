@@ -10,6 +10,7 @@ export const FN = `${URL}/functions/v1`;
 export const PASSWORD = "Fazza2026pass";
 
 export const pool = new pg.Pool({ connectionString: DB_URL, max: 5 });
+pool.on("error", () => undefined); // idle clients may be terminated (e.g. database reset in the DR drill)
 export const sql = async <T = any>(q: string, params: unknown[] = []) => (await pool.query(q, params)).rows as T[];
 
 export function uniquePhone(): string {

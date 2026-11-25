@@ -1,0 +1,67 @@
+name: FAZZA CI
+on:
+  push:
+    paths: ["fazza/**", ".github/workflows/fazza-ci.yml"]
+  pull_request:
+    paths: ["fazza/**", ".github/workflows/fazza-ci.yml"]
+permissions:
+  contents: read
+concurrency:
+  group: fazza-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    name: Typecheck, lint, unit tests, bundles
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: fazza } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm ci --prefix apps/mobile && npm ci --prefix apps/admin && npm ci --prefix tests
+      - name: Mobile — typecheck, lint, jest
+        working-directory: fazza/apps/mobile
+        run: npx tsc --noEmit && npx expo lint && npx jest
+      - name: Mobile — production JS bundles (iOS + Android)
+        working-directory: fazza/apps/mobile
+        env: { EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co, EXPO_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder }
+        run: npx expo export --platform ios --platform android --output-dir /tmp/bundles
+      - name: Admin — typecheck, lint, build
+        working-directory: fazza/apps/admin
+        env: { VITE_SUPABASE_URL: https://example.supabase.co, VITE_SUPABASE_ANON_KEY: ci-placeholder }
+        run: npx tsc -b && npx eslint . && npx vite build
+      - name: Shared unit tests
+        working-directory: fazza/tests
+        run: npx vitest run unit
+      - name: Dependency audit (runtime deps)
+        run: npm audit --omit=dev --audit-level=high --prefix apps/admin && npm audit --omit=dev --audit-level=high --prefix apps/mobile
+
+  backend:
+    name: Database, RLS, Edge Functions & E2E
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: fazza } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - run: printf 'FAZZA_AUTH_HOOK_ENABLED=true\nPUSH_WEBHOOK_SECRET=local-dev-push-secret\n' > supabase/functions/.env
+      - run: supabase start
+      - run: npm ci --prefix tests && npm ci --prefix apps/mobile && npm ci --prefix apps/admin
+      - run: cd tests && npx playwright install --with-deps chromium
+      - name: Build web targets for UI E2E
+        run: |
+          (cd apps/mobile && printf 'EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321\nEXPO_PUBLIC_SUPABASE_ANON_KEY=%s\n' "$(supabase status -o json | jq -r .ANON_KEY)" > .env.local && npx expo export --platform web --output-dir dist-web)
+          (cd apps/admin && printf 'VITE_SUPABASE_URL=http://127.0.0.1:54321\nVITE_SUPABASE_ANON_KEY=%s\n' "$(supabase status -o json | jq -r .ANON_KEY)" > .env.local && npx vite build)
+          SUPABASE_ANON_KEY="$(supabase status -o json | jq -r .ANON_KEY)" node scripts/site/build.mjs
+      - name: Backend + E2E tests
+        working-directory: fazza/tests
+        env: { PLAYWRIGHT_PATH: playwright }
+        run: npx vitest run backend e2e
+      - name: Disaster-recovery drill (backup -> reset -> restore)
+        working-directory: fazza/tests
+        run: npx vitest run backup
+      - name: Database lint
+        run: supabase db lint --level error
