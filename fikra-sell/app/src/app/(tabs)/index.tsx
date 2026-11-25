@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AdCard } from '../../components/AdCard';
 import { AdFeed, useFeedLayout } from '../../components/AdFeed';
 import { BannerStrip, CategoryTile } from '../../components/Blocks';
-import { Lockup } from '../../components/Brand';
+import { FikraLogo } from '../../components/Brand';
 import { AdCardSkeleton, Skeleton } from '../../components/feedback';
 import { Icon } from '../../components/Icon';
 import { PlacePill, usePlace } from '../../components/PlacePicker';
@@ -62,7 +62,7 @@ export default function Home() {
       {/* Logo + actions, search, place */}
       <View style={{ paddingTop: insets.top + 6, paddingHorizontal: space.lg, gap: space.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <View style={{ flex: 1, alignItems: 'flex-start' }}><Lockup height={28} /></View>
+          <View style={{ flex: 1, alignItems: 'flex-start' }}><FikraLogo height={52} /></View>
           <IconButton name="heart" label={t('account.favorites')} onPress={() => router.push('/favorites')} testID="home-favorites" />
           <IconButton name="bell" label={t('notifications.title')} badge={counters.data?.unread_notifications} onPress={() => router.push('/notifications')} testID="home-notifications" />
         </View>

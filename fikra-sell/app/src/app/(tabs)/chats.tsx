@@ -8,7 +8,7 @@ import { EmptyState, ErrorState, Skeleton } from '../../components/feedback';
 import { Avatar, Button, T } from '../../components/ui';
 import { useI18n } from '../../i18n';
 import { conversations } from '../../lib/api';
-import { useAuth } from '../../lib/auth';
+import { ensureDeviceSession, useAuth } from '../../lib/auth';
 import { relativeTime } from '../../lib/format';
 import { publicUrl, supabase } from '../../lib/supabase';
 import type { Conversation, Profile } from '../../lib/types';
@@ -56,7 +56,7 @@ export default function Chats() {
       <View style={{ flex: 1, backgroundColor: c.bg }}>
         {header}
         <EmptyState icon="chat" title={t('auth.guestPrompt', { action: t('auth.actionChat') })} body={t('account.guestBody')}
-          action={t('auth.signIn')} onAction={() => router.push({ pathname: '/auth/sign-in', params: { reason: 'chat' } })} />
+          action={t('common.continue')} onAction={() => { ensureDeviceSession().catch(() => {}); }} />
       </View>
     );
   }

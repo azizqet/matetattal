@@ -34,7 +34,7 @@ const logoPath = path.join(ROOT, 'brand/source/fikra-logo.png');
 const hasLogo = fs.existsSync(logoPath);
 const LOGO = hasLogo ? `data:image/png;base64,${fs.readFileSync(logoPath).toString('base64')}` : null;
 if (hasLogo) {
-  fs.copyFileSync(logoPath, path.join(OUT_APP, 'fikra-logo.png'));
+  fs.copyFileSync(fs.existsSync(logoPath.replace('.png', '-transparent.png')) ? logoPath.replace('.png', '-transparent.png') : logoPath, path.join(OUT_APP, 'fikra-logo.png'));
   fs.copyFileSync(logoPath, path.join(OUT_BRAND, 'fikra-logo-original.png'));
 }
 

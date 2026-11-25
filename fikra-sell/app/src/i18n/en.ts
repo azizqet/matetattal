@@ -8,7 +8,7 @@ const en: Dict = {
     reset: 'Reset', loading: 'Loading…', seeAll: 'See all', share: 'Share', report: 'Report', block: 'Block',
     unblock: 'Unblock', send: 'Send', optional: 'Optional', required: 'Required', continue: 'Continue', or: 'or',
     kwd: 'KWD', copy: 'Copy', copied: 'Copied', choose: 'Choose', select: 'Select', clear: 'Clear', more: 'More',
-    signInRequired: 'Sign in to continue',
+    signInRequired: 'Tap continue to start',
   },
   tabs: { home: 'Home', categories: 'Categories', post: 'Post ad', chats: 'Chats', account: 'Account' },
   home: {

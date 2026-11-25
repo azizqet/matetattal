@@ -22,7 +22,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/brand/icon.png',
-  userInterfaceStyle: 'automatic',
+  userInterfaceStyle: 'light',
   backgroundColor: '#FFFFFF',
   runtimeVersion: FOR_EXPO_GO ? { policy: 'sdkVersion' } : { policy: 'appVersion' },
   updates: EAS_PROJECT_ID ? { url: `https://u.expo.dev/${EAS_PROJECT_ID}`, checkAutomatically: 'ON_LOAD', fallbackToCacheTimeout: 0 } : undefined,

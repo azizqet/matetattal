@@ -37,14 +37,15 @@ export default function ManageAccount() {
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <Header title={t('account.manage')} />
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.xl }}>
-        <Card style={{ padding: space.lg, gap: space.xs }}>
-          <T v="small" muted>{t('auth.email')}</T>
-          <T v="bodyStrong">{email}</T>
-          <Badge label={t('account.emailUnverified')} />
-        </Card>
+        {!!email && (
+          <Card style={{ padding: space.lg, gap: space.xs }}>
+            <T v="small" muted>{t('auth.email')}</T>
+            <T v="bodyStrong">{email}</T>
+            <Badge label={t('account.emailUnverified')} />
+          </Card>
+        )}
         <Card>
-          <Row icon="lock" label={t('account.changePassword')} onPress={() => setPwOpen(true)} testID="change-password" />
-          <Divider />
+          {!!email && <><Row icon="lock" label={t('account.changePassword')} onPress={() => setPwOpen(true)} testID="change-password" /><Divider /></>}
           <Row icon="block" label={t('account.blockedUsers')} onPress={() => router.push('/blocked')} />
           <Divider />
           <Row icon="trash" danger label={t('account.deleteAccount')} onPress={() => setDelOpen(true)} testID="delete-account" />

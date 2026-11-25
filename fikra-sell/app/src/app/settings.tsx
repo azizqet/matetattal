@@ -7,11 +7,11 @@ import { useI18n, type Lang } from '../i18n';
 import { getMySettings, updateMySettings } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import type { ProfileSettings } from '../lib/types';
-import { useTheme, type ThemeMode } from '../theme/ThemeProvider';
+import { useTheme } from '../theme/ThemeProvider';
 import { space } from '../theme/tokens';
 
 export default function Settings() {
-  const { c, mode, setMode } = useTheme();
+  const { c } = useTheme();
   const { t, lang, setLang } = useI18n();
   const { userId } = useAuth();
   const toast = useToast();
@@ -34,11 +34,6 @@ export default function Settings() {
           <T v="bodyStrong">{t('account.language')}</T>
           <Segmented<Lang> value={lang} onChange={async (l) => { if (userId) updateMySettings(userId, { locale: l }).catch(() => {}); await setLang(l); }}
             options={[{ value: 'ar', label: 'العربية' }, { value: 'en', label: 'English' }]} />
-        </View>
-        <View style={{ gap: space.sm }}>
-          <T v="bodyStrong">{t('account.theme')}</T>
-          <Segmented<ThemeMode> value={mode} onChange={setMode}
-            options={[{ value: 'system', label: t('account.themeSystem') }, { value: 'light', label: t('account.themeLight') }, { value: 'dark', label: t('account.themeDark') }]} />
         </View>
         {userId && prefs && (
           <View style={{ gap: space.sm }}>

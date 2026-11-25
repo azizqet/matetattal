@@ -18,7 +18,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.getItem(KEY).then((v) => { if (v === 'light' || v === 'dark' || v === 'system') setModeState(v); }).catch(() => {});
   }, []);
 
-  const isDark = mode === 'dark' || (mode === 'system' && system === 'dark');
+  // Clean white design (the logo is drawn on white): dark mode is disabled.
+  void system;
+  const isDark = false;
   const c = isDark ? dark : light;
 
   useEffect(() => { SystemUI.setBackgroundColorAsync(c.bg).catch(() => {}); }, [c.bg]);

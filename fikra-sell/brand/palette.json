@@ -1,0 +1,110 @@
+{
+  "source": "brand/source/fikra-logo.png",
+  "sha256": "52242105456b3b8919e51c2ec89a7e84140e84f70263edd5d9318af35941bdab",
+  "background": "#FEFEFE",
+  "colors": [
+    {
+      "hex": "#080808",
+      "rgb": [
+        8,
+        8,
+        8
+      ],
+      "share": 0.2855,
+      "hue": 0.0,
+      "lightness": 0.031,
+      "chroma": 0
+    },
+    {
+      "hex": "#FFB94A",
+      "rgb": [
+        255,
+        185,
+        74
+      ],
+      "share": 0.2095,
+      "hue": 36.8,
+      "lightness": 0.645,
+      "chroma": 181
+    },
+    {
+      "hex": "#3FCDDB",
+      "rgb": [
+        63,
+        205,
+        219
+      ],
+      "share": 0.1429,
+      "hue": 185.4,
+      "lightness": 0.553,
+      "chroma": 156
+    },
+    {
+      "hex": "#FC3635",
+      "rgb": [
+        252,
+        54,
+        53
+      ],
+      "share": 0.1269,
+      "hue": 0.3,
+      "lightness": 0.598,
+      "chroma": 199
+    },
+    {
+      "hex": "#070707",
+      "rgb": [
+        7,
+        7,
+        7
+      ],
+      "share": 0.08,
+      "hue": 0.0,
+      "lightness": 0.027,
+      "chroma": 0
+    },
+    {
+      "hex": "#050505",
+      "rgb": [
+        5,
+        5,
+        5
+      ],
+      "share": 0.0781,
+      "hue": 0.0,
+      "lightness": 0.02,
+      "chroma": 0
+    },
+    {
+      "hex": "#1B1B1B",
+      "rgb": [
+        27,
+        27,
+        27
+      ],
+      "share": 0.0432,
+      "hue": 0.0,
+      "lightness": 0.106,
+      "chroma": 0
+    },
+    {
+      "hex": "#7C7C7C",
+      "rgb": [
+        124,
+        124,
+        124
+      ],
+      "share": 0.0338,
+      "hue": 0.0,
+      "lightness": 0.486,
+      "chroma": 0
+    }
+  ],
+  "roles": {
+    "primaryBright": "#3FCDDB",
+    "primary": "#28818A",
+    "featured": "#FFB94A",
+    "alert": "#FC3635",
+    "ink": "#050505"
+  }
+}

@@ -74,7 +74,7 @@ def extract(path: pathlib.Path):
     def pick(lo, hi):
         return next((c for c in chromatic if hue_in(c, lo, hi)), None)
     turquoise = pick(150, 200)
-    yellow = pick(38, 65)
+    yellow = pick(30, 65)
     red = pick(340, 15)
     neutrals = [c for c in found if c["chroma"] < 40]
     dark = min(neutrals, key=lambda c: lum(c["rgb"])) if neutrals else None
